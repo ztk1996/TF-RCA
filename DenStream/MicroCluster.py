@@ -2,13 +2,18 @@ import numpy as np
 
 
 class MicroCluster:
-    def __init__(self, lambd, creation_time):
+    def __init__(self, lambd, creation_time, micro_cluster_label):
         self.lambd = lambd
         self.decay_factor = 2 ** (-lambd)
         self.mean = 0
         self.variance = 0
         self.sum_of_weights = 0
         self.creation_time = creation_time
+        
+        # improvement
+        self.label = micro_cluster_label
+        self.energy = 1    # float
+        self.count = 1    # int
 
     def insert_sample(self, sample, weight):
         if self.sum_of_weights != 0:
@@ -34,6 +39,9 @@ class MicroCluster:
             self.mean = sample
             self.sum_of_weights = weight
 
+    def update_center_dimension(self, sample):
+        self.mean = np.append(self.mean, [0]*(len(sample)-len(self.mean)))
+
     def radius(self):
         if self.sum_of_weights > 0:
             return np.linalg.norm(np.sqrt(self.variance / self.sum_of_weights))
@@ -47,8 +55,12 @@ class MicroCluster:
         return self.sum_of_weights
 
     def __copy__(self):
-        new_micro_cluster = MicroCluster(self.lambd, self.creation_time)
+        new_micro_cluster = MicroCluster(self.lambd, self.creation_time, self.label)
         new_micro_cluster.sum_of_weights = self.sum_of_weights
         new_micro_cluster.variance = self.variance
         new_micro_cluster.mean = self.mean
+        # improvement
+        new_micro_cluster.energy = self.energy    # float
+        new_micro_cluster.count = self.count    # int
+
         return new_micro_cluster

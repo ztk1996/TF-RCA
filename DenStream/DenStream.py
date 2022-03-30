@@ -1,8 +1,9 @@
 import sys
 import numpy as np
+from sklearn import cluster
 from sklearn.utils import check_array
 from copy import copy
-from MicroCluster import MicroCluster
+from DenStream.MicroCluster import MicroCluster
 from math import ceil
 from sklearn.cluster import DBSCAN
 
@@ -42,6 +43,9 @@ class DenStream:
         self.eps = eps
         self.beta = beta
         self.mu = mu
+        # improvement
+        self.decay = 0.001
+
         # self.t = 0
         self.p_micro_clusters = []
         self.o_micro_clusters = []
@@ -208,12 +212,18 @@ class DenStream:
         if micro_cluster is not None:
             micro_cluster_copy = copy(micro_cluster)
             micro_cluster_copy.insert_sample(sample, weight)
-            if micro_cluster_copy.radius() <= self.eps:
+            if micro_cluster_copy.radius() <= self.eps:    # improvement 这里可以加上密度阈值判断，判断 count，参考 CEDAS
                 micro_cluster.insert_sample(sample, weight)
+                # improvement
+                micro_cluster.energy = 1
+                micro_cluster.count += 1
                 return True
         return False
 
-    def _merging(self, sample, weight, time_stamp):
+    def _merging(self, sample, sample_info, weight):
+        # Update MicroCluster center dimension
+        for cluster in self.p_micro_clusters + self.o_micro_clusters:
+            cluster.update_center_dimension(sample)
         # Try to merge the sample with its nearest p_micro_cluster
         _, nearest_p_micro_cluster = \
             self._get_nearest_micro_cluster(sample, self.p_micro_clusters)
@@ -227,30 +237,60 @@ class DenStream:
                 if nearest_o_micro_cluster.weight() > self.beta * self.mu:
                     del self.o_micro_clusters[index]
                     self.p_micro_clusters.append(nearest_o_micro_cluster)
+                return nearest_o_micro_cluster.label
             else:
+                # Request expert knowledge
+                # improvement
+                cluster_label = self._request_expert_knowledge(sample, sample_info)              
+
                 # Create new o_micro_cluster
-                micro_cluster = MicroCluster(self.lambd, time_stamp)
+                micro_cluster = MicroCluster(self.lambd, sample_info['time_stamp'], cluster_label)    # improvement
                 micro_cluster.insert_sample(sample, weight)
                 self.o_micro_clusters.append(micro_cluster)
+                return micro_cluster.label
+        else:
+            return nearest_p_micro_cluster.label
+
+    def _request_expert_knowledge(self, sample, sample_info):
+        # improvement
+        print("Trace Info:" + "\n" +
+              "--------------------" + "\n" +
+              "trace id: {}".format(sample_info['trace_id']) + "\n" +
+              "trace bool: {}".format("abnormal" if sample_info['trace_bool']==1 else "normal") + "\n" +
+              # "duration: {}".format(duration) + "\n" +
+              # "trace structure: {}".format(structure) + "\n" +
+              "--------------------")
+        cluster_label = input("Please input the label of trace {}:".format(sample_info['trace_id']))
+        # Check cluster label (normal, abnormal, change normal)
+        while cluster_label not in ["normal", "abnormal", "change_normal"]:
+            cluster_label = input("Illegal label! Please input the label of trace {}:".format(sample_info['trace_id']))
+        return cluster_label
 
     def _decay_function(self, t):
         return 2 ** ((-self.lambd) * (t))
 
-    def _partial_fit(self, sample, weight, time_stamp):
-        self._merging(sample, weight, time_stamp)
-        if time_stamp % self.tp == 0:
+    def Cluster_AnomalyDetector(self, sample, sample_info):
+        # improvement 这里各个 trace 的权重应该由已有的聚类计算出来，暂时还没想好
+        sample_weight = self._validate_sample_weight(sample_weight=None, n_samples=1)
+        sample_label = self._merging(sample, sample_info, sample_weight)
+        # improvement 这里加上对每个簇 energy 的衰减，要不要换成时间窗衰减函数
+        for cluster in self.p_micro_clusters + self.o_micro_clusters:
+            cluster.energy -= self.decay
+
+        if sample_info["time_stamp"] % self.tp == 0:    # 不懂这一步是在干啥？每隔一段时间更新所有簇的状态，有的消失，有的保留
             self.p_micro_clusters = [p_micro_cluster for p_micro_cluster
                                      in self.p_micro_clusters if
                                      p_micro_cluster.weight() >= self.beta *
-                                     self.mu]
-            Xis = [((self._decay_function(time_stamp - o_micro_cluster.creation_time
+                                     self.mu and p_micro_cluster.energy > 0]    # improvement 这里加上对 energy 的判断
+            Xis = [((self._decay_function(sample_info["time_stamp"] - o_micro_cluster.creation_time
                                           + self.tp) - 1) /
                     (self._decay_function(self.tp) - 1)) for o_micro_cluster in
                    self.o_micro_clusters]
             self.o_micro_clusters = [o_micro_cluster for Xi, o_micro_cluster in
                                      zip(Xis, self.o_micro_clusters) if
-                                     o_micro_cluster.weight() >= Xi]
+                                     o_micro_cluster.weight() >= Xi and o_micro_cluster.energy > 0]    # improvement
         # self.t += 1
+        return sample_label
 
     def _validate_sample_weight(self, sample_weight, n_samples):
         """Set the sample weight array."""
@@ -266,9 +306,11 @@ class DenStream:
         return sample_weight
 
 
-#data = np.random.random([1000, 5]) * 1000
-#clusterer = DenStream(lambd=0.1, eps=100, beta=0.5, mu=3)
+
+# if __name__ == "__main__":
+# data = np.random.random([1000, 5]) * 1000
+# clusterer = DenStream(lambd=0.1, eps=100, beta=0.5, mu=3)
 # for row in data:
-    #clusterer.partial_fit([row], 1)
-    #print(f"Number of p_micro_clusters is {len(clusterer.p_micro_clusters)}")
-    #print(f"Number of o_micro_clusters is {len(clusterer.o_micro_clusters)}")
+#     clusterer.partial_fit([row], 1)
+#     print(f"Number of p_micro_clusters is {len(clusterer.p_micro_clusters)}")
+#     print(f"Number of o_micro_clusters is {len(clusterer.o_micro_clusters)}")
