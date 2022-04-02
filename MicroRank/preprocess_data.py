@@ -62,7 +62,10 @@ def fix_root(span_list: List[Span], mm_root_map: dict):
     return spans
 
 
-def get_span(start: int, end: int) -> List[Span]:
+def get_span(start: int = 0, end: int = 0) -> List[Span]:
+    if start == 0 or end == 0:
+        return span_list
+
     global mm_root_map, all_span_list
     if len(all_span_list) == 0:
         if is_wechat:

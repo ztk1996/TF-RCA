@@ -128,3 +128,15 @@ def trace_list_partition(operation_count, slo):
             normal_list.append(traceid)
 
     return abnormal_list, normal_list
+
+
+def traces_partition(traceid_list, abnormal_map):
+    normal_list = []  # normal traceid list
+    abnormal_list = []  # abnormal traceid list
+    for traceid in traceid_list:
+        if abnormal_map[traceid]:
+            abnormal_list.append(traceid)
+        else:
+            normal_list.append(traceid)
+
+    return abnormal_list, normal_list

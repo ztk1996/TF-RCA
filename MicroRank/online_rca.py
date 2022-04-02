@@ -1,3 +1,4 @@
+from typing import List
 import numpy as np
 import math
 from anormaly_detector import trace_list_partition
@@ -8,7 +9,7 @@ from preprocess_data import get_operation_slo
 from preprocess_data import get_service_operation_list
 from preprocess_data import get_pagerank_graph
 from pagerank import trace_pagerank
-from anormaly_detector import trace_list_partition
+from anormaly_detector import trace_list_partition, traces_partition
 import time
 from dateutil.parser import parse
 
@@ -133,11 +134,11 @@ def calculate_spectrum_without_delay_list(anomaly_result, normal_result, anomaly
 
 
 def online_anomaly_detect_RCA(slo, operation_list):
-# while True:
-    # current_time = datetime.datetime.strptime(datetime.datetime.now().strftime(
-    #     "%Y-%m-%d %H:%M:%S"), "%Y-%m-%d %H:%M:%S")-datetime.timedelta(minutes=1)
+    # while True:
+        # current_time = datetime.datetime.strptime(datetime.datetime.now().strftime(
+        #     "%Y-%m-%d %H:%M:%S"), "%Y-%m-%d %H:%M:%S")-datetime.timedelta(minutes=1)
 
-    # start_time = current_time - datetime.timedelta(seconds=60)
+        # start_time = current_time - datetime.timedelta(seconds=60)
     anormaly_flag = system_anormaly_detect(
         slo=slo, operation_list=operation_list)
 
@@ -181,9 +182,53 @@ def online_anomaly_detect_RCA(slo, operation_list):
         return
 
 
+def rca(start: int, end: int, tid_list: List, trace_labels: dict):
+    middle_span_list = get_span(start, end)
+    anomaly_list, normal_list = traces_partition(tid_list, trace_labels)
+
+    print("anomaly_list", len(anomaly_list))
+    print("normal_list", len(normal_list))
+    print("total", len(normal_list) + len(anomaly_list))
+
+    if len(anomaly_list) == 0 or len(normal_list) == 0:
+        print('list is empty')
+        return
+    operation_operation, operation_trace, trace_operation, pr_trace \
+        = get_pagerank_graph(normal_list, middle_span_list)
+
+    normal_trace_result, normal_num_list = trace_pagerank(operation_operation, operation_trace, trace_operation,
+                                                            pr_trace, False)
+
+    a_operation_operation, a_operation_trace, a_trace_operation, a_pr_trace \
+        = get_pagerank_graph(anomaly_list, middle_span_list)
+    anomaly_trace_result, anomaly_num_list = trace_pagerank(a_operation_operation, a_operation_trace,
+                                                            a_trace_operation, a_pr_trace,
+                                                            True)
+    top_list, score_list = calculate_spectrum_without_delay_list(anomaly_result=anomaly_trace_result,
+                                                                    normal_result=normal_trace_result,
+                                                                    anomaly_list_len=len(
+                                                                        anomaly_list),
+                                                                    normal_list_len=len(
+                                                                        normal_list),
+                                                                    top_max=5,
+                                                                    anomaly_num_list=anomaly_num_list,
+                                                                    normal_num_list=normal_num_list,
+                                                                    spectrum_method="dstar2")
+    print('top_list:', top_list)
+    print('score_list:', score_list)
+    return
+
+
+def timestamp(datetime):
+    timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
+    ts = int(time.mktime(timeArray)) * 1000
+    return ts
 
 def main():
-    span_list = get_span()
+    start = '2022-02-27 01:00:00'
+    end = '2022-02-27 01:30:00'
+
+    span_list = get_span(start=timestamp(start), end=timestamp(end))
     # print(span_list)
     operation_list = get_service_operation_list(span_list)
     print('operation list:', operation_list)
