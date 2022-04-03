@@ -43,7 +43,7 @@ def main():
         abnormal_count = 0
         abnormal_map = {}
         tid_list = []
-        for tid, data in tqdm(enumerate(load_dataset(start, end)), desc="All Samples: "):
+        for _, data in tqdm(enumerate(load_dataset(start, end)), desc="All Samples: "):
             # ========================================
             # Path vector encoder
             # ========================================
@@ -51,6 +51,7 @@ def main():
             STVector = embedding_to_vector(data, all_path)
 
             sample_label = denstream.Cluster_AnomalyDetector(np.array(STVector), data)
+            tid = data['trace_id']
             tid_list.append(tid)
             if sample_label == 'abnormal':
                 abnormal_map[tid] = True

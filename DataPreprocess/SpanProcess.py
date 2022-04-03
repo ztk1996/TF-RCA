@@ -886,10 +886,10 @@ def task(ns, idx, divide_word: bool = True):
     return (graph_map, str_set, operation_map)
 
 
-def preprocess_span(start: int, end: int) -> Boolean:
+def preprocess_span(start: int, end: int) -> dict:
     """
     获取毫秒时间戳start~end之间的span, 保存为data.json
-    返回一个boolean类型表示是否获取成功: true - 成功, false - 失败
+    返回一个data dict
     """
     win_spans = []
     for df in load_span(is_wechat):
@@ -898,7 +898,7 @@ def preprocess_span(start: int, end: int) -> Boolean:
             win_spans.append(ss)
     
     if len(win_spans) <= 0:
-        return False
+        return {}
 
     result_map = {}
     operation_map = {}
@@ -925,9 +925,9 @@ def preprocess_span(start: int, end: int) -> Boolean:
                 #     result_map = {}
 
     if len(result_map) > 0:
-        save_data(result_map)
+        return result_map
 
-    return True
+    return {}
 
 
 def main():

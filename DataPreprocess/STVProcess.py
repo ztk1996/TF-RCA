@@ -381,23 +381,23 @@ import sys
 
 import numpy as np
 from tqdm import tqdm
+from SpanProcess import preprocess_span
 
-def load_dataset():
+def load_dataset(start: int, end: int):
     trace_list = list()
 
-    with open(r'G:/workspace/TraceCluster/newData/preprocessed/data.json', 'r') as file_1:
-        raw_data = json.load(file_1)
-        print('getting trace data (api and time seq) ... 1')
-        for trace_id, trace in tqdm(raw_data.items()):
-            service_seq = ['start']
-            spans = []
-            for span in trace['edges'].values():
-                spans.extend(span)
-            spans = sorted(spans, key=lambda span: span['startTime'])
-            service_seq.extend([span['service'] for span in spans])
-            time_seq = [span['rawDuration'] for span in spans]
-            time_stamp = trace['edges']['0'][0]['startTime']
-            trace_list.append({'trace_id': trace_id, 'service_seq': service_seq, 'time_seq': time_seq, 'time_stamp': time_stamp, 'trace_bool': trace['abnormal']})
+    raw_data = preprocess_span(start, end)
+    print('getting trace data (api and time seq) ... 1')
+    for trace_id, trace in tqdm(raw_data.items()):
+        service_seq = ['start']
+        spans = []
+        for span in trace['edges'].values():
+            spans.extend(span)
+        spans = sorted(spans, key=lambda span: span['startTime'])
+        service_seq.extend([span['service'] for span in spans])
+        time_seq = [span['rawDuration'] for span in spans]
+        time_stamp = trace['edges']['0'][0]['startTime']
+        trace_list.append({'trace_id': trace_id, 'service_seq': service_seq, 'time_seq': time_seq, 'time_stamp': time_stamp, 'trace_bool': trace['abnormal']})
 
     # with open(r'G:/workspace/TraceCluster/newData/preprocessed_old/abnormal.json', 'r') as file_2:
     #     raw_data = json.load(file_2)
