@@ -1,7 +1,7 @@
-from preprocess_data import get_operation_slo
-from preprocess_data import get_span
-from preprocess_data import get_operation_duration_data
-from preprocess_data import get_service_operation_list
+from .preprocess_data import get_operation_slo
+from .preprocess_data import get_span
+from .preprocess_data import get_operation_duration_data
+from .preprocess_data import get_service_operation_list
 
 '''
    Input long time trace data and get the slo of operation

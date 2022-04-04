@@ -63,6 +63,7 @@ def fix_root(span_list: List[Span], mm_root_map: dict):
 
 
 def get_span(start: int = 0, end: int = 0) -> List[Span]:
+    global g_start, g_end, span_list
     if start == 0 or end == 0:
         return span_list
 
@@ -79,7 +80,6 @@ def get_span(start: int = 0, end: int = 0) -> List[Span]:
         if is_wechat:
             all_span_list = fix_root(all_span_list, mm_root_map)
 
-    global g_start, g_end, span_list
     if g_start != start or g_end != end:
         start_idx = search(all_span_list, start)
         if start_idx < 0:

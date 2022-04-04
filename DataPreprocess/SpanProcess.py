@@ -11,14 +11,14 @@ from pandas.core.frame import DataFrame
 import numpy as np
 import argparse
 from tqdm import tqdm
-import utils
+from . import utils
 from typing import List, Callable, Dict, Tuple
 from multiprocessing import cpu_count, Manager, current_process
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import requests
 import wordninja
 from transformers import AutoTokenizer, AutoModel
-from params import data_path_list, mm_data_path_list, mm_trace_root_list, chaos_dict
+from .params import data_path_list, mm_data_path_list, mm_trace_root_list, chaos_dict
 
 data_root = '/data/TraceCluster/raw'
 

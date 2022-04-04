@@ -1,15 +1,15 @@
 from typing import List
 import numpy as np
 import math
-from anormaly_detector import trace_list_partition
-from anormaly_detector import system_anormaly_detect
-from preprocess_data import get_normal_span, get_operation_duration_data
-from preprocess_data import get_span
-from preprocess_data import get_operation_slo
-from preprocess_data import get_service_operation_list
-from preprocess_data import get_pagerank_graph
-from pagerank import trace_pagerank
-from anormaly_detector import trace_list_partition, traces_partition
+from .anormaly_detector import trace_list_partition
+from .anormaly_detector import system_anormaly_detect
+from .preprocess_data import get_operation_duration_data
+from .preprocess_data import get_span
+from .preprocess_data import get_operation_slo
+from .preprocess_data import get_service_operation_list
+from .preprocess_data import get_pagerank_graph
+from .pagerank import trace_pagerank
+from .anormaly_detector import trace_list_partition, traces_partition
 import time
 from dateutil.parser import parse
 
