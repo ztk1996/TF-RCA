@@ -260,7 +260,9 @@ class DenStream:
               # "duration: {}".format(duration) + "\n" +
               # "trace structure: {}".format(structure) + "\n" +
               "--------------------")
-        cluster_label = input("Please input the label of trace {}:".format(sample_info['trace_id']))
+
+        cluster_label = "abnormal" if sample_info['trace_bool']==1 else "normal" 
+        # cluster_label = input("Please input the label of trace {}:".format(sample_info['trace_id']))
         # Check cluster label (normal, abnormal, change normal)
         while cluster_label not in ["normal", "abnormal", "change_normal"]:
             cluster_label = input("Illegal label! Please input the label of trace {}:".format(sample_info['trace_id']))

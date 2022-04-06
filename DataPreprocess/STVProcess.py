@@ -388,7 +388,7 @@ def load_dataset(start: int, end: int):
 
     raw_data = preprocess_span(start, end)
     print('getting trace data (api and time seq) ... 1')
-    for trace_id, trace in tqdm(raw_data.items()):
+    for trace_id, trace in tqdm(sorted(raw_data.items(), key = lambda i: i[1]['edges'][0][0]['startTime'])):
         service_seq = ['start']
         spans = []
         for span in trace['edges'].values():
