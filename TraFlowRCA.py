@@ -9,6 +9,7 @@ from tqdm import tqdm
 from torch_geometric.loader import DataLoader
 from torch.utils.data import Subset
 import time
+import datetime
 
 from DataPreprocess.STVProcess import embedding_to_vector, load_dataset, process_one_trace
 from DenStream.DenStream import DenStream
@@ -17,13 +18,17 @@ from MicroRank.online_rca import rca
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-start_str = '2022-02-27 01:00:00'
-end_str = '2022-02-27 01:30:00'
+
+start_str = '2022-03-01 11:00:00'
+window_duration = 5 * 60 * 1000 # ms
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
     ts = int(time.mktime(timeArray)) * 1000
     return ts
+
+def ms2str(ms: int) -> str:
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ms/1000))
 
 def main():
     # ========================================
@@ -35,15 +40,19 @@ def main():
     # Create cluster object
     # ========================================
     denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
-
+    start = timestamp(start_str)
+    end = start + window_duration
     print('Start !')
     # main loop start
     while True:
-        start, end = timestamp(start_str), timestamp(end_str)
+        print(f'time window: {ms2str(end)} ~ {ms2str(end)}')
         abnormal_count = 0
         abnormal_map = {}
         tid_list = []
-        for _, data in tqdm(enumerate(load_dataset(start, end)), desc="All Samples: "):
+        dataset = load_dataset(start, end)
+        if len(dataset) == 0:
+            break
+        for _, data in tqdm(enumerate(dataset), desc="All Samples: "):
             # ========================================
             # Path vector encoder
             # ========================================
@@ -57,10 +66,14 @@ def main():
                 abnormal_map[tid] = True
                 abnormal_count += 1
         
+        print(f'abnormal count: {abnormal_count}')
         if abnormal_count > 8:
             rca(start, end, tid_list, abnormal_map)
 
-        break # main loop end
+        start = end
+        end = start + window_duration
+        print()
+        # main loop end
 
     print("Done !")
 

@@ -253,13 +253,13 @@ class DenStream:
 
     def _request_expert_knowledge(self, sample, sample_info):
         # improvement
-        print("Trace Info:" + "\n" +
-              "--------------------" + "\n" +
-              "trace id: {}".format(sample_info['trace_id']) + "\n" +
-              "trace bool: {}".format("abnormal" if sample_info['trace_bool']==1 else "normal") + "\n" +
-              # "duration: {}".format(duration) + "\n" +
-              # "trace structure: {}".format(structure) + "\n" +
-              "--------------------")
+        # print("Trace Info:" + "\n" +
+        #       "--------------------" + "\n" +
+        #       "trace id: {}".format(sample_info['trace_id']) + "\n" +
+        #       "trace bool: {}".format("abnormal" if sample_info['trace_bool']==1 else "normal") + "\n" +
+        #       # "duration: {}".format(duration) + "\n" +
+        #       # "trace structure: {}".format(structure) + "\n" +
+        #       "--------------------")
 
         cluster_label = "abnormal" if sample_info['trace_bool']==1 else "normal" 
         # cluster_label = input("Please input the label of trace {}:".format(sample_info['trace_id']))

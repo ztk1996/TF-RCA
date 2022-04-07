@@ -440,12 +440,18 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     spanChildrenMap = {}
 
     # generate span dict
+    has_root = False
     for span in trace:
+        if span.parentSpanId == '-1':
+            has_root = True
         spanMap[span.spanId] = span
         if span.parentSpanId not in spanChildrenMap.keys():
             spanChildrenMap[span.parentSpanId] = []
         spanChildrenMap[span.parentSpanId].append(span)
 
+    if not has_root:
+        return None, str_set
+        
     # remove local span
     for span in trace:
         if span.spanType != 'Local':
@@ -886,13 +892,18 @@ def task(ns, idx, divide_word: bool = True):
     return (graph_map, str_set, operation_map)
 
 
+# use for data cache
+dataset = []
 def preprocess_span(start: int, end: int) -> dict:
     """
     获取毫秒时间戳start~end之间的span, 保存为data.json
     返回一个data dict
     """
+    global dataset
+    if len(dataset) == 0:
+        dataset = load_span(is_wechat)
     win_spans = []
-    for df in load_span(is_wechat):
+    for df in dataset:
         ss = df.loc[(df.StartTime > start) & (df.StartTime < end)]
         if len(ss) > 0:
             win_spans.append(ss)
