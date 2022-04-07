@@ -50,7 +50,7 @@ def main():
     # main loop start
     while True:
         print('--------------------------------')
-        print(f'time window: {ms2str(end)} ~ {ms2str(end)}')
+        print(f'time window: {ms2str(start)} ~ {ms2str(end)}')
         abnormal_count = 0
         abnormal_map = {}
         tid_list = []
