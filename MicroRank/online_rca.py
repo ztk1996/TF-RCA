@@ -182,7 +182,7 @@ def online_anomaly_detect_RCA(slo, operation_list):
         return
 
 
-def rca(start: int, end: int, tid_list: List, trace_labels: dict):
+def rca(start: int, end: int, tid_list: List, trace_labels: dict) -> List:
     middle_span_list = get_span(start, end)
     anomaly_list, normal_list = traces_partition(tid_list, trace_labels)
 
@@ -214,9 +214,9 @@ def rca(start: int, end: int, tid_list: List, trace_labels: dict):
                                                                     anomaly_num_list=anomaly_num_list,
                                                                     normal_num_list=normal_num_list,
                                                                     spectrum_method="dstar2")
-    print('top_list:', top_list)
-    print('score_list:', score_list)
-    return
+    # print('top_list:', top_list)
+    # print('score_list:', score_list)
+    return top_list
 
 
 def timestamp(datetime):
