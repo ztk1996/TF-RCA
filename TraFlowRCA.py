@@ -10,7 +10,7 @@ from torch_geometric.loader import DataLoader
 from torch.utils.data import Subset
 import time
 import datetime
-
+from sklearn.metrics import accuracy_score, recall_score, precision_score
 from DataPreprocess.STVProcess import embedding_to_vector, load_dataset, process_one_trace
 from DenStream.DenStream import DenStream
 from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo
@@ -42,9 +42,13 @@ def main():
     denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
     start = timestamp(start_str)
     end = start + window_duration
+    
+    a_true, a_pred = [], []
+
     print('Start !')
     # main loop start
     while True:
+        print('--------------------------------')
         print(f'time window: {ms2str(end)} ~ {ms2str(end)}')
         abnormal_count = 0
         abnormal_map = {}
@@ -59,14 +63,25 @@ def main():
             all_path = process_one_trace(data, all_path)
             STVector = embedding_to_vector(data, all_path)
 
+            a_true.append(data['trace_bool'])
             sample_label = denstream.Cluster_AnomalyDetector(np.array(STVector), data)
             tid = data['trace_id']
             tid_list.append(tid)
             if sample_label == 'abnormal':
+                a_pred.append(1)
                 abnormal_map[tid] = True
                 abnormal_count += 1
+            else:
+                a_pred.append(0)
         
+        acc = accuracy_score(a_true, a_pred)
+        recall = recall_score(a_true, a_pred)
+        prec = precision_score(a_true, a_pred)
         print(f'abnormal count: {abnormal_count}')
+        print('accuracy score is %.5f' % acc)
+        print('recall score is %.5f' % recall)
+        print('precision score is %.5f' % prec)
+
         if abnormal_count > 8:
             rca(start, end, tid_list, abnormal_map)
 

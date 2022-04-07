@@ -37,6 +37,7 @@ class MicroCluster:
             self.sum_of_weights = new_sum_of_weights
         else:
             self.mean = sample
+            self.variance = np.array([0]*len(sample))
             self.sum_of_weights = weight
 
     def update_center_dimension(self, sample):

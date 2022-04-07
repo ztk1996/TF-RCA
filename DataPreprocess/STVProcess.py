@@ -7,7 +7,6 @@ import random
 import csv
 import click
 from enum import Enum
-
 from tqdm import tqdm
 
 
