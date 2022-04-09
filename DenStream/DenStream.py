@@ -243,7 +243,7 @@ class DenStream:
                 if nearest_o_micro_cluster.weight() > self.beta * self.mu:
                     del self.o_micro_clusters[index]
                     self.p_micro_clusters.append(nearest_o_micro_cluster)
-                return nearest_o_micro_cluster.label
+                return nearest_o_micro_cluster.label, 'auto'
             else:
                 # Request expert knowledge
                 # improvement
@@ -253,9 +253,9 @@ class DenStream:
                 micro_cluster = MicroCluster(self.lambd, sample_info['time_stamp'], cluster_label)    # improvement
                 micro_cluster.insert_sample(sample, weight)
                 self.o_micro_clusters.append(micro_cluster)
-                return micro_cluster.label
+                return micro_cluster.label, 'manual'
         else:
-            return nearest_p_micro_cluster.label
+            return nearest_p_micro_cluster.label, 'auto'
 
     def _request_expert_knowledge(self, sample, sample_info):
         # improvement
@@ -280,7 +280,7 @@ class DenStream:
     def Cluster_AnomalyDetector(self, sample, sample_info):
         # improvement 这里各个 trace 的权重应该由已有的聚类计算出来，暂时还没想好
         sample_weight = self._validate_sample_weight(sample_weight=None, n_samples=1)
-        sample_label = self._merging(sample, sample_info, sample_weight)
+        sample_label, label_status = self._merging(sample, sample_info, sample_weight)
         # improvement 这里加上对每个簇 energy 的衰减，要不要换成时间窗衰减函数
         for cluster in self.p_micro_clusters + self.o_micro_clusters:
             cluster.energy -= self.decay
@@ -298,7 +298,7 @@ class DenStream:
                                      zip(Xis, self.o_micro_clusters) if
                                      o_micro_cluster.weight() >= Xi and o_micro_cluster.energy > 0]    # improvement
         # self.t += 1
-        return sample_label
+        return sample_label, label_status
 
     def _validate_sample_weight(self, sample_weight, n_samples):
         """Set the sample weight array."""

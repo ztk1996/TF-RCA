@@ -71,7 +71,9 @@ def main():
         dataset = load_dataset(start, end)
         if len(dataset) == 0:
             break
-
+        
+        # Init manual count
+        manual_count = 0
         for _, data in tqdm(enumerate(dataset), desc="All Samples: "):
             # ========================================
             # Path vector encoder
@@ -80,9 +82,10 @@ def main():
             STVector = embedding_to_vector(data, all_path)
 
             a_true.append(data['trace_bool'])
-            sample_label = denstream.Cluster_AnomalyDetector(np.array(STVector), data)
+            sample_label, label_status = denstream.Cluster_AnomalyDetector(np.array(STVector), data)
             tid = data['trace_id']
             tid_list.append(tid)
+            # sample_label
             if sample_label == 'abnormal':
                 a_pred.append(1)
                 abnormal_map[tid] = True
@@ -90,6 +93,11 @@ def main():
             else:
                 abnormal_map[tid] = False
                 a_pred.append(0)
+            # label_status
+            if label_status == 'manual':
+                manual_count += 1
+
+        print('Manual labeling ratio is %.3f' % (manual_count/len(dataset)))
         
         if abnormal_count > 8:
             print('********* RCA start *********')
