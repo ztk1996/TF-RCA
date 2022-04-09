@@ -253,14 +253,16 @@ class DenStream:
 
     def _request_expert_knowledge(self, sample, sample_info):
         # improvement
-        print("Trace Info:" + "\n" +
-              "--------------------" + "\n" +
-              "trace id: {}".format(sample_info['trace_id']) + "\n" +
-              "trace bool: {}".format("abnormal" if sample_info['trace_bool']==1 else "normal") + "\n" +
-              # "duration: {}".format(duration) + "\n" +
-              # "trace structure: {}".format(structure) + "\n" +
-              "--------------------")
-        cluster_label = input("Please input the label of trace {}:".format(sample_info['trace_id']))
+        # print("Trace Info:" + "\n" +
+        #       "--------------------" + "\n" +
+        #       "trace id: {}".format(sample_info['trace_id']) + "\n" +
+        #       "trace bool: {}".format("abnormal" if sample_info['trace_bool']==1 else "normal") + "\n" +
+        #       # "duration: {}".format(duration) + "\n" +
+        #       # "trace structure: {}".format(structure) + "\n" +
+        #       "--------------------")
+
+        cluster_label = "abnormal" if sample_info['trace_bool']==1 else "normal" 
+        # cluster_label = input("Please input the label of trace {}:".format(sample_info['trace_id']))
         # Check cluster label (normal, abnormal, change normal)
         while cluster_label not in ["normal", "abnormal", "change_normal"]:
             cluster_label = input("Illegal label! Please input the label of trace {}:".format(sample_info['trace_id']))

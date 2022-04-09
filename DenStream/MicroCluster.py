@@ -37,10 +37,12 @@ class MicroCluster:
             self.sum_of_weights = new_sum_of_weights
         else:
             self.mean = sample
+            self.variance = np.array([0]*len(sample))
             self.sum_of_weights = weight
 
     def update_center_dimension(self, sample):
         self.mean = np.append(self.mean, [0]*(len(sample)-len(self.mean)))
+        self.variance = np.append(self.variance, [0]*(len(sample)-len(self.variance)))
 
     def radius(self):
         if self.sum_of_weights > 0:
