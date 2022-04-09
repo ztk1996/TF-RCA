@@ -43,9 +43,21 @@ def main():
     # Create cluster object
     # ========================================
     denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
+    
+    # ========================================
+    # Init time window
+    # ========================================
     start = timestamp(start_str)
     end = start + window_duration
 
+    # ========================================
+    # Init evaluation for AD
+    # ========================================
+    a_true, a_pred = [], []
+
+    # ========================================
+    # Init evaluation for RCA
+    # ========================================
     r_true, r_pred = [], []    
 
     print('Start !')
@@ -60,7 +72,6 @@ def main():
         if len(dataset) == 0:
             break
 
-        a_true, a_pred = [], []
         for _, data in tqdm(enumerate(dataset), desc="All Samples: "):
             # ========================================
             # Path vector encoder
@@ -80,16 +91,8 @@ def main():
                 abnormal_map[tid] = False
                 a_pred.append(0)
         
-        acc = accuracy_score(a_true, a_pred)
-        recall = recall_score(a_true, a_pred)
-        prec = precision_score(a_true, a_pred)
-        print(f'abnormal count: {abnormal_count}')
-        print('accuracy score is %.5f' % acc)
-        print('recall score is %.5f' % recall)
-        print('precision score is %.5f' % prec)
-
         if abnormal_count > 8:
-            print('*** RCA start ***')
+            print('********* RCA start *********')
             r_true.append(True)
             top_list = rca(start, end, tid_list, abnormal_map)
             topK = top_list[:K if len(top_list) > K else len(top_list)]
@@ -112,19 +115,37 @@ def main():
             
             r_pred.append(in_topK)
 
-
-
         start = end
         end = start + window_duration
         # main loop end
-
     print('main loop end')
-    acc = accuracy_score(r_true, r_pred)
-    recall = recall_score(r_true, r_pred)
-    prec = precision_score(r_true, r_pred)
-    print('accuracy score is %.5f' % acc)
-    print('recall score is %.5f' % recall)
-    print('precision score is %.5f' % prec)
+    
+    # ========================================
+    # Evaluation for AD
+    # ========================================
+    print('--------------------------------')
+    a_acc = accuracy_score(a_true, a_pred)
+    a_recall = recall_score(a_true, a_pred)
+    a_prec = precision_score(a_true, a_pred)
+    a_F1_score = (2 * a_prec * a_recall)/(a_prec + a_recall)
+    print('AD accuracy score is %.5f' % a_acc)
+    print('AD recall score is %.5f' % a_recall)
+    print('AD precision score is %.5f' % a_prec)
+    print('AD F1 score is %.5f' % a_F1_score)
+    print('--------------------------------')
+
+    # ========================================
+    # Evaluation for RCA
+    # ========================================
+    print('--------------------------------')
+    r_acc = accuracy_score(r_true, r_pred)
+    r_recall = recall_score(r_true, r_pred)
+    r_prec = precision_score(r_true, r_pred)
+    print('RCA accuracy score is %.5f' % r_acc)
+    print('RCA recall score is %.5f' % r_recall)
+    print('RCA precision score is %.5f' % r_prec)
+    print('--------------------------------')
+
     print("Done !")
 
 if __name__ == '__main__':

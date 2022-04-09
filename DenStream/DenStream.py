@@ -20,9 +20,15 @@ class DenStream:
         lambd: float, optional
             The forgetting factor. The higher the value of lambda, the lower
             importance of the historical data compared to more recent data.
-        eps : float, optional
+        eps: float, optional
             The maximum distance between two samples for them to be considered
             as in the same neighborhood.
+        beta: float, optional
+            Outlier threshold. If beta ranges between 0.2 and 0.6, the clustering
+            quality is very good. However, if it is set to a relatively high value 
+            like 1, the quality deteriorates greatly. 
+        mu: float, optional
+            A smaller µ will result in a larger number of micro-clusters.
 
         Attributes
         ----------
