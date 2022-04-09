@@ -16,11 +16,13 @@ from DenStream.DenStream import DenStream
 from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo
 from MicroRank.online_rca import rca
 from DataPreprocess.params import chaos_dict
+import warnings
+warnings.filterwarnings("ignore")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 K = 3
-start_str = '2022-03-01 11:00:00'
+start_str = '2022-01-13 00:00:00'
 window_duration = 5 * 60 * 1000 # ms
 
 def timestamp(datetime: str) -> int:
@@ -75,6 +77,7 @@ def main():
                 abnormal_map[tid] = True
                 abnormal_count += 1
             else:
+                abnormal_map[tid] = False
                 a_pred.append(0)
         
         acc = accuracy_score(a_true, a_pred)
@@ -86,10 +89,11 @@ def main():
         print('precision score is %.5f' % prec)
 
         if abnormal_count > 8:
+            print('*** RCA start ***')
             r_true.append(True)
             top_list = rca(start, end, tid_list, abnormal_map)
             topK = top_list[:K if len(top_list) > K else len(top_list)]
-            print('top-K is', topK)
+            print(f'top-{K} root cause is', topK)
             start_hour = time.localtime(start//1000).tm_hour
             chaos_service = chaos_dict.get(start_hour)
 

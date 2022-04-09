@@ -139,10 +139,6 @@ def trace_pagerank(operation_operation, operation_trace, trace_operation, pr_tra
             pr[trace_list.index(trace_id)] = 1.0 / (kind_list[trace_list.index(trace_id)] / kind_sum_trace * 0.5
                                                     + 1.0 / len(pr_trace[trace_id])) / num_sum_trace * 0.5
 
-    if anomaly:
-        print('\nAnomaly_PageRank:')
-    else:
-        print('\nNormal_PageRank:')
     result = pageRank(p_ss, p_sr, p_rs, pr, operation_length, trace_length)
 
     weight = {}

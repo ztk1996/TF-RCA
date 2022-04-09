@@ -14,7 +14,7 @@ from DataPreprocess.params import data_path_list, mm_data_path_list, mm_trace_ro
 
 root_index = '-1'
 
-all_span_list = []
+all_span_data = DataFrame()
 span_list = []
 g_start, g_end = 0, 0
 mm_root_map = {}
@@ -67,40 +67,23 @@ def get_span(start: int = 0, end: int = 0) -> List[Span]:
     if start == 0 or end == 0:
         return span_list
 
-    global mm_root_map, all_span_list
-    if len(all_span_list) == 0:
+    global mm_root_map, all_span_data
+    if len(all_span_data) == 0:
         if is_wechat:
             mm_root_map, span_data = load_mm_span(mm_trace_root_list, mm_data_path_list)
         else:
             span_data = load_sw_span(data_path_list)
         span_data = pd.concat(span_data, axis=0, ignore_index=True)
-        span_data = span_data.groupby('TraceId').apply(
+        all_span_data = span_data.groupby('TraceId').apply(
             lambda x: x.sort_values('StartTime', ascending=True)).reset_index(drop=True)
-        all_span_list = [Span(raw_span) for _, raw_span in span_data.iterrows()]
-        if is_wechat:
-            all_span_list = fix_root(all_span_list, mm_root_map)
 
     if g_start != start or g_end != end:
-        start_idx = search(all_span_list, start)
-        if start_idx < 0:
-           time_local = time.localtime(start/1000)
-           t = time.strftime("%Y-%m-%d %H:%M:%S", time_local)
-           print(f'{t} not found')
-           return span_list
-        
-        end_idx = search(all_span_list, end)
-        if end_idx < 0:
-           time_local = time.localtime(start/1000)
-           t = time.strftime("%Y-%m-%d %H:%M:%S", time_local)
-           print(f'{t} not found')
-           return span_list
-        
+        win_df = all_span_data.loc[(all_span_data.StartTime > start) & (all_span_data.StartTime < end)]
+        span_list = [Span(raw_span) for _, raw_span in win_df.iterrows()]
+        if is_wechat:
+            span_list = fix_root(span_list, mm_root_map)
         g_start = start
         g_end = end
-        if start == end:
-            span_list = [all_span_list[start]]
-        else:
-            span_list = all_span_list[start_idx: end_idx]
         
     return span_list
 
