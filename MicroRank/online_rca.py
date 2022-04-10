@@ -182,7 +182,7 @@ def online_anomaly_detect_RCA(slo, operation_list):
         return
 
 
-def rca(start: int, end: int, tid_list: List, trace_labels: dict) -> List:
+def rca(start, end, tid_list, trace_labels, confidenceScores=None):
     middle_span_list = get_span(start, end)
     anomaly_list, normal_list = traces_partition(tid_list, trace_labels)
 
@@ -192,18 +192,17 @@ def rca(start: int, end: int, tid_list: List, trace_labels: dict) -> List:
 
     if len(anomaly_list) == 0 or len(normal_list) == 0:
         print('list is empty')
-        return
+        return []
     operation_operation, operation_trace, trace_operation, pr_trace \
         = get_pagerank_graph(normal_list, middle_span_list)
 
-    normal_trace_result, normal_num_list = trace_pagerank(operation_operation, operation_trace, trace_operation,
-                                                            pr_trace, False)
+    normal_trace_result, normal_num_list = trace_pagerank(operation_operation=operation_operation, operation_trace=operation_trace, trace_operation=trace_operation,
+                                                            pr_trace=pr_trace, anomaly=False, confidenceScores=confidenceScores)
 
     a_operation_operation, a_operation_trace, a_trace_operation, a_pr_trace \
         = get_pagerank_graph(anomaly_list, middle_span_list)
-    anomaly_trace_result, anomaly_num_list = trace_pagerank(a_operation_operation, a_operation_trace,
-                                                            a_trace_operation, a_pr_trace,
-                                                            True)
+    anomaly_trace_result, anomaly_num_list = trace_pagerank(operation_operation=a_operation_operation, operation_trace=a_operation_trace,
+                                                            trace_operation=a_trace_operation, pr_trace=a_pr_trace, anomaly=True, confidenceScores=confidenceScores)
     top_list, score_list = calculate_spectrum_without_delay_list(anomaly_result=anomaly_trace_result,
                                                                     normal_result=normal_trace_result,
                                                                     anomaly_list_len=len(

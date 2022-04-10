@@ -67,7 +67,7 @@ def firstPr(c):
 '''
 
 
-def trace_pagerank(operation_operation, operation_trace, trace_operation, pr_trace, anomaly):
+def trace_pagerank(operation_operation, operation_trace, trace_operation, pr_trace, anomaly, confidenceScores=None):
     operation_length = len(operation_operation)
     trace_length = len(operation_trace)
 
@@ -109,7 +109,7 @@ def trace_pagerank(operation_operation, operation_trace, trace_operation, pr_tra
             p_rs[trace_list.index(child)][node_list.index(operation)] \
                 = 1.0 / child_num
 
-    kind_list = np.zeros(len(trace_list))
+    kind_list = np.zeros(len(trace_list))    # 每条trace所代表的类别分别出现了多少次
     p_srt = p_sr.T
     for i in range(len(trace_list)):
         index_list = [i]
@@ -129,6 +129,7 @@ def trace_pagerank(operation_operation, operation_trace, trace_operation, pr_tra
         for trace_id in pr_trace:
             num_sum_trace += 1.0 / kind_list[trace_list.index(trace_id)]
         for trace_id in pr_trace:
+            # 正常数据的偏好向量
             pr[trace_list.index(trace_id)] = 1.0 / \
                 kind_list[trace_list.index(trace_id)] / num_sum_trace
     else:
@@ -136,6 +137,7 @@ def trace_pagerank(operation_operation, operation_trace, trace_operation, pr_tra
             kind_sum_trace += 1.0 / kind_list[trace_list.index(trace_id)]
             num_sum_trace += 1.0 / len(pr_trace[trace_id])
         for trace_id in pr_trace:
+            # 异常数据的偏好向量
             pr[trace_list.index(trace_id)] = 1.0 / (kind_list[trace_list.index(trace_id)] / kind_sum_trace * 0.5
                                                     + 1.0 / len(pr_trace[trace_id])) / num_sum_trace * 0.5
 

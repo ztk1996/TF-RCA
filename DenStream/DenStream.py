@@ -148,6 +148,50 @@ class DenStream:
             y.append(dbscan.labels_[index])
 
         return y
+    
+    def get_labels_and_confidenceScores(self, STV_map):
+        """
+        Get labels of traces and confidence score of each label
+
+        Parameters
+        ----------
+        STV_map : {trace_id1: STVector1, trace_id2: STVector2}
+        
+        Returns
+        ----------
+        labels : {trace_id1: label1, trace_id2: label2}
+        confidenceScores : {trace_id1: score1, trace_id2: score2}
+        """
+        micro_cluster_centers = np.array([micro_cluster.center() for
+                                            micro_cluster in
+                                            self.p_micro_clusters + self.o_micro_clusters])
+        micro_cluster_weights = [micro_cluster.weight()[0] for micro_cluster in
+                                   self.p_micro_clusters + self.o_micro_clusters]
+        dbscan = DBSCAN(eps=0.3, min_samples=10, algorithm='brute')
+        dbscan.fit(micro_cluster_centers, sample_weight=micro_cluster_weights)
+
+        labels = {}
+        confidenceScores = {}
+        for trace_id, STVector in STV_map.items():
+            STVector = np.append(STVector, [0]*(len(self.p_micro_clusters[0].center() if len(self.p_micro_clusters)!=0 
+                       else self.o_micro_clusters[0].center()) - len(STVector)))
+            
+            nearest_index, nearest_cluster = self._get_nearest_micro_cluster(STVector, self.p_micro_clusters + self.o_micro_clusters)
+
+            # get label 
+            labels[trace_id] = nearest_cluster.label
+
+            # get confidence score
+            neighbor_index_list = [index for index, label in enumerate(dbscan.labels_) if label == dbscan.labels_[nearest_index] and label != -1]
+            neighbor_cluster_list = [(self.p_micro_clusters+self.o_micro_clusters)[idx] for idx in neighbor_index_list]
+            score = sum([cluster.weight() for cluster in neighbor_cluster_list if cluster.label == nearest_cluster.label]) / sum([cluster.weight() for cluster in neighbor_cluster_list]) if bool(neighbor_cluster_list) else 1
+            confidenceScores[trace_id] = score
+
+            if score != 1:
+                print("find it !")
+
+        return labels, confidenceScores
+
 
     def predict(self, X, y=None, sample_weight=None):
         """
@@ -175,15 +219,6 @@ class DenStream:
         n_samples, _ = X.shape
 
         sample_weight = self._validate_sample_weight(sample_weight, n_samples)
-
-        # if not hasattr(self, "potential_micro_clusters"):
-
-        # if n_features != :
-        # raise ValueError("Number of features %d does not match previous "
-        # "data %d." % (n_features, self.coef_.shape[-1]))
-
-        #for sample, weight in zip(X, sample_weight):
-        #    self._partial_fit(sample, weight)
         
         p_micro_cluster_centers = np.array([p_micro_cluster.center() for
                                             p_micro_cluster in
@@ -277,7 +312,7 @@ class DenStream:
     def _decay_function(self, t):
         return 2 ** ((-self.lambd) * (t))
 
-    def DS_Cluster_AnomalyDetector(self, sample, sample_info):
+    def Cluster_AnomalyDetector(self, sample, sample_info):
         # improvement 这里各个 trace 的权重应该由已有的聚类计算出来，暂时还没想好
         sample_weight = self._validate_sample_weight(sample_weight=None, n_samples=1)
         sample_label, label_status = self._merging(sample, sample_info, sample_weight)

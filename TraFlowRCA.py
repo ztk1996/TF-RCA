@@ -25,7 +25,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 K = 3
 start_str = '2022-01-13 00:00:00'
 window_duration = 5 * 60 * 1000 # ms
-AD_method = 'CEDAS'    # 'DenStream_online', 'DenStream_offline', 'CEDAS'
+AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
+
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
@@ -44,9 +45,9 @@ def main():
     # ========================================
     # Create cluster object
     # ========================================
-    if AD_method == 'DenStream_online' or AD_method == 'DenStream_offline':
+    if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
         denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)    # eps=0.3
-    elif AD_method == 'CEDAS':
+    elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=0.2, decay=0.001, threshold=5)
         first_tag = True
 
@@ -73,6 +74,8 @@ def main():
         print(f'time window: {ms2str(start)} ~ {ms2str(end)}')
         abnormal_count = 0
         abnormal_map = {}
+        STV_map = {}
+        label_map = {}
         tid_list = []
         dataset = load_dataset(start, end)
         if len(dataset) == 0:
@@ -87,12 +90,13 @@ def main():
             # ========================================
             all_path = process_one_trace(data, all_path)
             STVector = embedding_to_vector(data, all_path)
+            STV_map[data['trace_id']] = np.array(STVector)
 
             a_true.append(data['trace_bool'])
 
-            if AD_method == 'DenStream_online' or AD_method == 'DenStream_offline':
-                sample_label, label_status = denstream.DS_Cluster_AnomalyDetector(np.array(STVector), data)
-            elif AD_method == 'CEDAS':
+            if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
+                sample_label, label_status = denstream.Cluster_AnomalyDetector(np.array(STVector), data)
+            elif AD_method in ['CEDAS_withoutscore', 'CEDAS_withscore']:
                 if first_tag:
                     # 1. Initialization
                     sample_label, label_status = cedas.initialization(np.array(STVector), data)
@@ -100,26 +104,53 @@ def main():
                 else:
                     cedas.changed_cluster = None
                     # 2. Update Micro-Clusters
-                    sample_label, label_status = cedas.CEDAS_Cluster_AnomalyDetector(np.array(STVector), data)
+                    sample_label, label_status = cedas.Cluster_AnomalyDetector(np.array(STVector), data)
                     # 3. Kill Clusters
                     cedas.kill()
                     if cedas.changed_cluster and cedas.changed_cluster.count > cedas.threshold:
                         # 4. Update Cluster Graph
                         cedas.update_graph()
 
+            # trace_id list
             tid = data['trace_id']
             tid_list.append(tid)
-            # sample_label
-            if sample_label == 'abnormal':
-                a_pred.append(1)
-                abnormal_map[tid] = True
-                abnormal_count += 1
-            else:
-                abnormal_map[tid] = False
-                a_pred.append(0)
+
+            if AD_method in ['DenStream_withoutscore', 'CEDAS_withoutscore']:
+                # sample_label
+                if sample_label == 'abnormal':
+                    a_pred.append(1)
+                    abnormal_map[tid] = True
+                    abnormal_count += 1
+                else:
+                    abnormal_map[tid] = False
+                    a_pred.append(0)
+
             # label_status
             if label_status == 'manual':
                 manual_count += 1
+
+        if AD_method == 'DenStream_withscore':
+            labels, confidenceScores = denstream.get_labels_and_confidenceScores(STV_map)
+            # sample_label
+            for tid, sample_label in labels.items():
+                if sample_label == 'abnormal':
+                    a_pred.append(1)
+                    abnormal_map[tid] = True
+                    abnormal_count += 1
+                else:
+                    abnormal_map[tid] = False
+                    a_pred.append(0)
+        elif AD_method == 'CEDAS_withscore':
+            labels, confidenceScores = cedas.get_labels_and_confidenceScores(STV_map)
+            # sample_label
+            for tid, sample_label in labels.items():
+                if sample_label == 'abnormal':
+                    a_pred.append(1)
+                    abnormal_map[tid] = True
+                    abnormal_count += 1
+                else:
+                    abnormal_map[tid] = False
+                    a_pred.append(0)
 
         print('Manual labeling ratio is %.3f' % (manual_count/len(dataset)))
         print('--------------------------------')
@@ -133,29 +164,39 @@ def main():
         print('AD F1 score is %.5f' % a_F1_score)
         print('--------------------------------')
 
-        
         if abnormal_count > 8:
             print('********* RCA start *********')
             r_true.append(True)
-            top_list = rca(start, end, tid_list, abnormal_map)
-            topK = top_list[:K if len(top_list) > K else len(top_list)]
-            print(f'top-{K} root cause is', topK)
-            start_hour = time.localtime(start//1000).tm_hour
-            chaos_service = chaos_dict.get(start_hour)
+            # 在这里对 trace 进行尾采样，若一个微簇/宏观簇的样本数越多，则采样概率低，否则采样概率高
+            # 仅保留采样到的 trace id 即可
 
-            for i in range(0, len(topK)):
-                # TODO
-                pass
-
-            in_topK = True
-            if isinstance(chaos_service, list):
-                for c in chaos_service:
-                    if c not in topK:
-                        in_topK = False
-                        break
-            elif chaos_service not in topK:
-                in_topK = False
+            if AD_method in ['DenStream_withscore', 'CEDAS_withscore']:
+                top_list = rca(start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map, confidenceScores=confidenceScores)
+            else:
+                top_list = rca(start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map)
             
+            # top_list is not empty
+            if len(top_list) != 0:   
+                topK = top_list[:K if len(top_list) > K else len(top_list)]
+                print(f'top-{K} root cause is', topK)
+                start_hour = time.localtime(start//1000).tm_hour
+                chaos_service = chaos_dict.get(start_hour)
+
+                for i in range(0, len(topK)):
+                    # TODO
+                    pass
+
+                in_topK = True
+                if isinstance(chaos_service, list):
+                    for c in chaos_service:
+                        if c not in topK:
+                            in_topK = False
+                            break
+                elif chaos_service not in topK:
+                    in_topK = False
+            # top_list is empty
+            elif len(top_list) == 0:
+                in_topK = False
             r_pred.append(in_topK)
 
         start = end

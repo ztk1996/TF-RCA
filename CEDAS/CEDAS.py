@@ -73,7 +73,7 @@ class CEDAS(Generic[T]):
         return cluster_label, 'manual'
 
     # 2. Update Micro-Clusters
-    def CEDAS_Cluster_AnomalyDetector(self, data_sample: T, sample_info):
+    def Cluster_AnomalyDetector(self, data_sample: T, sample_info):
         # update Micro-Clusters dimension
         for cluster in self.micro_clusters:
             cluster.update_dimension(data_sample)
@@ -160,7 +160,37 @@ class CEDAS(Generic[T]):
                 if self.changed_cluster in cluster.edges and cluster not in neighbors:
                     cluster.edges.remove(self.changed_cluster)
 
+    def get_labels_and_confidenceScores(self, STV_map):
+        """
+        Get labels of traces and confidence score of each label
 
+        Parameters
+        ----------
+        STV_map : {trace_id1: STVector1, trace_id2: STVector2}
+        
+        Returns
+        ----------
+        labels : {trace_id1: label1, trace_id2: label2}
+        confidenceScores : {trace_id1: score1, trace_id2: score2}
+        """
+        labels = {}
+        confidenceScores = {}
+        for trace_id, STVector in STV_map.items():
+            STVector = np.append(STVector, [0]*(len(self.micro_clusters[0].centre) - len(STVector)))
+
+            nearest_cluster = min(self.micro_clusters, key=lambda cluster: distance(STVector, cluster.centre),)
+
+            # get label
+            labels[trace_id] = nearest_cluster.label
+
+            # get confidence score
+            score = sum([cluster.energy for cluster in nearest_cluster.edges if cluster.label == nearest_cluster.label]) / sum([cluster.energy for cluster in nearest_cluster.edges]) if bool(nearest_cluster.edges) else 1             
+            confidenceScores[trace_id] = score
+
+            # if score != 1:
+            #     print("find it !")
+        
+        return labels, confidenceScores
 
 
     def run(self) -> None:

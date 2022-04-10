@@ -302,7 +302,7 @@ def get_operation_duration_data(operation_list: List[str], span_list: List[Span]
    
    :return
        operation_operation 存储子节点 Call graph
-       operation_operation[operation_name] = [operation_name1 , operation_name1 ] 
+       operation_operation[operation_name] = [operation_name1 , operation_name1] 
 
        operation_trace 存储trace经过了哪些operation, 右上角 coverage graph
        operation_trace[traceid] = [operation_name1 , operation_name2]
@@ -311,7 +311,7 @@ def get_operation_duration_data(operation_list: List[str], span_list: List[Span]
        trace_operation[operation_name] = [traceid1, traceid2]  
        
        pr_trace: 存储trace id 经过了哪些operation，不去重
-       pr_trace[traceid] = [operation_name1 , operation_name2]
+       pr_trace[traceid] = [operation_name1, operation_name2]
 '''
 
 
@@ -357,7 +357,7 @@ def get_pagerank_graph(trace_list: List[str], span_list: List[Span]):
 
             """
             operation_operation 
-            operation_operation[operation_name] = [operation_name1 , operation_name1 ] 
+            operation_operation[operation_name] = [operation_name1 , operation_name1] 
 
             operation_trace
             operation_trace[traceid] = [operation_name1 , operation_name1]
