@@ -17,8 +17,8 @@ def distance(x: T, y: T) -> float:
     return np.linalg.norm(x - y)
 
 
-def update_center(centre: T, count: int, data_sample: T) -> T:
-    return ((count - 1) * centre + data_sample) / count
+# def update_center(centre: T, count: int, data_sample: T) -> T:
+#     return ((count - 1) * centre + data_sample) / count
 
 
 @dataclass
@@ -27,6 +27,19 @@ class MicroCluster(Generic[T]):
     energy: float = 1
     count: int = 1
     edges: set[MicroCluster[T]] = field(default_factory=set)
+    label: str = None
+
+    def update_dimension(self, data_sample: T):
+        # update centre
+        self.centre = np.append(self.centre, [0]*(len(data_sample)-len(self.centre)))
+        # update edges
+        edges_list = list(self.edges)
+        for idx in range(len(edges_list)):
+            edges_list[idx].centre = np.append(edges_list[idx].centre, [0]*(len(data_sample)-len(edges_list[idx].centre)))
+        self.edges = set(edges_list)
+
+    def update_center(self, data_sample: T):
+        self.centre = ((self.count - 1) * self.centre + data_sample) / self.count
 
     def __hash__(self) -> int:
         return hash(self.energy)
@@ -39,13 +52,11 @@ class MicroCluster(Generic[T]):
 class CEDAS(Generic[T]):
     def __init__(
         self,
-        stream: Iterator[T],    # data stream
         # 0. Parameter Selection
         r0: float,    # radius
         decay: float,    # a time based decay value
         threshold: int,    # expert knowledge
     ) -> None:
-        self.stream = stream
         self.r0 = r0
         self.decay = decay
         self.micro_clusters: MicroCluster = []
@@ -53,14 +64,19 @@ class CEDAS(Generic[T]):
         self.threshold = threshold
 
     # 1. Initialization
-    def initialization(self):
-        first_sample = self.stream[0]
-        self.stream = self.stream[1:]
-        first_cluster = MicroCluster(first_sample)
+    def initialization(self, data_sample: T, sample_info):
+        first_sample = data_sample
+        # request expert knowledge
+        cluster_label = self._request_expert_knowledge(data_sample, sample_info)
+        first_cluster = MicroCluster(centre=first_sample, label=cluster_label)
         self.micro_clusters: list[MicroCluster] = [first_cluster]
+        return cluster_label, 'manual'
 
     # 2. Update Micro-Clusters
-    def update(self, data_sample: T) -> None:
+    def CEDAS_Cluster_AnomalyDetector(self, data_sample: T, sample_info):
+        # update Micro-Clusters dimension
+        for cluster in self.micro_clusters:
+            cluster.update_dimension(data_sample)
         # find nearest micro cluster
         nearest_cluster = min(
             self.micro_clusters,
@@ -75,14 +91,37 @@ class CEDAS(Generic[T]):
             # if data is within the kernel?
             if min_dist < self.r0 / 2:
                 # todo: xd
-                nearest_cluster.centre = update_center(
-                    nearest_cluster.centre, nearest_cluster.count, data_sample
-                )
-
+                nearest_cluster.update_center(data_sample)
             self.changed_cluster = nearest_cluster
+
+            return nearest_cluster.label, 'auto'
         else:
-            new_micro_cluster = MicroCluster(data_sample)
+            # request expert knowledge
+            cluster_label = self._request_expert_knowledge(data_sample, sample_info)
+
+            # create new micro cluster
+            new_micro_cluster = MicroCluster(centre=data_sample, label=cluster_label)
             self.micro_clusters.append(new_micro_cluster)
+
+            return new_micro_cluster.label, 'manual'
+    
+    # Request expert knowledge
+    def _request_expert_knowledge(self, sample, sample_info):
+        # improvement
+        # print("Trace Info:" + "\n" +
+        #       "--------------------" + "\n" +
+        #       "trace id: {}".format(sample_info['trace_id']) + "\n" +
+        #       "trace bool: {}".format("abnormal" if sample_info['trace_bool']==1 else "normal") + "\n" +
+        #       # "duration: {}".format(duration) + "\n" +
+        #       # "trace structure: {}".format(structure) + "\n" +
+        #       "--------------------")
+
+        cluster_label = "abnormal" if sample_info['trace_bool']==1 else "normal" 
+        # cluster_label = input("Please input the label of trace {}:".format(sample_info['trace_id']))
+        # Check cluster label (normal, abnormal, change normal)
+        while cluster_label not in ["normal", "abnormal", "change_normal"]:
+            cluster_label = input("Illegal label! Please input the label of trace {}:".format(sample_info['trace_id']))
+        return cluster_label
 
     # 3. Kill Clusters
     def kill(self) -> None:

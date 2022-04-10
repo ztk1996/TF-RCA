@@ -13,6 +13,7 @@ import datetime
 from sklearn.metrics import accuracy_score, recall_score, precision_score
 from DataPreprocess.STVProcess import embedding_to_vector, load_dataset, process_one_trace
 from DenStream.DenStream import DenStream
+from CEDAS.CEDAS import CEDAS
 from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo
 from MicroRank.online_rca import rca
 from DataPreprocess.params import chaos_dict
@@ -24,6 +25,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 K = 3
 start_str = '2022-01-13 00:00:00'
 window_duration = 5 * 60 * 1000 # ms
+AD_method = 'CEDAS'    # 'DenStream_online', 'DenStream_offline', 'CEDAS'
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
@@ -42,8 +44,12 @@ def main():
     # ========================================
     # Create cluster object
     # ========================================
-    denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
-    
+    if AD_method == 'DenStream_online' or AD_method == 'DenStream_offline':
+        denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)    # eps=0.3
+    elif AD_method == 'CEDAS':
+        cedas = CEDAS(r0=0.2, decay=0.001, threshold=5)
+        first_tag = True
+
     # ========================================
     # Init time window
     # ========================================
@@ -72,9 +78,10 @@ def main():
         if len(dataset) == 0:
             break
         
+        a_true, a_pred = [], []
         # Init manual count
         manual_count = 0
-        for _, data in tqdm(enumerate(dataset), desc="All Samples: "):
+        for _, data in tqdm(enumerate(dataset), desc="Time Window Samples: "):
             # ========================================
             # Path vector encoder
             # ========================================
@@ -82,7 +89,24 @@ def main():
             STVector = embedding_to_vector(data, all_path)
 
             a_true.append(data['trace_bool'])
-            sample_label, label_status = denstream.Cluster_AnomalyDetector(np.array(STVector), data)
+
+            if AD_method == 'DenStream_online' or AD_method == 'DenStream_offline':
+                sample_label, label_status = denstream.DS_Cluster_AnomalyDetector(np.array(STVector), data)
+            elif AD_method == 'CEDAS':
+                if first_tag:
+                    # 1. Initialization
+                    sample_label, label_status = cedas.initialization(np.array(STVector), data)
+                    first_tag = False
+                else:
+                    cedas.changed_cluster = None
+                    # 2. Update Micro-Clusters
+                    sample_label, label_status = cedas.CEDAS_Cluster_AnomalyDetector(np.array(STVector), data)
+                    # 3. Kill Clusters
+                    cedas.kill()
+                    if cedas.changed_cluster and cedas.changed_cluster.count > cedas.threshold:
+                        # 4. Update Cluster Graph
+                        cedas.update_graph()
+
             tid = data['trace_id']
             tid_list.append(tid)
             # sample_label
@@ -98,6 +122,17 @@ def main():
                 manual_count += 1
 
         print('Manual labeling ratio is %.3f' % (manual_count/len(dataset)))
+        print('--------------------------------')
+        a_acc = accuracy_score(a_true, a_pred)
+        a_recall = recall_score(a_true, a_pred)
+        a_prec = precision_score(a_true, a_pred)
+        a_F1_score = (2 * a_prec * a_recall)/(a_prec + a_recall)
+        print('AD accuracy score is %.5f' % a_acc)
+        print('AD recall score is %.5f' % a_recall)
+        print('AD precision score is %.5f' % a_prec)
+        print('AD F1 score is %.5f' % a_F1_score)
+        print('--------------------------------')
+
         
         if abnormal_count > 8:
             print('********* RCA start *********')

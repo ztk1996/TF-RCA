@@ -277,7 +277,7 @@ class DenStream:
     def _decay_function(self, t):
         return 2 ** ((-self.lambd) * (t))
 
-    def Cluster_AnomalyDetector(self, sample, sample_info):
+    def DS_Cluster_AnomalyDetector(self, sample, sample_info):
         # improvement 这里各个 trace 的权重应该由已有的聚类计算出来，暂时还没想好
         sample_weight = self._validate_sample_weight(sample_weight=None, n_samples=1)
         sample_label, label_status = self._merging(sample, sample_info, sample_weight)
