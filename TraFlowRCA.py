@@ -182,18 +182,22 @@ def main():
                 start_hour = time.localtime(start//1000).tm_hour
                 chaos_service = chaos_dict.get(start_hour)
 
-                for i in range(0, len(topK)):
-                    # TODO
-                    pass
-
+                # zhoutong add
                 in_topK = True
+                candidate_list = []
+                for topS in topK:
+                    candidate_list += topS.split('/')
                 if isinstance(chaos_service, list):
-                    for c in chaos_service:
-                        if c not in topK:
+                    for service in chaos_service:
+                        gt_service = service.replace('-', '')[2:]
+                        if gt_service not in candidate_list:
                             in_topK = False
                             break
-                elif chaos_service not in topK:
-                    in_topK = False
+                else:
+                    gt_service = chaos_service.replace('-', '')[2:]
+                    if gt_service not in candidate_list:
+                        in_topK = False
+                        
             # top_list is empty
             elif len(top_list) == 0:
                 in_topK = False
