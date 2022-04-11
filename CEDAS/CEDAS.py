@@ -9,6 +9,7 @@ import numpy as np
 from sklearn import datasets
 
 from matplotlib.colors import hsv_to_rgb
+from sklearn.manifold import TSNE
 
 # data type
 T = TypeVar("T")
@@ -249,7 +250,77 @@ class CEDAS(Generic[T]):
             if score != 1:
                 print("find it !")
         
+        self.visualization_tool()
+        
         return labels, confidenceScores, sampleRates
+
+    def visualization_tool(self):
+        macro_clusters_list = self._get_macro_cluster()
+
+        for i, macro_cluster in enumerate(macro_clusters_list):
+            color = hsv_to_rgb([(i * 0.618033988749895) % 1.0, 1, 1])
+            for micro_cluster in macro_cluster:
+                micro_cluster.color = color
+        
+        fig, ax = plt.subplots()
+
+        cluster_centers = []
+        for cluster in self.micro_clusters:
+            if cluster.count > self.threshold:
+                cluster_centers.append(cluster.centre)
+        cluster_centers_2 = TSNE(n_components=2).fit_transform(cluster_centers)
+
+        idx = 0
+        for cluster in self.micro_clusters:
+            if cluster.count > self.threshold:
+                if cluster.label == 'normal':    # normal, abnormal, change_normal
+                    ax.add_artist(
+                        plt.Circle(
+                            (cluster_centers_2[idx][0], cluster_centers_2[idx][1]),
+                            self.r0,
+                            alpha=cluster.energy,
+                            color=cluster.color,
+                            clip_on=False,
+                            hatch='*',    # hatch = {'/', '', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
+                            linewidth=1
+                        )
+                    )
+                elif cluster.label == 'abnormal':
+                    ax.add_artist(
+                        plt.Circle(
+                            (cluster_centers_2[idx][0], cluster_centers_2[idx][1]),
+                            self.r0,
+                            alpha=cluster.energy,
+                            color=cluster.color,
+                            clip_on=False,
+                            hatch='/',    # hatch = {'/', '', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
+                            linewidth=1
+                        )
+                    )
+                elif cluster.label == 'change_normal':
+                    ax.add_artist(
+                        plt.Circle(
+                            (cluster_centers_2[idx][0], cluster_centers_2[idx][1]),
+                            self.r0,
+                            alpha=cluster.energy,
+                            color=cluster.color,
+                            clip_on=False,
+                            hatch='o',    # hatch = {'/', '', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
+                            linewidth=1
+                        )
+                    )
+                idx += 1
+
+        # plt.axis('equal')
+        plt.axis('scaled')
+        ax.set_xlim((np.min([center[0] for center in cluster_centers_2])-5*self.r0, np.max([center[0] for center in cluster_centers_2])+5*self.r0))
+        ax.set_ylim((np.min([center[1] for center in cluster_centers_2])-5*self.r0, np.max([center[1] for center in cluster_centers_2])+5*self.r0))
+        
+        plt.show()
+        fig.savefig("micro_clusters.png")
+
+
+
 
 
     def run(self) -> None:
@@ -267,7 +338,7 @@ class CEDAS(Generic[T]):
 
 
 
-    def get_macro_cluster(self) -> list[set[MicroCluster]]:
+    def _get_macro_cluster(self) -> list[set[MicroCluster]]:
         seen: set[MicroCluster] = set()
 
         def dfs(cluster) -> set[MicroCluster]:
@@ -275,14 +346,11 @@ class CEDAS(Generic[T]):
             return {cluster}.union(
                 *map(dfs, [edge for edge in cluster.edges if edge not in seen])
             )
-
         result = []
-
         for cluster in self.micro_clusters:
             if cluster.count > self.threshold:
                 if cluster not in seen:
                     result.append(dfs(cluster))
-
         return result
 
 
