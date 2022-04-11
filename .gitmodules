@@ -1,0 +1,3 @@
+[submodule "experiment/autoquery"]
+	path = experiment/autoquery
+	url = git@github.com:FudanSELab/train-ticket-auto-query.git
