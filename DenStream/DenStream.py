@@ -7,6 +7,11 @@ from DenStream.MicroCluster import MicroCluster
 from math import ceil
 from sklearn.cluster import DBSCAN
 
+from matplotlib import pyplot as plt
+from matplotlib.colors import hsv_to_rgb
+from sklearn.manifold import TSNE
+
+dbscan_label_list = []
 
 class DenStream:
 
@@ -210,6 +215,8 @@ class DenStream:
         
         dbscan = DBSCAN(eps=0.3, min_samples=10, algorithm='brute')
         dbscan.fit(micro_cluster_centers, sample_weight=micro_cluster_weights)
+        global dbscan_label_list
+        dbscan_label_list = dbscan.labels_
 
         labels = {}
         confidenceScores = {}
@@ -252,9 +259,88 @@ class DenStream:
             if score != 1:
                 print("find it !")
 
+        if len((self.p_micro_clusters+self.o_micro_clusters)) > 1:
+            self.visualization_tool()
+
         return labels, confidenceScores, sampleRates
+    
+    def _get_same_element_index(self, ob_list, element):
+        return [i for (i, v) in enumerate(ob_list) if v == element]
+    
+    def _get_macro_cluster(self, label_list):
+        macro_clusters_list = []
+        n_clusters_ = len(set(label_list))
+        for label in range(-1, n_clusters_-1):
+            macro_cluster_index = self._get_same_element_index(label_list, label)
+            if label == -1:
+                for noisy_cluster_index in macro_cluster_index:
+                    macro_clusters_list.append([(self.p_micro_clusters+self.o_micro_clusters)[noisy_cluster_index]])
+            else:            
+                macro_cluster = [(self.p_micro_clusters+self.o_micro_clusters)[idx] for idx in macro_cluster_index]
+                macro_clusters_list.append(macro_cluster)
+        return macro_clusters_list
 
+    def visualization_tool(self):
+        macro_clusters_list = self._get_macro_cluster(dbscan_label_list)
 
+        for i, macro_cluster in enumerate(macro_clusters_list):
+            color = hsv_to_rgb([(i * 0.618033988749895) % 1.0, 1, 1])
+            for micro_cluster in macro_cluster:
+                micro_cluster.color = color
+        
+        fig, ax = plt.subplots()
+
+        cluster_centers = []
+        for cluster in (self.p_micro_clusters+self.o_micro_clusters):
+            cluster_centers.append(cluster.center())
+        cluster_centers_2 = TSNE(n_components=2).fit_transform(cluster_centers)
+
+        for idx, cluster in enumerate(self.p_micro_clusters+self.o_micro_clusters):
+            if cluster.label == 'normal':    # normal, abnormal, change_normal
+                ax.add_artist(
+                    plt.Circle(
+                        (cluster_centers_2[idx][0], cluster_centers_2[idx][1]),
+                        cluster.radius(),
+                        # alpha=cluster.energy,
+                        color=cluster.color,
+                        clip_on=False,
+                        hatch='*',    # hatch = {'/', '', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
+                        linewidth=1
+                    )
+                )
+            elif cluster.label == 'abnormal':
+                ax.add_artist(
+                    plt.Circle(
+                        (cluster_centers_2[idx][0], cluster_centers_2[idx][1]),
+                        cluster.radius(),
+                        # alpha=cluster.energy,
+                        color=cluster.color,
+                        clip_on=False,
+                        hatch='/',    # hatch = {'/', '', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
+                        linewidth=1
+                    )
+                )
+            elif cluster.label == 'change_normal':
+                ax.add_artist(
+                    plt.Circle(
+                        (cluster_centers_2[idx][0], cluster_centers_2[idx][1]),
+                        cluster.radius(),
+                        # alpha=cluster.energy,
+                        color=cluster.color,
+                        clip_on=False,
+                        hatch='o',    # hatch = {'/', '', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
+                        linewidth=1
+                    )
+                )
+
+        # plt.axis('equal')
+        plt.axis('scaled')
+        ax.set_xlim((np.min([center[0] for center in cluster_centers_2])-50, np.max([center[0] for center in cluster_centers_2])+50))
+        ax.set_ylim((np.min([center[1] for center in cluster_centers_2])-50, np.max([center[1] for center in cluster_centers_2])+50))
+        
+        plt.show()
+        fig.savefig("micro_clusters.png")
+    
     def predict(self, X, y=None, sample_weight=None):
         """
         Lorem ipsum dolor sit amet
