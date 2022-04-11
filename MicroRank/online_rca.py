@@ -183,6 +183,7 @@ def online_anomaly_detect_RCA(slo, operation_list):
 
 
 def rca(start, end, tid_list, trace_labels, confidenceScores=None):
+    # need to be filtered
     middle_span_list = get_span(start, end)
     anomaly_list, normal_list = traces_partition(tid_list, trace_labels)
 

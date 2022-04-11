@@ -25,8 +25,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 K = 3
 start_str = '2022-01-13 00:00:00'
 window_duration = 5 * 60 * 1000 # ms
-AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
-
+AD_method = 'CEDAS_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
+Sample_method = 'macro'    # 'none', 'micro', 'macro'
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
@@ -130,7 +130,7 @@ def main():
                 manual_count += 1
 
         if AD_method == 'DenStream_withscore':
-            labels, confidenceScores = denstream.get_labels_and_confidenceScores(STV_map)
+            labels, confidenceScores, sampleRates = denstream.get_labels_confidenceScores_sampleRates(STV_map=STV_map, cluster_type=Sample_method)
             # sample_label
             for tid, sample_label in labels.items():
                 if sample_label == 'abnormal':
@@ -141,7 +141,7 @@ def main():
                     abnormal_map[tid] = False
                     a_pred.append(0)
         elif AD_method == 'CEDAS_withscore':
-            labels, confidenceScores = cedas.get_labels_and_confidenceScores(STV_map)
+            labels, confidenceScores, sampleRates = cedas.get_labels_confidenceScores_sampleRates(STV_map=STV_map, cluster_type=Sample_method)
             # sample_label
             for tid, sample_label in labels.items():
                 if sample_label == 'abnormal':
@@ -167,11 +167,18 @@ def main():
         if abnormal_count > 8:
             print('********* RCA start *********')
             r_true.append(True)
-            # 在这里对 trace 进行尾采样，若一个微簇/宏观簇的样本数越多，则采样概率低，否则采样概率高
-            # 仅保留采样到的 trace id 即可
 
             if AD_method in ['DenStream_withscore', 'CEDAS_withscore']:
-                top_list = rca(start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map, confidenceScores=confidenceScores)
+                # 在这里对 trace 进行尾采样，若一个微簇/宏观簇的样本数越多，则采样概率低，否则采样概率高
+                # 仅保留采样到的 trace id 即可
+                sampled_tid_list = []
+                for tid in tid_list:
+                    if sampleRates[tid] >= np.random.uniform(0, 1):
+                        sampled_tid_list.append(tid)
+                if len(sampled_tid_list) != 0:
+                    top_list = rca(start=start, end=end, tid_list=sampled_tid_list, trace_labels=abnormal_map, confidenceScores=confidenceScores)
+                else:
+                    top_list = []
             else:
                 top_list = rca(start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map)
             
@@ -181,6 +188,7 @@ def main():
                 print(f'top-{K} root cause is', topK)
                 start_hour = time.localtime(start//1000).tm_hour
                 chaos_service = chaos_dict.get(start_hour)
+                print(f'ground truth root cause is', chaos_service)
 
                 # zhoutong add
                 in_topK = True

@@ -149,29 +149,71 @@ class DenStream:
 
         return y
     
-    def get_labels_and_confidenceScores(self, STV_map):
+    def get_sampleRates(self, STV_map, cluster_type):
         """
-        Get labels of traces and confidence score of each label
+        Get sample rate of each trace
 
         Parameters
         ----------
         STV_map : {trace_id1: STVector1, trace_id2: STVector2}
+        cluster_type : 'micro', 'macro'
+
+        Returns
+        ----------
+        sampleRates : {trace_id1: rate1, trace_id2: rate2}
+        """
+        sampleRates = {}
+        for trace_id, STVector in STV_map.items():
+            STVector = np.append(STVector, [0]*(len(self.p_micro_clusters[0].center() if len(self.p_micro_clusters)!=0 
+                       else self.o_micro_clusters[0].center()) - len(STVector)))
+
+            nearest_index, nearest_cluster = self._get_nearest_micro_cluster(STVector, self.p_micro_clusters + self.o_micro_clusters)
+
+            # get count of all micro_clusters
+            clusterCounts = [cluster.count for cluster in self.p_micro_clusters+self.o_micro_clusters]
+            
+            # get sample rate
+            # method 1
+            sample_rate = 1 / (1 + np.exp(2*np.mean(clusterCounts)-nearest_cluster.count))
+            # method 2
+            sample_rate = nearest_cluster.count / np.sum(clusterCounts)
+
+            sampleRates[trace_id] = sample_rate
+
+        return sampleRates
+
+
+    def get_labels_confidenceScores_sampleRates(self, STV_map, cluster_type):
+        """
+        Get labels and sample rates of traces and confidence score of each label
+
+        Parameters
+        ----------
+        STV_map : {trace_id1: STVector1, trace_id2: STVector2}
+        cluster_type : 'micro', 'macro', 'none'
         
         Returns
         ----------
         labels : {trace_id1: label1, trace_id2: label2}
         confidenceScores : {trace_id1: score1, trace_id2: score2}
+        sampleRates : {trace_id1: rate1, trace_id2: rate2}
         """
         micro_cluster_centers = np.array([micro_cluster.center() for
                                             micro_cluster in
                                             self.p_micro_clusters + self.o_micro_clusters])
         micro_cluster_weights = [micro_cluster.weight()[0] for micro_cluster in
                                    self.p_micro_clusters + self.o_micro_clusters]
+        micro_cluster_counts = [micro_cluster.count for micro_cluster in 
+                                self.p_micro_clusters+self.o_micro_clusters]
+        micro_cluster_scores = [np.sum(micro_cluster_counts)/micro_cluster_count
+                                for micro_cluster_count in micro_cluster_counts]
+        
         dbscan = DBSCAN(eps=0.3, min_samples=10, algorithm='brute')
         dbscan.fit(micro_cluster_centers, sample_weight=micro_cluster_weights)
 
         labels = {}
         confidenceScores = {}
+        sampleRates = {}
         for trace_id, STVector in STV_map.items():
             STVector = np.append(STVector, [0]*(len(self.p_micro_clusters[0].center() if len(self.p_micro_clusters)!=0 
                        else self.o_micro_clusters[0].center()) - len(STVector)))
@@ -187,10 +229,30 @@ class DenStream:
             score = sum([cluster.weight() for cluster in neighbor_cluster_list if cluster.label == nearest_cluster.label]) / sum([cluster.weight() for cluster in neighbor_cluster_list]) if bool(neighbor_cluster_list) else 1
             confidenceScores[trace_id] = score
 
+            # get sample rate
+            if cluster_type == 'micro':
+                # method 1
+                sample_rate = 1 / (1 + np.exp(2*np.mean(micro_cluster_scores)-np.sum(micro_cluster_counts)/nearest_cluster.count))
+                # method 2
+                sample_rate = (np.sum(micro_cluster_counts)/nearest_cluster.count) / np.sum(micro_cluster_scores)
+                # method 3
+                sample_rate = (np.sum(micro_cluster_counts)/nearest_cluster.count) / np.max(micro_cluster_scores)
+            elif cluster_type == 'macro':
+                neighbor_count_list = [cluster.count for cluster in neighbor_cluster_list]
+                # method 1
+                sample_rate = 1 / (1 + np.exp(2*np.mean(micro_cluster_scores)-((np.sum(micro_cluster_counts)/np.mean(neighbor_count_list)) if len(neighbor_count_list)!=0 else (np.sum(micro_cluster_counts)/nearest_cluster.count))))
+                # method 2
+                sample_rate = ((np.sum(micro_cluster_counts)/np.mean(neighbor_count_list)) if len(neighbor_count_list)!=0 else (np.sum(micro_cluster_counts)/nearest_cluster.count)) / np.sum(micro_cluster_scores)
+                # method 3
+                sample_rate = ((np.sum(micro_cluster_counts)/np.mean(neighbor_count_list)) if len(neighbor_count_list)!=0 else (np.sum(micro_cluster_counts)/nearest_cluster.count)) / np.max(micro_cluster_scores)
+            elif cluster_type == 'none':
+                sample_rate = 1
+            sampleRates[trace_id] = sample_rate
+
             if score != 1:
                 print("find it !")
 
-        return labels, confidenceScores
+        return labels, confidenceScores, sampleRates
 
 
     def predict(self, X, y=None, sample_weight=None):

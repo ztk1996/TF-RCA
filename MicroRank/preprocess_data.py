@@ -310,7 +310,7 @@ def get_operation_duration_data(operation_list: List[str], span_list: List[Span]
        trace_operation 存储 operation被哪些trace 访问过, 左下角 coverage graph
        trace_operation[operation_name] = [traceid1, traceid2]  
        
-       pr_trace: 存储trace id 经过了哪些operation，不去重
+       pr_trace: 存储trace id 经过了哪些operation, 不去重
        pr_trace[traceid] = [operation_name1, operation_name2]
 '''
 
