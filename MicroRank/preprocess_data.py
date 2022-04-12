@@ -266,17 +266,20 @@ def get_operation_duration_data(operation_list: List[str], span_list: List[Span]
     operation_dict = {}
     trace_id = span_list[0].traceId
 
-    def init_dict(trace_id):
+    def init_dict(trace_id, operation_name):
         if trace_id not in operation_dict:
             operation_dict[trace_id] = {}
-            for operation in operation_list:
-                operation_dict[trace_id][operation] = 0
+            # for operation in operation_list:
+            #     operation_dict[trace_id][operation] = 0
             operation_dict[trace_id]['duration'] = 0
+            operation_dict[trace_id][operation_name] = 0
+        else:
+            operation_dict[trace_id][operation_name] = 0
 
     for span in span_list:
         operation_name = span.operation
 
-        init_dict(span.traceId)
+        init_dict(span.traceId, operation_name)
 
         if trace_id == span.traceId:
             operation_dict[trace_id][operation_name] += 1
