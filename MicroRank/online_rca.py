@@ -137,6 +137,8 @@ def rca_MicroRank(start, end, tid_list, trace_labels, operation_list, slo, confi
     middle_span_list = get_span(start=start, end=end)
     operation_count = get_operation_duration_data(operation_list, middle_span_list)
     anomaly_list, normal_list = trace_list_partition(operation_count=operation_count, slo=slo)
+    
+    middle_span_list = [span for span in middle_span_list if span.traceId in tid_list]
     anomaly_list = [trace_id for trace_id in anomaly_list if trace_id in tid_list]
     normal_list = [trace_id for trace_id in normal_list if trace_id in tid_list]
     
@@ -223,6 +225,7 @@ def online_anomaly_detect_RCA(start, end, slo, operation_list):
 def rca(start, end, tid_list, trace_labels, confidenceScores=None):
     # need to be filtered
     middle_span_list = get_span(start, end)
+    middle_span_list = [span for span in middle_span_list if span.traceId in tid_list]
     anomaly_list, normal_list = traces_partition(tid_list, trace_labels)
 
     print("anomaly_list", len(anomaly_list))

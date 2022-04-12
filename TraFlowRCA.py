@@ -25,8 +25,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 K = 3
 start_str = '2022-01-13 00:00:00'
 window_duration = 5 * 60 * 1000 # ms
-AD_method = 'CEDAS_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
-Sample_method = 'macro'    # 'none', 'micro', 'macro'
+AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
+Sample_method = 'none'    # 'none', 'micro', 'macro'
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
@@ -46,7 +46,8 @@ def main():
     # Create cluster object
     # ========================================
     if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
-        denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)    # eps=0.3
+        # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
+        denstream = DenStream(eps=100, lambd=0.1, beta=0.2, mu=6)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=0.2, decay=0.001, threshold=5)
         first_tag = True
@@ -54,7 +55,7 @@ def main():
     # ========================================
     # Init time window
     # ========================================
-    start = timestamp(start_str)
+    start = timestamp(start_str) + 1 * 60 * 1000
     end = start + window_duration
 
     # ========================================

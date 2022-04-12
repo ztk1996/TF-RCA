@@ -468,6 +468,7 @@ class DenStream:
         for cluster in self.p_micro_clusters + self.o_micro_clusters:
             cluster.energy -= self.decay
 
+        # if sample_info["time_stamp"] % 30 == 0:
         if sample_info["time_stamp"] % self.tp == 0:    # 不懂这一步是在干啥？每隔一段时间更新所有簇的状态，有的消失，有的保留
             self.p_micro_clusters = [p_micro_cluster for p_micro_cluster
                                      in self.p_micro_clusters if
