@@ -7,50 +7,52 @@ update_svc_num = 1
 
 service_changes = [
     # normal changes
-    ('ts-route-service', 'ts-route-service:tag'),
-    ('ts-order-service', 'ts-order-service:tag'),
-    ('ts-auth-service', 'ts-auth-service:tag'),
+    ('ts-route-service', 'codewisdom/ts-route-service:0.2.0'),
+    ('ts-order-service', 'codewisdom/ts-order-service:0.2.0'),
+    ('ts-auth-service', 'codewisdom/ts-auth-service:0.2.0'),
 
     # abnormal changes
-    ('ts-ticket-info-service', 'ts-ticket-info-service:tag'),
-    ('ts-travel-service', 'ts-travel-service:tag'),
-    ('ts-route-service', 'ts-route-serivce:tag'),
-    ('ts-order-service', 'ts-order-service'),
-    ('ts-auth-service', 'ts-auth-service'),
-    ('ts-user-service', 'ts-user-service'),
+    ('ts-ticketinfo-service', 'codewisdom/ts-ticketinfo-service:0.2.0'),
+    ('ts-travel-service', 'codewisdom/ts-travel-service:0.2.0'),
+    ('ts-route-service', 'codewisdom/ts-route-serivce:0.2.0'),
+    ('ts-order-service', 'codewisdom/ts-order-service:0.2.0'),
+    ('ts-auth-service', 'codewisdom/ts-auth-service:0.2.0'),
+    ('ts-user-service', 'codewisdom/ts-user-service:0.2.0'),
 ]
 
 query_func = {
     'ts-route-service': query_route,
     'ts-order-service': query_order,
     'ts-auth-service': query_auth,
-    'ts-ticket-info-service': query_ticketinfo,
+    'ts-ticketinfo-service': query_ticketinfo,
     'ts-travel-service': query_travel,
     'ts-user-service': query_user,
 }
 
 change_order1 = [
-
+    [1], [2], [1], [2], [3],
+    [2], [1], [3], [1], [1],
+    [3], [0], [2], [3], [3],
+    [1], [1], [1], [2], [2],
+    [2], [0], [1], [1], [0],
+    [0], [2], [3], [0], [3],
+    [3], [1], [1], [0], [3],
+    [3], [1], [3], [0], [2],
+    [3], [1], [0], [3], [3],
+    [1], [1], [0], [0], [3],
 ]
 
 change_order2 = [
-    [5, 3], [3, 4], [2, 1], [4, 5], [0, 4], [5, 1],
-    [0, 5], [1, 2], [5, 0], [1, 4], [0, 4], [2, 0],
-    [2, 1], [0, 3], [5, 5], [1, 3], [5, 2], [5, 5],
-    [0, 4], [3, 3], [1, 0], [5, 2], [3, 0], [1, 4],
-    [4, 0], [3, 1], [5, 4], [3, 3], [2, 1], [5, 3],
-    [3, 0], [4, 0], [2, 3], [5, 1], [2, 4], [5, 2],
-    [5, 4], [0, 3], [4, 3], [0, 2], [2, 4], [3, 5],
-    [2, 1], [2, 2], [3, 1], [4, 2], [4, 1], [2, 3],
-    [2, 3], [4, 1], [5, 3], [0, 3], [4, 2], [2, 5],
-    [5, 0], [5, 4], [4, 5], [2, 5], [5, 1], [3, 3],
-    [1, 3], [0, 1], [4, 0], [4, 4], [4, 5], [2, 4],
-    [0, 4], [2, 3], [3, 1], [4, 0], [3, 2], [1, 5],
-    [0, 3], [3, 2], [3, 2], [4, 2], [0, 4], [4, 1],
-    [5, 3], [2, 2], [3, 4], [4, 5], [0, 4], [0, 5],
-    [1, 2], [2, 2], [3, 5], [4, 3], [0, 1], [0, 0],
-    [0, 5], [5, 0], [0, 5], [5, 0], [2, 1], [0, 0],
-    [5, 4], [0, 2], [0, 3], [0, 4],
+    [3, 3], [2, 1], [3, 3], [9, 4], [3, 3],
+    [1, 2], [2, 7], [8, 2], [3, 3], [2, 2],
+    [0, 5], [6, 4], [0, 3], [3, 3], [9, 2],
+    [0, 0], [4, 0], [8, 8], [1, 2], [6, 8],
+    [1, 2], [3, 0], [1, 0], [0, 9], [4, 5],
+    [1, 7], [2, 3], [0, 3], [1, 2], [6, 3],
+    [7, 8], [7, 7], [9, 3], [8, 7], [0, 3],
+    [8, 8], [0, 3], [7, 5], [9, 9], [2, 0],
+    [0, 2], [1, 1], [0, 2], [9, 2], [2, 2],
+    [9, 5], [6, 0], [7, 9], [3, 3], [5, 1],
 ]
 
 change_order = change_order2
