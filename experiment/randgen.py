@@ -23,7 +23,7 @@ for _ in range(0, normal_N):
 
 for _ in range(0, abnormal_N):
     str_list.append('[%d],\n' %
-                    (random.randint(0, normal_range)))
+                    (random.randint(0, abnormal_range)))
 
 
 random.shuffle(str_list)

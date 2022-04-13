@@ -30,16 +30,16 @@ query_func = {
 }
 
 change_order1 = [
-    [1], [2], [1], [2], [3],
-    [2], [1], [3], [1], [1],
-    [3], [0], [2], [3], [3],
-    [1], [1], [1], [2], [2],
-    [2], [0], [1], [1], [0],
-    [0], [2], [3], [0], [3],
-    [3], [1], [1], [0], [3],
-    [3], [1], [3], [0], [2],
-    [3], [1], [0], [3], [3],
-    [1], [1], [0], [0], [3],
+    [3], [8], [0], [8], [9],
+    [4], [2], [3], [1], [4],
+    [2], [1], [5], [3], [3],
+    [1], [2], [6], [4], [9],
+    [3], [3], [2], [3], [0],
+    [6], [1], [8], [2], [2],
+    [8], [0], [1], [3], [7],
+    [1], [0], [8], [4], [0],
+    [6], [3], [0], [0], [1],
+    [7], [6], [4], [8], [7],
 ]
 
 change_order2 = [
@@ -55,17 +55,17 @@ change_order2 = [
     [9, 5], [6, 0], [7, 9], [3, 3], [5, 1],
 ]
 
-change_order = change_order2
+change_order = change_order1
 
 
-def update_deployment_image(api, deployment, image) -> str:
+def update_deployment_image(api: client.AppsV1Api, deployment, image) -> str:
     old = deployment.spec.template.spec.containers[0].image
     # Update container image
     deployment.spec.template.spec.containers[0].image = image
 
     # patch the deployment
     resp = api.patch_namespaced_deployment(
-        name='', namespace=ts_namespace, body=deployment
+        name=deployment.metadata.name, namespace=ts_namespace, body=deployment
     )
 
     print("\n[INFO] deployment's container image updated.\n")
