@@ -259,8 +259,8 @@ class DenStream:
             if score != 1:
                 print("find it !")
 
-        if len((self.p_micro_clusters+self.o_micro_clusters)) > 1:
-            self.visualization_tool()
+        # if len((self.p_micro_clusters+self.o_micro_clusters)) > 1:
+        #     self.visualization_tool()
 
         return labels, confidenceScores, sampleRates
     

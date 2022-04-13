@@ -16,17 +16,18 @@ from DenStream.DenStream import DenStream
 from CEDAS.CEDAS import CEDAS
 from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo
 from MicroRank.online_rca import rca
-from DataPreprocess.params import chaos_dict
+from DataPreprocess.params import span_chaos_dict, trace_chaos_dict
 import warnings
 warnings.filterwarnings("ignore")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 K = 3
-start_str = '2022-01-13 00:00:00'
-window_duration = 5 * 60 * 1000 # ms
+start_str = '2022-01-13 00:00:00'    # trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
+window_duration = 60 * 60 * 1000    # ms
 AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'none'    # 'none', 'micro', 'macro'
+dataLevel = 'span'    # 'trace', 'span'
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
@@ -55,7 +56,7 @@ def main():
     # ========================================
     # Init time window
     # ========================================
-    start = timestamp(start_str) + 1 * 60 * 1000
+    start = timestamp(start_str)     # + 1 * 60 * 1000
     end = start + window_duration
 
     # ========================================
@@ -68,6 +69,15 @@ def main():
     # ========================================
     r_true, r_pred = [], []    
 
+    # ========================================
+    # Data loader
+    # ========================================
+    if dataLevel == 'trace':
+        print("Data loading ...")
+        file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
+        raw_data_total = json.load(file)
+        print("Finish data load !")
+
     print('Start !')
     # main loop start
     while True:
@@ -78,7 +88,11 @@ def main():
         STV_map = {}
         label_map = {}
         tid_list = []
-        dataset = load_dataset(start, end)
+        if dataLevel == 'span':
+            dataset, raw_data_dict = load_dataset(start, end, dataLevel)
+        elif dataLevel == 'trace':
+            dataset, raw_data_dict = load_dataset(start, end, dataLevel, raw_data_total)
+            
         if len(dataset) == 0:
             break
         
@@ -177,18 +191,21 @@ def main():
                     if sampleRates[tid] >= np.random.uniform(0, 1):
                         sampled_tid_list.append(tid)
                 if len(sampled_tid_list) != 0:
-                    top_list = rca(start=start, end=end, tid_list=sampled_tid_list, trace_labels=abnormal_map, confidenceScores=confidenceScores)
+                    top_list = rca(start=start, end=end, tid_list=sampled_tid_list, trace_labels=abnormal_map, traces_dict=raw_data_dict, confidenceScores=confidenceScores, dataLevel=dataLevel)
                 else:
                     top_list = []
             else:
-                top_list = rca(start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map)
+                top_list = rca(start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map, traces_dict=raw_data_dict, dataLevel=dataLevel)
             
             # top_list is not empty
             if len(top_list) != 0:   
                 topK = top_list[:K if len(top_list) > K else len(top_list)]
                 print(f'top-{K} root cause is', topK)
                 start_hour = time.localtime(start//1000).tm_hour
-                chaos_service = chaos_dict.get(start_hour)
+                if dataLevel == 'span':
+                    chaos_service = span_chaos_dict.get(start_hour)
+                elif dataLevel == 'trace':
+                    chaos_service = trace_chaos_dict.get(start_hour)
                 print(f'ground truth root cause is', chaos_service)
 
                 # zhoutong add

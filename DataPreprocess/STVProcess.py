@@ -382,12 +382,22 @@ import numpy as np
 from tqdm import tqdm
 from .SpanProcess import preprocess_span
 
-def load_dataset(start: int, end: int):
-    trace_list = list()
 
-    raw_data = preprocess_span(start, end)
+def load_dataset(start, end, dataLevel, raw_data_total=None):
+    trace_list = list()
+    raw_data = dict()
+
+    if dataLevel == 'span':
+        raw_data = preprocess_span(start, end)
+    elif dataLevel == 'trace':
+        for trace_id, trace in sorted(raw_data_total.items(), key = lambda item: item[1]['edges']['0'][0]['startTime']):
+            if trace['edges']['0'][0]['startTime']>=end:
+                break
+            if trace['edges']['0'][0]['startTime']>=start and trace['edges']['0'][0]['startTime']<end:
+                raw_data[trace_id] = trace
+
     # print('getting trace data (api and time seq) ... 1')
-    for trace_id, trace in tqdm(sorted(raw_data.items(), key = lambda i: i[1]['edges'][0][0]['startTime'])):
+    for trace_id, trace in tqdm(sorted(raw_data.items(), key = lambda i: i[1]['edges']['0'][0]['startTime'])):
         service_seq = ['start']
         spans = []
         for span in trace['edges'].values():
@@ -395,7 +405,7 @@ def load_dataset(start: int, end: int):
         spans = sorted(spans, key=lambda span: span['startTime'])
         service_seq.extend([span['service'] for span in spans])
         time_seq = [span['rawDuration'] for span in spans]
-        time_stamp = trace['edges'][0][0]['startTime']
+        time_stamp = trace['edges']['0'][0]['startTime']
         trace_list.append({'trace_id': trace_id, 'service_seq': service_seq, 'time_seq': time_seq, 'time_stamp': time_stamp, 'trace_bool': trace['abnormal']})
 
     # with open(r'G:/workspace/TraceCluster/newData/preprocessed_old/abnormal.json', 'r') as file_2:
@@ -410,7 +420,7 @@ def load_dataset(start: int, end: int):
     #         service_seq.extend([span['service'] for span in spans])
     #         time_seq = [span['rawDuration'] for span in spans]
     #         trace_list.append({'trace_id': trace_id, 'service_seq': service_seq, 'time_seq': time_seq, 'trace_bool': trace['abnormal']})
-    return trace_list
+    return trace_list, raw_data
 
 
 def process_one_trace(trace, unique_path):

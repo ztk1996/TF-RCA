@@ -163,7 +163,7 @@ mm_trace_root_list = [
 ]
 
 # see https://openmsg.yuque.com/openmsg/wechat/smhizg#1Gpq
-chaos_dict = {
+span_chaos_dict = {
     0: 'ts-travel-service',
     1: 'ts-ticketinfo-service',
     2: 'ts-route-service',
@@ -184,4 +184,30 @@ chaos_dict = {
     17: 'ts-preserve-service',
     18: 'ts-user-service',
     19: 'ts-user-service',
+}
+
+trace_chaos_dict = {
+    0: 'ts-payment-service',
+    1: 'ts-ticketinfo-service',
+    2: 'ts-route-service',
+    3: 'ts-order-service',
+    4: 'ts-basic-service',
+    5: 'ts-basic-service',
+    6: 'ts-ticketinfo-service',
+    8: 'ts-seat-service',
+    9: 'ts-config-service',
+    10: 'ts-travel-service',
+    11: 'ts-order-other-service',
+    12: 'ts-order-other-service',
+    13: 'ts-consign-price-service',
+    14: 'ts-consign-price-service',
+    15: 'ts-verification-code-service',
+    16: 'ts-order-service',
+    17: 'ts-security-service',
+    18: 'ts-verification-code-service',
+    19: 'ts-user-service',
+    20: 'ts-station-service',
+    21: 'ts-route-service',
+    22: 'ts-travel2service',
+    23: 'ts-config-service'
 }

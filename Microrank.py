@@ -27,7 +27,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 K = 3
 start_str = '2022-01-13 00:00:00'
-window_duration = 5 * 60 * 1000 # ms
+window_duration = 60 * 60 * 1000 # ms
 init_window_duration = 1 * 60 * 1000 # ms
 AD_method = 'CEDAS_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'macro'    # 'none', 'micro', 'macro'

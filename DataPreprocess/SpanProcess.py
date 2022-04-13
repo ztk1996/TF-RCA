@@ -18,7 +18,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import requests
 import wordninja
 from transformers import AutoTokenizer, AutoModel
-from .params import data_path_list, mm_data_path_list, mm_trace_root_list, chaos_dict
+from .params import data_path_list, mm_data_path_list, mm_trace_root_list, span_chaos_dict
 
 data_root = '/data/TraceCluster/raw'
 
@@ -415,9 +415,9 @@ def calculate_edge_features(current_span: Span, trace_duration: dict, spanChildr
 
 def check_abnormal_span(span: Span) -> bool:
     start_hour = time.localtime(span.startTime//1000).tm_hour
-    chaos_service = chaos_dict.get(start_hour)
+    chaos_service = span_chaos_dict.get(start_hour)
 
-    if start_hour not in chaos_dict.keys() or not span.service.startswith(chaos_service):
+    if start_hour not in span_chaos_dict.keys() or not span.service.startswith(chaos_service):
         return False
 
     # 故障请求延时为5s，所以小于5000ms的不是根因
@@ -483,7 +483,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
 
         if check_abnormal_span(span):
             is_abnormal = 1
-            chaos_root = chaos_dict.get(time.localtime(span.startTime).tm_hour)
+            chaos_root = span_chaos_dict.get(time.localtime(span.startTime).tm_hour)
 
         # get the parent server span id
         if span.parentSpanId == '-1':
@@ -515,7 +515,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
             str_set.add(opname)
 
         if pvid not in edges.keys():
-            edges[pvid] = []
+            edges[str(pvid)] = []
 
         feats = calculate_edge_features(
             span, trace_duration, spanChildrenMap)
@@ -529,7 +529,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         for key in operation_select_keys:
             operation_map[span.operation][key].append(feats[key])
 
-        edges[pvid].append(feats)
+        edges[str(pvid)].append(feats)
 
     if rootSpan == None:
         return None, str_set
@@ -635,7 +635,7 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
             str_set.add(opname)
 
         if pvid not in edges.keys():
-            edges[pvid] = []
+            edges[str(pvid)] = []
 
         feats = calculate_edge_features(
             span, trace_duration, spanChildrenMap)
@@ -649,7 +649,7 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         for key in operation_select_keys:
             operation_map[span.operation][key].append(feats[key])
 
-        edges[pvid].append(feats)
+        edges[str(pvid)].append(feats)
 
     if rootSpan == None:
         return None, str_set

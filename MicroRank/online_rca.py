@@ -7,7 +7,7 @@ from .preprocess_data import get_operation_duration_data
 from .preprocess_data import get_span
 from .preprocess_data import get_operation_slo
 from .preprocess_data import get_service_operation_list
-from .preprocess_data import get_pagerank_graph
+from .preprocess_data import get_pagerank_graph_spanLevel, get_pagerank_graph_traceLevel
 from .pagerank import trace_pagerank
 from .anormaly_detector import trace_list_partition, traces_partition
 import time
@@ -150,13 +150,13 @@ def rca_MicroRank(start, end, tid_list, trace_labels, operation_list, slo, confi
         print('list is empty')
         return []
     operation_operation, operation_trace, trace_operation, pr_trace \
-        = get_pagerank_graph(normal_list, middle_span_list)
+        = get_pagerank_graph_spanLevel(normal_list, middle_span_list)
 
     normal_trace_result, normal_num_list = trace_pagerank(operation_operation=operation_operation, operation_trace=operation_trace, trace_operation=trace_operation,
                                                             pr_trace=pr_trace, anomaly=False, confidenceScores=confidenceScores)
 
     a_operation_operation, a_operation_trace, a_trace_operation, a_pr_trace \
-        = get_pagerank_graph(anomaly_list, middle_span_list)
+        = get_pagerank_graph_spanLevel(anomaly_list, middle_span_list)
     anomaly_trace_result, anomaly_num_list = trace_pagerank(operation_operation=a_operation_operation, operation_trace=a_operation_trace,
                                                             trace_operation=a_trace_operation, pr_trace=a_pr_trace, anomaly=True, confidenceScores=confidenceScores)
     top_list, score_list = calculate_spectrum_without_delay_list(anomaly_result=anomaly_trace_result,
@@ -197,13 +197,13 @@ def online_anomaly_detect_RCA(start, end, slo, operation_list):
             print('list is empty')
             return []
         operation_operation, operation_trace, trace_operation, pr_trace \
-            = get_pagerank_graph(normal_list, middle_span_list)
+            = get_pagerank_graph_spanLevel(normal_list, middle_span_list)
 
         normal_trace_result, normal_num_list = trace_pagerank(operation_operation, operation_trace, trace_operation,
                                                                 pr_trace, False)
 
         a_operation_operation, a_operation_trace, a_trace_operation, a_pr_trace \
-            = get_pagerank_graph(anomaly_list, middle_span_list)
+            = get_pagerank_graph_spanLevel(anomaly_list, middle_span_list)
         anomaly_trace_result, anomaly_num_list = trace_pagerank(a_operation_operation, a_operation_trace,
                                                                 a_trace_operation, a_pr_trace,
                                                                 True)
@@ -222,11 +222,15 @@ def online_anomaly_detect_RCA(start, end, slo, operation_list):
         return top_list
 
 
-def rca(start, end, tid_list, trace_labels, confidenceScores=None):
+def rca(start, end, tid_list, trace_labels, traces_dict, confidenceScores=None, dataLevel='span'):
     # need to be filtered
-    middle_span_list = get_span(start, end)
-    middle_span_list = [span for span in middle_span_list if span.traceId in tid_list]
     anomaly_list, normal_list = traces_partition(tid_list, trace_labels)
+    if dataLevel == 'span':
+        middle_span_list = get_span(start, end)
+        middle_span_list = [span for span in middle_span_list if span.traceId in tid_list]
+    elif dataLevel == 'trace':
+        normal_traces_dict = dict([(trace_id, traces_dict[trace_id]) for trace_id in normal_list])
+        anomaly_traces_dict = dict([(trace_id, traces_dict[trace_id]) for trace_id in anomaly_list])
 
     print("anomaly_list", len(anomaly_list))
     print("normal_list", len(normal_list))
@@ -235,14 +239,21 @@ def rca(start, end, tid_list, trace_labels, confidenceScores=None):
     if len(anomaly_list) == 0 or len(normal_list) == 0:
         print('list is empty')
         return []
-    operation_operation, operation_trace, trace_operation, pr_trace \
-        = get_pagerank_graph(normal_list, middle_span_list)
-
+    if dataLevel == 'span':
+        operation_operation, operation_trace, trace_operation, pr_trace \
+            = get_pagerank_graph_spanLevel(normal_list, middle_span_list)
+    elif dataLevel == 'trace':
+        operation_operation, operation_trace, trace_operation, pr_trace \
+            = get_pagerank_graph_traceLevel(normal_traces_dict)
     normal_trace_result, normal_num_list = trace_pagerank(operation_operation=operation_operation, operation_trace=operation_trace, trace_operation=trace_operation,
                                                             pr_trace=pr_trace, anomaly=False, confidenceScores=confidenceScores)
 
-    a_operation_operation, a_operation_trace, a_trace_operation, a_pr_trace \
-        = get_pagerank_graph(anomaly_list, middle_span_list)
+    if dataLevel == 'span':
+        a_operation_operation, a_operation_trace, a_trace_operation, a_pr_trace \
+            = get_pagerank_graph_spanLevel(anomaly_list, middle_span_list)
+    elif dataLevel == 'trace':
+        a_operation_operation, a_operation_trace, a_trace_operation, a_pr_trace \
+            = get_pagerank_graph_traceLevel(anomaly_traces_dict)
     anomaly_trace_result, anomaly_num_list = trace_pagerank(operation_operation=a_operation_operation, operation_trace=a_operation_trace,
                                                             trace_operation=a_trace_operation, pr_trace=a_pr_trace, anomaly=True, confidenceScores=confidenceScores)
     top_list, score_list = calculate_spectrum_without_delay_list(anomaly_result=anomaly_trace_result,
