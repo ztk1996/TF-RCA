@@ -1,8 +1,10 @@
 import random
 
+normal_N = 20
+abnormal_N = 50
 N = 50
 R = 5
-elem_num = 2
+elem_num = 1
 
 str_list = []
 for _ in range(0, N):

@@ -1,27 +1,39 @@
 from time import sleep
 from kubernetes import client, config, utils
+from query import *
 
 ts_namespace = 'train-ticket'
 update_svc_num = 1
-total_loop = 50
 
-
-service_chages = [
+service_changes = [
     # normal changes
-    ('ts-route-service', 'image:tag'),
-    ('ts-order-service', ''),
-    ('ts-auth-service', ''),
+    ('ts-route-service', 'ts-route-service:tag'),
+    ('ts-order-service', 'ts-order-service:tag'),
+    ('ts-auth-service', 'ts-auth-service:tag'),
 
     # abnormal changes
-    ('ts-ticket-info-service', ''),
-    ('ts-trave-service', ''),
-    ('ts-route-service', ''),
-    ('ts-order-service', ''),
-    ('ts-auth-service', ''),
-    ('ts-user-service', ''),
+    ('ts-ticket-info-service', 'ts-ticket-info-service:tag'),
+    ('ts-travel-service', 'ts-travel-service:tag'),
+    ('ts-route-service', 'ts-route-serivce:tag'),
+    ('ts-order-service', 'ts-order-service'),
+    ('ts-auth-service', 'ts-auth-service'),
+    ('ts-user-service', 'ts-user-service'),
 ]
 
-change_order = [
+query_func = {
+    'ts-route-service': query_route,
+    'ts-order-service': query_order,
+    'ts-auth-service': query_auth,
+    'ts-ticket-info-service': query_ticketinfo,
+    'ts-travel-service': query_travel,
+    'ts-user-service': query_user,
+}
+
+change_order1 = [
+
+]
+
+change_order2 = [
     [5, 3], [3, 4], [2, 1], [4, 5], [0, 4], [5, 1],
     [0, 5], [1, 2], [5, 0], [1, 4], [0, 4], [2, 0],
     [2, 1], [0, 3], [5, 5], [1, 3], [5, 2], [5, 5],
@@ -40,6 +52,8 @@ change_order = [
     [0, 5], [5, 0], [0, 5], [5, 0], [2, 1], [0, 0],
     [5, 4], [0, 2], [0, 3], [0, 4],
 ]
+
+change_order = change_order2
 
 
 def update_deployment_image(api, deployment, image) -> str:
@@ -72,29 +86,31 @@ def main():
     # k8s_client = client.ApiClient()
     api = client.AppsV1Api()
 
-    for i in range(0, total_loop):
-        # get current change
-        if len(change_order) == 0:
-            break
+    for order in change_order:
+        old_images = []
+        for order_id in order:
+            # get current change
+            change = service_changes[order_id]
+            print("curret deployment change:", change)
+            # update deployment
+            deploy_name = change[0]
+            new_image = change[1]
 
-        changes = change_order.pop()
-        # update deployment
-        for change_set in changes:
-            deploy_name = change_set[0]
-            new_image = change_set[1]
-
-        deployment = api.read_namespaced_deployment(
-            name=deploy_name, namespace=ts_namespace)
+            deployment = api.read_namespaced_deployment(
+                name=deploy_name, namespace=ts_namespace)
 
         old_image = update_deployment_image(api, deployment, new_image)
+        old_images.append(old_image)
         sleep(10)
         # send requests
+        query_func[deploy_name]()
 
         # recover deployment
-        update_deployment_image(api, deployment, old_image)
+        for image in old_images:
+            update_deployment_image(api, deployment, image)
 
-        # wait 6 minutes
-        sleep(360)
+        # wait 5 minutes
+        sleep(300)
 
     print('End')
 
