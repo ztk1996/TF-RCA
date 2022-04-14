@@ -16,7 +16,7 @@ service_changes = [
     # abnormal changes
     ('ts-ticketinfo-service', 'codewisdom/ts-ticketinfo-service:0.2.0'),
     ('ts-travel-service', 'codewisdom/ts-travel-service:0.2.0'),
-    ('ts-route-service', 'codewisdom/ts-route-serivce:0.2.0'),
+    ('ts-route-service', 'codewisdom/ts-route-service:0.2.0'),
     ('ts-order-service', 'codewisdom/ts-order-service:0.2.0'),
     ('ts-auth-service', 'codewisdom/ts-auth-service:0.2.0'),
     ('ts-user-service', 'codewisdom/ts-user-service:0.2.0'),
@@ -91,7 +91,7 @@ def update_deployment_image(api: client.AppsV1Api, name, image) -> str:
         name=deployment.metadata.name, namespace=ts_namespace, body=deployment
     )
 
-    print("\n[INFO] deployment's container image updated.\n")
+    print("[INFO] deployment's container image updated.\n")
     print("%s\t\t%s\t\t\t%s\t%s" %
           ("NAMESPACE", "NAME", "REVISION", "IMAGE"))
     print(
@@ -111,14 +111,15 @@ def main():
     config.load_kube_config()
     # k8s_client = client.ApiClient()
     api = client.AppsV1Api()
-
+    request_period_log = []
     for order in change_order:
         old_images = []
         deploy_names = []
+        print("-----------------------------------------")
         for order_id in order:
             # get current change
             change = service_changes[order_id]
-            print("curret deployment change:", change)
+            print("[INFO] curret deployment change:", change)
             # update deployment
             deploy_name = change[0]
             deploy_names.append(deploy_name)
@@ -132,15 +133,22 @@ def main():
             wait_for_deployment_complete(api, name)
 
         # send requests
+        start = int(round(time.time() * 1000))
         query_func[deploy_name]()
-
+        end = int(round(time.time() * 1000))
+        request_period_log.append((order, start, end))
         # recover deployment
         for image in old_images:
+            print(f"[INFO] recover deployment image to {image}")
             update_deployment_image(api, deploy_name, image)
 
         # wait 5 minutes
-        sleep(100)
+        print(f"[INFO] waitting...")
+        sleep(10)
 
+    print('-----------------------------------------')
+    print('request period log:')
+    print(request_period_log)
     print('End')
 
 

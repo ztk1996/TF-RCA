@@ -110,7 +110,7 @@ def query_order():
 def query_auth():
     q = Query(url)
     query_weights = {
-        q.login(): 100
+        q.login: 100
     }
 
     def task():
