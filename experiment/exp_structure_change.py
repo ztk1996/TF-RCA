@@ -1,7 +1,9 @@
 from time import sleep
 from kubernetes import client, config, utils
 from query import *
+import warnings
 
+warnings.filterwarnings('ignore')
 ts_namespace = 'train-ticket'
 update_svc_num = 1
 
@@ -30,35 +32,56 @@ query_func = {
 }
 
 change_order1 = [
-    [3], [8], [0], [8], [9],
-    [4], [2], [3], [1], [4],
-    [2], [1], [5], [3], [3],
-    [1], [2], [6], [4], [9],
-    [3], [3], [2], [3], [0],
-    [6], [1], [8], [2], [2],
-    [8], [0], [1], [3], [7],
-    [1], [0], [8], [4], [0],
-    [6], [3], [0], [0], [1],
-    [7], [6], [4], [8], [7],
+    [1], [0], [0], [2], [1],
+    [2], [1], [1], [2], [4],
+    [0], [0], [4], [0], [2],
+    [1], [5], [0], [0], [1],
+    [5], [7], [5], [4], [3],
+    [5], [2], [2], [4], [4],
+    [1], [1], [0], [4], [2],
+    [6], [6], [7], [0], [3],
+    [0], [5], [5], [1], [5],
+    [8], [1], [0], [2], [5],
 ]
 
 change_order2 = [
-    [3, 3], [2, 1], [3, 3], [9, 4], [3, 3],
-    [1, 2], [2, 7], [8, 2], [3, 3], [2, 2],
-    [0, 5], [6, 4], [0, 3], [3, 3], [9, 2],
-    [0, 0], [4, 0], [8, 8], [1, 2], [6, 8],
-    [1, 2], [3, 0], [1, 0], [0, 9], [4, 5],
-    [1, 7], [2, 3], [0, 3], [1, 2], [6, 3],
-    [7, 8], [7, 7], [9, 3], [8, 7], [0, 3],
-    [8, 8], [0, 3], [7, 5], [9, 9], [2, 0],
-    [0, 2], [1, 1], [0, 2], [9, 2], [2, 2],
-    [9, 5], [6, 0], [7, 9], [3, 3], [5, 1],
+    [1, 0], [4, 5], [0, 1], [1, 0], [2, 8],
+    [4, 5], [1, 7], [2, 0], [0, 1], [7, 8],
+    [0, 3], [3, 1], [0, 0], [8, 2], [2, 1],
+    [1, 7], [8, 7], [1, 0], [8, 0], [0, 5],
+    [7, 4], [4, 2], [3, 4], [8, 0], [0, 1],
+    [1, 2], [3, 7], [1, 2], [0, 3], [0, 0],
+    [6, 8], [1, 2], [3, 2], [5, 0], [2, 0],
+    [6, 3], [2, 2], [4, 8], [2, 1], [8, 7],
+    [1, 0], [4, 7], [0, 5], [5, 0], [0, 2],
+    [0, 2], [0, 0], [1, 1], [4, 6], [8, 2],
 ]
 
 change_order = change_order1
 
 
-def update_deployment_image(api: client.AppsV1Api, deployment, image) -> str:
+def wait_for_deployment_complete(api: client.AppsV1Api, name, timeout=300):
+    start = time.time()
+
+    while time.time() - start < timeout:
+        time.sleep(10)
+        response = api.read_namespaced_deployment_status(name, ts_namespace)
+        s = response.status
+        if (s.updated_replicas == response.spec.replicas and
+                s.replicas == response.spec.replicas and
+                s.available_replicas == response.spec.replicas and
+                s.observed_generation >= response.metadata.generation):
+            return True
+        else:
+            print(f'[INFO] [updated_replicas:{s.updated_replicas},replicas:{s.replicas}'
+                  f',available_replicas:{s.available_replicas},observed_generation:{s.observed_generation}] waiting...')
+
+    raise RuntimeError(f'Waiting timeout for deployment {name}')
+
+
+def update_deployment_image(api: client.AppsV1Api, name, image) -> str:
+    deployment = api.read_namespaced_deployment(
+        name=name, namespace=ts_namespace)
     old = deployment.spec.template.spec.containers[0].image
     # Update container image
     deployment.spec.template.spec.containers[0].image = image
@@ -69,7 +92,8 @@ def update_deployment_image(api: client.AppsV1Api, deployment, image) -> str:
     )
 
     print("\n[INFO] deployment's container image updated.\n")
-    print("%s\t%s\t\t\t%s\t%s" % ("NAMESPACE", "NAME", "REVISION", "IMAGE"))
+    print("%s\t\t%s\t\t\t%s\t%s" %
+          ("NAMESPACE", "NAME", "REVISION", "IMAGE"))
     print(
         "%s\t\t%s\t%s\t\t%s\n"
         % (
@@ -90,29 +114,32 @@ def main():
 
     for order in change_order:
         old_images = []
+        deploy_names = []
         for order_id in order:
             # get current change
             change = service_changes[order_id]
             print("curret deployment change:", change)
             # update deployment
             deploy_name = change[0]
+            deploy_names.append(deploy_name)
             new_image = change[1]
 
-            deployment = api.read_namespaced_deployment(
-                name=deploy_name, namespace=ts_namespace)
+            old_image = update_deployment_image(api, deploy_name, new_image)
+            old_images.append(old_image)
 
-        old_image = update_deployment_image(api, deployment, new_image)
-        old_images.append(old_image)
-        sleep(10)
+        # wait for completing update
+        for name in deploy_names:
+            wait_for_deployment_complete(api, name)
+
         # send requests
         query_func[deploy_name]()
 
         # recover deployment
         for image in old_images:
-            update_deployment_image(api, deployment, image)
+            update_deployment_image(api, deploy_name, image)
 
         # wait 5 minutes
-        sleep(300)
+        sleep(100)
 
     print('End')
 
