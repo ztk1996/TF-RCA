@@ -1,3 +1,4 @@
+from importlib.resources import path
 from re import T
 import torch
 import json
@@ -9,6 +10,7 @@ from tqdm import tqdm
 from torch_geometric.loader import DataLoader
 from torch.utils.data import Subset
 import time
+import sys
 import datetime
 from sklearn.metrics import accuracy_score, recall_score, precision_score
 from DataPreprocess.STVProcess import embedding_to_vector, load_dataset, process_one_trace
@@ -24,10 +26,13 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 K = 3
 start_str = '2022-01-13 00:00:00'    # trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
-window_duration = 60 * 60 * 1000    # ms
-AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
+window_duration = 30 * 60 * 1000    # ms
+AD_method = 'CEDAS_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'none'    # 'none', 'micro', 'macro'
 dataLevel = 'span'    # 'trace', 'span'
+path_decay = 0.01
+path_thres = 0.9
+reCluster_thres = 5
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
@@ -37,11 +42,30 @@ def timestamp(datetime: str) -> int:
 def ms2str(ms: int) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ms/1000))
 
+# def do_reCluster(start_time: int, end_time: int, all_path: dict, label_map_reCluster: dict):
+#     delete_index = [status[1] for status in all_path.values() if status[0]<path_thres]
+#     # adjust all STVectors
+#     if dataLevel == 'span':
+#         dataset, raw_data_dict = load_dataset(start, end, dataLevel)
+#     elif dataLevel == 'trace':
+#         dataset, raw_data_dict = load_dataset(start, end, dataLevel, raw_data_total)
+    
+#     # adjust all_path dict
+#     new_all_path = dict()
+#     for path, path_status in sorted(all_path.items(), key = lambda item: item[1][1]):
+#         if path_status[1] not in delete_index:
+#             new_all_path[path] = [path_status[0], len(new_all_path)]
+
+
+
 def main():
     # ========================================
     # Init path vector encoder
+    # all_path = {path1: [energy1, index1], path2: [energy2, index2]}
+    # label_map_reCluster = {trace_id1: label1, trace_id2: label2}
     # ========================================
-    all_path = []
+    all_path = dict()
+    label_map_reCluster = dict()
 
     # ========================================
     # Create cluster object
@@ -50,7 +74,7 @@ def main():
         # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
         denstream = DenStream(eps=100, lambd=0.1, beta=0.2, mu=6)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
-        cedas = CEDAS(r0=0.2, decay=0.001, threshold=5)
+        cedas = CEDAS(r0=100, decay=0.001, threshold=5)
         first_tag = True
 
     # ========================================
@@ -58,6 +82,7 @@ def main():
     # ========================================
     start = timestamp(start_str)     # + 1 * 60 * 1000
     end = start + window_duration
+    timeWindow_count = 0
 
     # ========================================
     # Init evaluation for AD
@@ -68,6 +93,11 @@ def main():
     # Init evaluation for RCA
     # ========================================
     r_true, r_pred = [], []    
+
+    # ========================================
+    # Init root cause pattern
+    # ========================================
+    rc_pattern = []
 
     # ========================================
     # Data loader
@@ -83,10 +113,10 @@ def main():
     while True:
         print('--------------------------------')
         print(f'time window: {ms2str(start)} ~ {ms2str(end)}')
+        timeWindow_count += 1
         abnormal_count = 0
         abnormal_map = {}
-        STV_map = {}
-        label_map = {}
+        STV_map_window = {}
         tid_list = []
         if dataLevel == 'span':
             dataset, raw_data_dict = load_dataset(start, end, dataLevel)
@@ -103,23 +133,31 @@ def main():
             # ========================================
             # Path vector encoder
             # ========================================
+            for status in all_path.values():
+                status[0] -= path_decay
             all_path = process_one_trace(data, all_path)
             STVector = embedding_to_vector(data, all_path)
-            STV_map[data['trace_id']] = np.array(STVector)
+            STV_map_window[data['trace_id']] = np.array(STVector)
 
             a_true.append(data['trace_bool'])
 
             if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
                 sample_label, label_status = denstream.Cluster_AnomalyDetector(np.array(STVector), data)
+                if label_status == 'manual':
+                    label_map_reCluster[data['trace_id']] = sample_label
             elif AD_method in ['CEDAS_withoutscore', 'CEDAS_withscore']:
                 if first_tag:
                     # 1. Initialization
                     sample_label, label_status = cedas.initialization(np.array(STVector), data)
+                    if label_status == 'manual':
+                        label_map_reCluster[data['trace_id']] = sample_label
                     first_tag = False
                 else:
                     cedas.changed_cluster = None
                     # 2. Update Micro-Clusters
                     sample_label, label_status = cedas.Cluster_AnomalyDetector(np.array(STVector), data)
+                    if label_status == 'manual':
+                        label_map_reCluster[data['trace_id']] = sample_label
                     # 3. Kill Clusters
                     cedas.kill()
                     if cedas.changed_cluster and cedas.changed_cluster.count > cedas.threshold:
@@ -145,7 +183,7 @@ def main():
                 manual_count += 1
 
         if AD_method == 'DenStream_withscore':
-            labels, confidenceScores, sampleRates = denstream.get_labels_confidenceScores_sampleRates(STV_map=STV_map, cluster_type=Sample_method)
+            labels, confidenceScores, sampleRates = denstream.get_labels_confidenceScores_sampleRates(STV_map=STV_map_window, cluster_type=Sample_method)
             # sample_label
             for tid, sample_label in labels.items():
                 if sample_label == 'abnormal':
@@ -155,8 +193,9 @@ def main():
                 else:
                     abnormal_map[tid] = False
                     a_pred.append(0)
+            AD_pattern = [micro_cluster for micro_cluster in denstream.p_micro_clusters+denstream.o_micro_clusters if micro_cluster.AD_selected==True]
         elif AD_method == 'CEDAS_withscore':
-            labels, confidenceScores, sampleRates = cedas.get_labels_confidenceScores_sampleRates(STV_map=STV_map, cluster_type=Sample_method)
+            labels, confidenceScores, sampleRates = cedas.get_labels_confidenceScores_sampleRates(STV_map=STV_map_window, cluster_type=Sample_method)
             # sample_label
             for tid, sample_label in labels.items():
                 if sample_label == 'abnormal':
@@ -166,6 +205,7 @@ def main():
                 else:
                     abnormal_map[tid] = False
                     a_pred.append(0)
+            AD_pattern = [micro_cluster for micro_cluster in cedas.micro_clusters if micro_cluster.AD_selected==True]
 
         print('Manual labeling ratio is %.3f' % (manual_count/len(dataset)))
         print('--------------------------------')
@@ -179,7 +219,11 @@ def main():
         print('AD F1 score is %.5f' % a_F1_score)
         print('--------------------------------')
 
-        if abnormal_count > 8:
+        pattern_IoU = len(set(AD_pattern)&set(rc_pattern)) / len(set(AD_pattern)|set(rc_pattern)) if len(set(AD_pattern)|set(rc_pattern)) != 0 else -1
+
+        if abnormal_count > 8 and pattern_IoU < 0.5:
+            rc_pattern = AD_pattern
+
             print('********* RCA start *********')
             r_true.append(True)
 
@@ -228,9 +272,13 @@ def main():
             elif len(top_list) == 0:
                 in_topK = False
             r_pred.append(in_topK)
+        else:
+            rc_pattern = []
 
         start = end
         end = start + window_duration
+        # if timeWindow_count % reCluster_thres == 0:
+        #     do_reCluster(start, end, all_path=all_path, label_map_reCluster=label_map_reCluster)
         # main loop end
     print('main loop end')
     

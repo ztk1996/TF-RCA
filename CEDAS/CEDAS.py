@@ -30,6 +30,7 @@ class MicroCluster(Generic[T]):
     count: int = 1
     edges: set[MicroCluster[T]] = field(default_factory=set)
     label: str = None
+    AD_selected: bool = False
 
     def update_dimension(self, data_sample: T):
         # update centre
@@ -209,6 +210,9 @@ class CEDAS(Generic[T]):
         confidenceScores : {trace_id1: score1, trace_id2: score2}
         sampleRates : {trace_id1: rate1, trace_id2: rate2}
         """
+        for micro_cluster in self.micro_clusters:
+            micro_cluster.AD_selected = False
+
         labels = {}
         confidenceScores = {}
         sampleRates = {}
@@ -220,11 +224,18 @@ class CEDAS(Generic[T]):
 
             nearest_cluster = min(self.micro_clusters, key=lambda cluster: distance(STVector, cluster.centre),)
 
+            # get selected cluster
+            if nearest_cluster.label == 'abnormal':
+                nearest_cluster.AD_selected = True
+                
             # get label
             labels[trace_id] = nearest_cluster.label
 
             # get confidence score
+            # method 1
             score = sum([cluster.energy for cluster in nearest_cluster.edges if cluster.label == nearest_cluster.label]) / sum([cluster.energy for cluster in nearest_cluster.edges]) if bool(nearest_cluster.edges) else 1             
+            # method 2
+            score = 1/nearest_cluster.count
             confidenceScores[trace_id] = score
 
             # get sample rate
@@ -247,8 +258,8 @@ class CEDAS(Generic[T]):
                 sample_rate = 1
             sampleRates[trace_id] = sample_rate
 
-            if score != 1:
-                print("find it !")
+            # if score != 1:
+            #     print("find it !")
         
         self.visualization_tool()
         

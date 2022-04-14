@@ -127,19 +127,32 @@ def trace_pagerank(operation_operation, operation_trace, trace_operation, pr_tra
     kind_sum_trace = 0
     if not anomaly:
         for trace_id in pr_trace:
-            num_sum_trace += 1.0 / kind_list[trace_list.index(trace_id)]
+            # method 1
+            # num_sum_trace += 1.0 / kind_list[trace_list.index(trace_id)]
+            # method 2
+            num_sum_trace += confidenceScores[trace_id]
         for trace_id in pr_trace:
             # 正常数据的偏好向量
-            pr[trace_list.index(trace_id)] = 1.0 / \
-                kind_list[trace_list.index(trace_id)] / num_sum_trace
+            # method 1
+            # pr[trace_list.index(trace_id)] = 1.0 / \
+            #     kind_list[trace_list.index(trace_id)] / num_sum_trace
+            # method 2
+            pr[trace_list.index(trace_id)] = confidenceScores[trace_id] / num_sum_trace
     else:
         for trace_id in pr_trace:
-            kind_sum_trace += 1.0 / kind_list[trace_list.index(trace_id)]
+            # method 1
+            # kind_sum_trace += 1.0 / kind_list[trace_list.index(trace_id)]
+            # method 2
+            kind_sum_trace += confidenceScores[trace_id]
             num_sum_trace += 1.0 / len(pr_trace[trace_id])
         for trace_id in pr_trace:
             # 异常数据的偏好向量
-            pr[trace_list.index(trace_id)] = 1.0 / (kind_list[trace_list.index(trace_id)] / kind_sum_trace * 0.5
-                                                    + 1.0 / len(pr_trace[trace_id])) / num_sum_trace * 0.5
+            # method 1
+            # pr[trace_list.index(trace_id)] = 1.0 / (kind_list[trace_list.index(trace_id)] / kind_sum_trace * 0.5
+            #                                         + 1.0 / len(pr_trace[trace_id])) / num_sum_trace * 0.5
+            # method 2
+            pr[trace_list.index(trace_id)] = confidenceScores[trace_id] / kind_sum_trace * 0.5 \
+                                                    + 1.0 / len(pr_trace[trace_id]) / num_sum_trace * 0.5
 
     result = pageRank(p_ss, p_sr, p_rs, pr, operation_length, trace_length)
 

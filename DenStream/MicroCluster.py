@@ -14,6 +14,7 @@ class MicroCluster:
         self.label = micro_cluster_label
         self.energy = 1    # float
         self.count = 1    # int
+        self.AD_selected = False
 
     def insert_sample(self, sample, weight):
         if self.sum_of_weights != 0:
@@ -64,5 +65,6 @@ class MicroCluster:
         # improvement
         new_micro_cluster.energy = self.energy    # float
         new_micro_cluster.count = self.count    # int
+        new_micro_cluster.AD_selected = self.AD_selected
 
         return new_micro_cluster

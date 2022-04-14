@@ -203,6 +203,9 @@ class DenStream:
         confidenceScores : {trace_id1: score1, trace_id2: score2}
         sampleRates : {trace_id1: rate1, trace_id2: rate2}
         """
+        for micro_cluster in self.p_micro_clusters + self.o_micro_clusters:
+            micro_cluster.AD_selected = False
+
         micro_cluster_centers = np.array([micro_cluster.center() for
                                             micro_cluster in
                                             self.p_micro_clusters + self.o_micro_clusters])
@@ -213,7 +216,7 @@ class DenStream:
         micro_cluster_scores = [np.sum(micro_cluster_counts)/micro_cluster_count
                                 for micro_cluster_count in micro_cluster_counts]
         
-        dbscan = DBSCAN(eps=0.3, min_samples=10, algorithm='brute')
+        dbscan = DBSCAN(eps=50, min_samples=5, algorithm='brute')
         dbscan.fit(micro_cluster_centers, sample_weight=micro_cluster_weights)
         global dbscan_label_list
         dbscan_label_list = dbscan.labels_
@@ -227,13 +230,20 @@ class DenStream:
             
             nearest_index, nearest_cluster = self._get_nearest_micro_cluster(STVector, self.p_micro_clusters + self.o_micro_clusters)
 
+            # get selected cluster
+            if nearest_cluster.label == 'abnormal':
+                nearest_cluster.AD_selected = True
+                
             # get label 
             labels[trace_id] = nearest_cluster.label
 
             # get confidence score
+            # method 1
             neighbor_index_list = [index for index, label in enumerate(dbscan.labels_) if label == dbscan.labels_[nearest_index] and label != -1]
             neighbor_cluster_list = [(self.p_micro_clusters+self.o_micro_clusters)[idx] for idx in neighbor_index_list]
             score = sum([cluster.weight() for cluster in neighbor_cluster_list if cluster.label == nearest_cluster.label]) / sum([cluster.weight() for cluster in neighbor_cluster_list]) if bool(neighbor_cluster_list) else 1
+            # method 2
+            score = 1/nearest_cluster.count
             confidenceScores[trace_id] = score
 
             # get sample rate
@@ -256,8 +266,8 @@ class DenStream:
                 sample_rate = 1
             sampleRates[trace_id] = sample_rate
 
-            if score != 1:
-                print("find it !")
+            # if score != 1:
+            #    print("find it !")
 
         # if len((self.p_micro_clusters+self.o_micro_clusters)) > 1:
         #     self.visualization_tool()

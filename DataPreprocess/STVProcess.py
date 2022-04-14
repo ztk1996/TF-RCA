@@ -425,8 +425,13 @@ def load_dataset(start, end, dataLevel, raw_data_total=None):
 
 def process_one_trace(trace, unique_path):
     for i in range(1, len(trace['service_seq'])):
-        if '->'.join(trace['service_seq'][:i + 1]) not in unique_path:
-            unique_path.append('->'.join(trace['service_seq'][:i + 1]))
+        if '->'.join(trace['service_seq'][:i + 1]) not in unique_path.keys():
+            # new path
+            unique_path['->'.join(trace['service_seq'][:i + 1])] = [1, len(unique_path)]    # [energy, index]
+            # unique_path.append('->'.join(trace['service_seq'][:i + 1]))
+        else:
+            # old path
+            unique_path['->'.join(trace['service_seq'][:i + 1])][0] = 1    # energy 重新置一
     return unique_path
 
 
@@ -434,5 +439,6 @@ def embedding_to_vector(trace, unique_path):
     length = len(unique_path)
     vector_list = [0 for i in range(length)]
     for i in range(1, len(trace['service_seq'])):
-        vector_list[unique_path.index('->'.join(trace['service_seq'][:i + 1]))] = trace['time_seq'][i-1]    
+        vector_list[unique_path['->'.join(trace['service_seq'][:i + 1])][1]] = trace['time_seq'][i-1] 
+        # vector_list[unique_path.index('->'.join(trace['service_seq'][:i + 1]))] = trace['time_seq'][i-1]    
     return vector_list
