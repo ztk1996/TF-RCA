@@ -19,6 +19,7 @@ import requests
 import wordninja
 from transformers import AutoTokenizer, AutoModel
 from .params import data_path_list, mm_data_path_list, mm_trace_root_list, chaos_dict
+from .params import service_changes, change_order1, change_order2, request_period_log
 
 data_root = '/data/TraceCluster/raw'
 
@@ -32,8 +33,11 @@ embedding_name = ''
 
 # get features of the edge directed to current span
 operation_select_keys = ['childrenSpanNum', 'requestDuration', 'responseDuration',
-                                 'requestAndResponseDuration', 'workDuration', 'subspanNum',
-                                 'duration', 'rawDuration', 'timeScale']
+                         'requestAndResponseDuration', 'workDuration', 'subspanNum',
+                         'duration', 'rawDuration', 'timeScale']
+
+use_change_order = change_order1
+
 
 def normalize(x: float) -> float: return x
 
@@ -188,7 +192,8 @@ def load_mm_span(clickstream_list: List[str], callgraph_list: List[str]) -> Tupl
                 str(s['CallerNodeID']) + str(s['CallerCmdID']))
             spans[ITEM.TRACE_ID].append(s['GraphIdBase64'])
             spans[ITEM.SPAN_TYPE].append('Entry')
-            spans[ITEM.START_TIME].append(int(time.mktime(time.strptime(s['TimeStamp'], "%Y-%m-%d %H:%M:%S"))) * 1000)
+            spans[ITEM.START_TIME].append(
+                int(time.mktime(time.strptime(s['TimeStamp'], "%Y-%m-%d %H:%M:%S"))) * 1000)
             spans[ITEM.DURATION].append(int(s['CostTime']))
 
             # 尝试替换id为name
@@ -239,7 +244,7 @@ def load_sw_span(data_path_list: List[str]) -> List[DataFrame]:
         spans[ITEM.SERVICE] = spans[ITEM.SERVICE].map(
             lambda x: remove_tail_id(x))
         raw_spans.extend(data_partition(spans, 10000))
-    
+
     return raw_spans
 
 
@@ -251,7 +256,8 @@ def load_span(is_wechat: bool) -> List[DataFrame]:
 
     if is_wechat:
         global mm_root_map
-        mm_root_map, raw_spans = load_mm_span(mm_trace_root_list, mm_data_path_list)
+        mm_root_map, raw_spans = load_mm_span(
+            mm_trace_root_list, mm_data_path_list)
 
     else:
         raw_spans = load_sw_span(data_path_list)
@@ -399,7 +405,8 @@ def calculate_edge_features(current_span: Span, trace_duration: dict, spanChildr
                 trace_duration["end"] = grandChild.startTime + \
                     grandChild.duration
 
-    subspan_duration, subspan_num, is_parallel = subspan_info(current_span, children_span)
+    subspan_duration, subspan_num, is_parallel = subspan_info(
+        current_span, children_span)
 
     # udpate features
     features["isParallel"] = is_parallel
@@ -427,6 +434,28 @@ def check_abnormal_span(span: Span) -> bool:
     return True
 
 
+def check_changed_span(span: Span) -> bool:
+    changes = []
+    for set in request_period_log:
+        r_start = int(set[1])
+        r_end = int(set[2])
+        if r_start < span.startTime and span.startTime < r_end:
+            changes = set[0]
+            break
+
+    if len(changes) == 0:
+        return False
+
+    for change in changes:
+        if change < 3:
+            # index < 3 is normal change
+            continue
+        if service_changes[change][0] == span.service:
+            return True
+
+    return False
+
+
 def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], operation_map: dict):
     vertexs = {0: ['start', 'start']}
     edges = {}
@@ -451,7 +480,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
 
     if not has_root:
         return None, str_set
-        
+
     # remove local span
     for span in trace:
         if span.spanType != 'Local':
@@ -468,7 +497,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
                 spanChildrenMap[local_span_parent.spanId].append(child)
 
     is_abnormal = 0
-    chaos_root = ''
+    chaos_root = []
     # process other span
     for span in trace:
         """
@@ -481,9 +510,10 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         if span.spanType in ['Exit', 'Producer', 'Local']:
             continue
 
-        if check_abnormal_span(span):
+        if check_abnormal_span(span) or check_changed_span(span):
             is_abnormal = 1
-            chaos_root = chaos_dict.get(time.localtime(span.startTime).tm_hour)
+            chaos_root.append(chaos_dict.get(
+                time.localtime(span.startTime).tm_hour))
 
         # get the parent server span id
         if span.parentSpanId == '-1':
@@ -566,7 +596,8 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     root_cmdid = mm_root_map[traceId]['cmdid']
     root_span_id = root_nodeid + root_ossid + root_cmdid
     root_code = mm_root_map[traceId]['code']
-    root_start_time = int(time.mktime(time.strptime(mm_root_map[traceId]['start_time'], "%Y-%m-%d %H:%M:%S")))
+    root_start_time = int(time.mktime(time.strptime(
+        mm_root_map[traceId]['start_time'], "%Y-%m-%d %H:%M:%S")))
     root_service_name = get_service_name(root_ossid)
     root_duration = int(mm_root_map[traceId]['cost_time'])
     if root_service_name == "":
@@ -595,7 +626,7 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         if span.parentSpanId not in spanChildrenMap.keys():
             spanChildrenMap[span.parentSpanId] = []
         spanChildrenMap[span.parentSpanId].append(span)
-    
+
     # process other span
     for span in trace:
         """
@@ -894,6 +925,8 @@ def task(ns, idx, divide_word: bool = True):
 
 # use for data cache
 dataset = []
+
+
 def preprocess_span(start: int, end: int) -> dict:
     """
     获取毫秒时间戳start~end之间的span, 保存为data.json
@@ -907,7 +940,7 @@ def preprocess_span(start: int, end: int) -> dict:
         ss = df.loc[(df.StartTime > start) & (df.StartTime < end)]
         if len(ss) > 0:
             win_spans.append(ss)
-    
+
     if len(win_spans) <= 0:
         return {}
 
