@@ -1,7 +1,7 @@
 kind: NetworkChaos
 apiVersion: chaos-mesh.org/v1alpha1
 metadata:
-  namespace: chaos-testing
+  namespace: train-ticket
   name: route-network-delay
 spec:
   selector:

@@ -19,7 +19,7 @@ import requests
 import wordninja
 from transformers import AutoTokenizer, AutoModel
 from .params import data_path_list, mm_data_path_list, mm_trace_root_list, chaos_dict
-from .params import change_order1, change_order2, request_period_log
+from .params import request_period_log
 
 data_root = '/data/TraceCluster/raw'
 
@@ -35,8 +35,6 @@ embedding_name = ''
 operation_select_keys = ['childrenSpanNum', 'requestDuration', 'responseDuration',
                          'requestAndResponseDuration', 'workDuration', 'subspanNum',
                          'duration', 'rawDuration', 'timeScale']
-
-use_change_order = change_order1
 
 
 def normalize(x: float) -> float: return x

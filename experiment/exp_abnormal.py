@@ -466,7 +466,7 @@ def arguments():
     parser.add_argument(
         '--duration', help='query constant duration (times)', default=50)
     parser.add_argument('--url', help='train ticket server url',
-                        default='http://175.27.169.178:32677')
+                        default='http://139.196.152.44:32677')
     parser.add_argument('--module', help='single or double',
                         default=1)
     return parser.parse_args()

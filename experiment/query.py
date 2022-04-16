@@ -24,7 +24,11 @@ def random_query(q: Query, weights: dict, count: int = random.randint(1, 3), int
     :param count: 请求次数
     :param inteval: 请求间隔
     """
-    if not q.login():
+    try:
+        if not q.login():
+            return
+    except Exception:
+        logger.exception(f'login got an exception')
         return
 
     for _ in range(0, count):

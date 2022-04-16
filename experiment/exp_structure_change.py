@@ -70,7 +70,7 @@ change_order = change_order1
 def wait_for_deployment_complete(api: client.AppsV1Api, name, timeout=300):
     start = time.time()
 
-    while time.time() - start < timeout:
+    while True:
         time.sleep(10)
         response = api.read_namespaced_deployment_status(name, ts_namespace)
         s = response.status
