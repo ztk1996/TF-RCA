@@ -1,0 +1,16 @@
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  namespace: chaos-testing
+  name: station-network-delay
+spec:
+  selector:
+    namespaces:
+      - train-ticket
+    labelSelectors:
+      app: ts-station-service
+  mode: one
+  action: delay
+  duration: 5m
+  delay:
+    latency: 5s

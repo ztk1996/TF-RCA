@@ -5,21 +5,28 @@ import warnings
 
 warnings.filterwarnings('ignore')
 ts_namespace = 'train-ticket'
-update_svc_num = 1
 
 service_changes = [
     # normal changes
-    ('ts-route-service', 'codewisdom/ts-route-service:0.2.0'),
-    ('ts-order-service', 'codewisdom/ts-order-service:0.2.0'),
-    ('ts-auth-service', 'codewisdom/ts-auth-service:0.2.0'),
+    ('ts-route-service', 'cqqcqq/route_inv_contacts:latest'),
+    ('ts-order-service', 'cqqcqq/order_inv_contacts:latest'),
+    ('ts-auth-service', 'cqqcqq/auth_inv_order:latest'),
 
     # abnormal changes
-    ('ts-ticketinfo-service', 'codewisdom/ts-ticketinfo-service:0.2.0'),
-    ('ts-travel-service', 'codewisdom/ts-travel-service:0.2.0'),
-    ('ts-route-service', 'codewisdom/ts-route-service:0.2.0'),
-    ('ts-order-service', 'codewisdom/ts-order-service:0.2.0'),
-    ('ts-auth-service', 'codewisdom/ts-auth-service:0.2.0'),
-    ('ts-user-service', 'codewisdom/ts-user-service:0.2.0'),
+    ('ts-ticketinfo-service', 'cqqcqq/ticketinfo_oom:latest'),
+    ('ts-travel-service', 'cqqcqq/travel_oom:latest'),
+
+    ('ts-route-service', 'cqqcqq/route_sleep:latest'),
+    ('ts-order-service', 'cqqcqq/order_sleep:latest'),
+    ('ts-auth-service', 'cqqcqq/auth_sleep:latest'),
+
+    ('ts-order-service', 'cqqcqq/order_port:latest'),
+    ('ts-route-service', 'cqqcqq/route_port:latest'),
+    ('ts-user-service', 'cqqcqq/user_port:latest'),
+
+    ('ts-order-service', 'cqqcqq/order_table:latest'),
+    ('ts-route-service', 'cqqcqq/route_table:latest'),
+    ('ts-user-service', 'cqqcqq/user_table:latest')
 ]
 
 query_func = {
@@ -32,29 +39,29 @@ query_func = {
 }
 
 change_order1 = [
-    [1], [0], [0], [2], [1],
-    [2], [1], [1], [2], [4],
-    [0], [0], [4], [0], [2],
-    [1], [5], [0], [0], [1],
-    [5], [7], [5], [4], [3],
-    [5], [2], [2], [4], [4],
-    [1], [1], [0], [4], [2],
-    [6], [6], [7], [0], [3],
-    [0], [5], [5], [1], [5],
-    [8], [1], [0], [2], [5],
+    [0], [11], [2], [11], [8],
+    [1], [10], [2], [0], [13],
+    [0], [7], [2], [1], [2],
+    [2], [3], [11], [1], [1],
+    [7], [1], [2], [2], [0],
+    [1], [11], [2], [0], [5],
+    [9], [10], [0], [1], [1],
+    [8], [12], [0], [2], [4],
+    [2], [1], [1], [4], [0],
+    [4], [0], [2], [4], [0]
 ]
 
 change_order2 = [
-    [1, 0], [4, 5], [0, 1], [1, 0], [2, 8],
-    [4, 5], [1, 7], [2, 0], [0, 1], [7, 8],
-    [0, 3], [3, 1], [0, 0], [8, 2], [2, 1],
-    [1, 7], [8, 7], [1, 0], [8, 0], [0, 5],
-    [7, 4], [4, 2], [3, 4], [8, 0], [0, 1],
-    [1, 2], [3, 7], [1, 2], [0, 3], [0, 0],
-    [6, 8], [1, 2], [3, 2], [5, 0], [2, 0],
-    [6, 3], [2, 2], [4, 8], [2, 1], [8, 7],
-    [1, 0], [4, 7], [0, 5], [5, 0], [0, 2],
-    [0, 2], [0, 0], [1, 1], [4, 6], [8, 2],
+    [3, 13], [6, 8], [2, 2], [1, 0], [13, 0],
+    [10, 13], [0, 0], [12, 7], [0, 2], [12, 9],
+    [6, 13], [0, 1], [2, 5], [3, 4], [9, 6],
+    [1, 0], [0, 2], [0, 1], [9, 8], [9, 13],
+    [13, 7], [5, 4], [10, 1], [7, 7], [0, 0],
+    [2, 2], [5, 8], [2, 1], [5, 3], [12, 6],
+    [9, 6], [1, 9], [2, 0], [4, 4], [1, 2],
+    [8, 10], [9, 4], [2, 6], [1, 2], [1, 1],
+    [1, 1], [1, 0], [1, 6], [1, 2], [7, 6],
+    [2, 1], [1, 2], [1, 0], [12, 9], [4, 11],
 ]
 
 change_order = change_order1
@@ -112,6 +119,10 @@ def main():
     # k8s_client = client.ApiClient()
     api = client.AppsV1Api()
     request_period_log = []
+
+    contact_image = update_deployment_image(
+        api, 'ts-contacts-service', 'cqqcqq/contacts_sleep:latest')
+
     for order in change_order:
         old_images = []
         deploy_names = []
@@ -136,7 +147,11 @@ def main():
         start = int(round(time.time() * 1000))
         query_func[deploy_name]()
         end = int(round(time.time() * 1000))
-        request_period_log.append((order, start, end))
+        root_services = []
+        for i in order:
+            if i >= 3:
+                root_services.append(service_changes[i])
+        request_period_log.append((root_services, start, end))
         # recover deployment
         for image in old_images:
             print(f"[INFO] recover deployment image to {image}")
@@ -147,6 +162,8 @@ def main():
         sleep(10)
 
     print('-----------------------------------------')
+    update_deployment_image(api, 'ts-contacts-service',
+                            contact_image)
     print('request period log:')
     print(request_period_log)
     print('End')

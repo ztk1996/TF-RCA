@@ -11,13 +11,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger("autoquery-manager")
 
-url = 'http://175.27.169.178:32677'
+url = 'http://139.196.152.44:32677'
 minute = 60
 hour = 60*minute
-timeout = 10
+timeout = 5*minute
 
 
-def random_query(q: Query, weights: dict, count: int = random.randint(1, 5), inteval: int = random.randint(1, 5)):
+def random_query(q: Query, weights: dict, count: int = random.randint(1, 3), inteval: int = random.randint(3, 5)):
     """
     登陆一个用户并按权重随机发起请求
     :param weights: 权重dict

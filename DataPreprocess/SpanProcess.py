@@ -19,7 +19,7 @@ import requests
 import wordninja
 from transformers import AutoTokenizer, AutoModel
 from .params import data_path_list, mm_data_path_list, mm_trace_root_list, chaos_dict
-from .params import service_changes, change_order1, change_order2, request_period_log
+from .params import change_order1, change_order2, request_period_log
 
 data_root = '/data/TraceCluster/raw'
 
@@ -447,10 +447,7 @@ def check_changed_span(span: Span) -> bool:
         return False
 
     for change in changes:
-        if change < 3:
-            # index < 3 is normal change
-            continue
-        if service_changes[change][0] == span.service:
+        if change == span.service:
             return True
 
     return False
