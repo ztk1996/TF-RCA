@@ -31,6 +31,7 @@ class MicroCluster(Generic[T]):
     edges: set[MicroCluster[T]] = field(default_factory=set)
     label: str = None
     AD_selected: bool = False
+    members: dict = field(default_factory=dict)    # {trace_id1: [STVector1, sample_info1], trace_id2: [STVector2, sample_info2]}
 
     def update_dimension(self, data_sample: T):
         # update centre
@@ -72,6 +73,7 @@ class CEDAS(Generic[T]):
         # request expert knowledge
         cluster_label = self._request_expert_knowledge(data_sample, sample_info)
         first_cluster = MicroCluster(centre=first_sample, label=cluster_label)
+        first_cluster.members[sample_info['trace_id']] = [first_sample, sample_info]
         self.micro_clusters: list[MicroCluster] = [first_cluster]
         return cluster_label, 'manual'
 
@@ -90,6 +92,7 @@ class CEDAS(Generic[T]):
         if min_dist < self.r0:
             nearest_cluster.energy = 1
             nearest_cluster.count += 1
+            nearest_cluster.members[sample_info['trace_id']] = [data_sample, sample_info]
 
             # if data is within the kernel?
             if min_dist < self.r0 / 2:
@@ -104,6 +107,7 @@ class CEDAS(Generic[T]):
 
             # create new micro cluster
             new_micro_cluster = MicroCluster(centre=data_sample, label=cluster_label)
+            new_micro_cluster.members[sample_info['trace_id']] = [data_sample, sample_info]
             self.micro_clusters.append(new_micro_cluster)
 
             return new_micro_cluster.label, 'manual'

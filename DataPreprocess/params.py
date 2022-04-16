@@ -135,9 +135,28 @@ data_path_list = [
     # *old_data_list,
     *new_data_list,
 ]
+init_data_path_list = [
+    # *old_data_list,
+    *new_data_list,
+]
 
 # wechat data list
 mm_data_path_list = [
+    # '5-18/finer_data.json',
+    # '5-18/finer_data2.json',
+    # '8-2/data.json',
+    # '8-3/data.json',
+    # '11-9/data.json',
+    # '11-18/call_graph_2021-11-18_61266.csv'
+    # '11-22/call_graph_2021-11-22_23629.csv'
+    # '11-29/call_graph_2021-11-29_23629.csv',
+    # '12-3/call_graph_2021-12-03_24486.csv',
+    # '12-3/call_graph_2021-12-03_23629.csv',
+    # 'trace_mmfindersynclogicsvr/call_graph_2022-01-17_23629.csv',
+    'trace_mmfindersynclogicsvr/call_graph_2022-01-18_23629.csv',
+    # 'trace_mmfindersynclogicsvr/call_graph_18_500000.csv',
+]
+init_mm_data_path_list = [
     # '5-18/finer_data.json',
     # '5-18/finer_data2.json',
     # '8-2/data.json',
@@ -187,27 +206,27 @@ span_chaos_dict = {
 }
 
 trace_chaos_dict = {
-    0: 'ts-payment-service',
-    1: 'ts-ticketinfo-service',
-    2: 'ts-route-service',
-    3: 'ts-order-service',
-    4: 'ts-basic-service',
-    5: 'ts-basic-service',
-    6: 'ts-ticketinfo-service',
-    8: 'ts-seat-service',
-    9: 'ts-config-service',
-    10: 'ts-travel-service',
-    11: 'ts-order-other-service',
-    12: 'ts-order-other-service',
-    13: 'ts-consign-price-service',
-    14: 'ts-consign-price-service',
-    15: 'ts-verification-code-service',
-    16: 'ts-order-service',
-    17: 'ts-security-service',
-    18: 'ts-verification-code-service',
-    19: 'ts-user-service',
-    20: 'ts-station-service',
-    21: 'ts-route-service',
-    22: 'ts-travel2service',
-    23: 'ts-config-service'
+    0: 'ts-payment-service',    # pod fail
+    1: 'ts-ticketinfo-service', # http delay
+    2: 'ts-route-service',  # network delay
+    3: 'ts-order-service',  # network delay
+    4: 'ts-basic-service',  # pod fail
+    5: 'ts-basic-service',  # http delay
+    6: 'ts-ticketinfo-service', # pod failure
+    8: 'ts-seat-service',   # pod failure
+    9: 'ts-config-service', # http delay
+    10: 'ts-travel-service',    # pod failure
+    11: 'ts-order-other-service',   # http delay
+    12: 'ts-order-other-service',   # pod failure
+    13: 'ts-consign-price-service', # http delay
+    14: 'ts-consign-price-service', # http delay
+    15: 'ts-verification-code-service', # pod failure
+    16: 'ts-order-service', # pod failure
+    17: 'ts-security-service',  # http delay
+    18: 'ts-verification-code-service', # http delay
+    19: 'ts-user-service',  # http delay
+    20: 'ts-station-service',   # pod fail
+    21: 'ts-route-service', # pod failure
+    22: 'ts-travel2service',    # pod kill
+    23: 'ts-config-service' # pod failure
 }

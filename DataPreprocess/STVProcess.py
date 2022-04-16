@@ -383,12 +383,12 @@ from tqdm import tqdm
 from .SpanProcess import preprocess_span
 
 
-def load_dataset(start, end, dataLevel, raw_data_total=None):
+def load_dataset(start, end, dataLevel, stage, raw_data_total=None):
     trace_list = list()
     raw_data = dict()
 
     if dataLevel == 'span':
-        raw_data = preprocess_span(start, end)
+        raw_data = preprocess_span(start, end, stage)
     elif dataLevel == 'trace':
         for trace_id, trace in sorted(raw_data_total.items(), key = lambda item: item[1]['edges']['0'][0]['startTime']):
             if trace['edges']['0'][0]['startTime']>=end:
@@ -397,7 +397,7 @@ def load_dataset(start, end, dataLevel, raw_data_total=None):
                 raw_data[trace_id] = trace
 
     # print('getting trace data (api and time seq) ... 1')
-    for trace_id, trace in tqdm(sorted(raw_data.items(), key = lambda i: i[1]['edges']['0'][0]['startTime'])):
+    for trace_id, trace in sorted(raw_data.items(), key = lambda i: i[1]['edges']['0'][0]['startTime']):
         service_seq = ['start']
         spans = []
         for span in trace['edges'].values():

@@ -407,12 +407,12 @@ class DenStream:
                 nearest_micro_cluster_index = i
         return nearest_micro_cluster_index, nearest_micro_cluster
 
-    def _try_merge(self, sample, weight, micro_cluster):
+    def _try_merge(self, sample, sample_info, weight, micro_cluster):
         if micro_cluster is not None:
             micro_cluster_copy = copy(micro_cluster)
-            micro_cluster_copy.insert_sample(sample, weight)
+            micro_cluster_copy.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
             if micro_cluster_copy.radius() <= self.eps:    # improvement 这里可以加上密度阈值判断，判断 count，参考 CEDAS
-                micro_cluster.insert_sample(sample, weight)
+                micro_cluster.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
                 # improvement
                 micro_cluster.energy = 1
                 micro_cluster.count += 1
@@ -426,12 +426,12 @@ class DenStream:
         # Try to merge the sample with its nearest p_micro_cluster
         _, nearest_p_micro_cluster = \
             self._get_nearest_micro_cluster(sample, self.p_micro_clusters)
-        success = self._try_merge(sample, weight, nearest_p_micro_cluster)
+        success = self._try_merge(sample, sample_info, weight, nearest_p_micro_cluster)
         if not success:
             # Try to merge the sample into its nearest o_micro_cluster
             index, nearest_o_micro_cluster = \
                 self._get_nearest_micro_cluster(sample, self.o_micro_clusters)
-            success = self._try_merge(sample, weight, nearest_o_micro_cluster)
+            success = self._try_merge(sample, sample_info, weight, nearest_o_micro_cluster)
             if success:
                 if nearest_o_micro_cluster.weight() > self.beta * self.mu:
                     del self.o_micro_clusters[index]
@@ -444,7 +444,7 @@ class DenStream:
 
                 # Create new o_micro_cluster
                 micro_cluster = MicroCluster(self.lambd, sample_info['time_stamp'], cluster_label)    # improvement
-                micro_cluster.insert_sample(sample, weight)
+                micro_cluster.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
                 self.o_micro_clusters.append(micro_cluster)
                 return micro_cluster.label, 'manual'
         else:

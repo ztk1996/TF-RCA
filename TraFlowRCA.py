@@ -25,14 +25,17 @@ warnings.filterwarnings("ignore")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 K = 3
+all_path = dict()
+first_tag = True
 start_str = '2022-01-13 00:00:00'    # trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
-window_duration = 30 * 60 * 1000    # ms
-AD_method = 'CEDAS_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
+init_start_str = '2022-01-13 00:00:00'    # trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
+window_duration = 60 * 60 * 1000    # ms
+AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'none'    # 'none', 'micro', 'macro'
 dataLevel = 'span'    # 'trace', 'span'
 path_decay = 0.01
-path_thres = 0.9
-reCluster_thres = 5
+path_thres = 0.5
+reCluster_thres = 0.1
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
@@ -42,19 +45,133 @@ def timestamp(datetime: str) -> int:
 def ms2str(ms: int) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ms/1000))
 
-# def do_reCluster(start_time: int, end_time: int, all_path: dict, label_map_reCluster: dict):
-#     delete_index = [status[1] for status in all_path.values() if status[0]<path_thres]
-#     # adjust all STVectors
-#     if dataLevel == 'span':
-#         dataset, raw_data_dict = load_dataset(start, end, dataLevel)
-#     elif dataLevel == 'trace':
-#         dataset, raw_data_dict = load_dataset(start, end, dataLevel, raw_data_total)
+def simplify_cluster(cluster_obj, dataset, cluster_status):    # dataset: [[STVector1, sample_info1], [STVector2, sample_info2]]
+    global all_path
+    global first_tag
+    manual_count = 0
+    for data in tqdm(dataset, desc="Cluster Samples: "):
+        # ========================================
+        # Path vector encoder
+        # ========================================
+        if cluster_status == 'init':
+            for status in all_path.values():
+                status[0] -= path_decay
+            all_path = process_one_trace(data, all_path)
+            STVector = embedding_to_vector(data, all_path)
+        elif cluster_status == 'reCluster':
+            STVector = data[0]
+
+        if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
+            sample_label, label_status = cluster_obj.Cluster_AnomalyDetector(np.array(STVector), data if cluster_status=='init' else data[1])
+        elif AD_method in ['CEDAS_withoutscore', 'CEDAS_withscore']:
+            if first_tag:
+                # 1. Initialization
+                sample_label, label_status = cluster_obj.initialization(np.array(STVector), data if cluster_status=='init' else data[1])
+                first_tag = False
+            else:
+                cluster_obj.changed_cluster = None
+                # 2. Update Micro-Clusters
+                sample_label, label_status = cluster_obj.Cluster_AnomalyDetector(np.array(STVector), data if cluster_status=='init' else data[1])
+                # 3. Kill Clusters
+                cluster_obj.kill()
+                if cluster_obj.changed_cluster and cluster_obj.changed_cluster.count > cluster_obj.threshold:
+                    # 4. Update Cluster Graph
+                    cluster_obj.update_graph()
+
+        # label_status
+        if label_status == 'manual':
+            manual_count += 1
+
+
+def init_Cluster(cluster_obj, init_start_str):
+    # ========================================
+    # Init time window
+    # ========================================
+    start = timestamp(init_start_str)     # + 1 * 60 * 1000
+    end = start + window_duration
+    timeWindow_count = 0
+
+    # ========================================
+    # Init Data loader
+    # ========================================
+    if dataLevel == 'trace':
+        print("Init Data loading ...")
+        file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
+        raw_data_total = json.load(file)
+        print("Finish init data load !")
+
+    print('Init Start !')
+    # Init main loop start
+    while True:
+        print('--------------------------------')
+        print(f'time window: {ms2str(start)} ~ {ms2str(end)}')
+        # temp
+        if dataLevel == 'trace':
+            if str(ms2str(start)) not in ['2022-02-25 01:00:00', '2022-02-25 02:00:00', '2022-02-25 03:00:00', '2022-02-25 05:00:00', '2022-02-25 09:00:00', '2022-02-25 11:00:00', '2022-02-25 13:00:00', '2022-02-25 14:00:00', '2022-02-25 17:00:00', '2022-02-25 18:00:00', '2022-02-25 19:00:00']:
+                start = end
+                end = start + window_duration
+                continue
+        timeWindow_count += 1
+
+        if dataLevel == 'span':
+            dataset, raw_data_dict = load_dataset(start, end, dataLevel, 'init')
+        elif dataLevel == 'trace':
+            dataset, raw_data_dict = load_dataset(start, end, dataLevel, 'init', raw_data_total)
+            
+        if len(dataset) == 0:
+            break
+        
+        # do cluster
+        simplify_cluster(cluster_obj=cluster_obj, dataset=dataset, cluster_status='init')
+
+        start = end
+        end = start + window_duration
+
+        delete_index_candidate = [status[1] for status in all_path.values() if status[0]<path_thres]
+        if len(delete_index_candidate) / len(all_path) >= reCluster_thres:
+            do_reCluster(cluster_obj=cluster_obj)
+    print('Init finish !')
+
+        
+
+def do_reCluster(cluster_obj, label_map_reCluster=dict()):
+    print("reCluster Start ...")
+    global all_path
+    global first_tag
+    delete_index = [status[1] for status in all_path.values() if status[0]<path_thres]
     
-#     # adjust all_path dict
-#     new_all_path = dict()
-#     for path, path_status in sorted(all_path.items(), key = lambda item: item[1][1]):
-#         if path_status[1] not in delete_index:
-#             new_all_path[path] = [path_status[0], len(new_all_path)]
+    # adjust all STVectors
+    reCluster_dataset = list()    # [[STVector1, sample_info1], [STVector2, sample_info2]]
+    for cluster in cluster_obj.p_micro_clusters+cluster_obj.o_micro_clusters if AD_method in ['DenStream_withoutscore', 'DenStream_withscore'] else cluster_obj.micro_clusters:
+        for data_item in cluster.members.values():    # data_item: [STVector, sample_info]
+            new_STVector = []
+            for idx, value in enumerate(data_item[0]):
+                if idx not in delete_index:
+                    new_STVector.append(value)
+            # 若一个 STVector 被删成空或者全0，则丢弃这个 STVector
+            if len(new_STVector)!=0 and new_STVector.count(0)!=len(new_STVector):
+                reCluster_dataset.append([np.array(new_STVector), data_item[1]])
+    reCluster_dataset.sort(key=lambda i: i[1]['time_stamp'])
+    print("reCluster dataset length: ", len(reCluster_dataset))
+    
+    # adjust all_path dict
+    new_all_path = dict()
+    for path, path_status in sorted(all_path.items(), key = lambda item: item[1][1]):
+        if path_status[1] not in delete_index:
+            new_all_path[path] = [path_status[0], len(new_all_path)]
+    all_path = new_all_path
+
+    # clear all clusters
+    if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
+        cluster_obj.p_micro_clusters.clear()
+        cluster_obj.o_micro_clusters.clear()
+    elif AD_method in ['CEDAS_withoutscore', 'CEDAS_withscore']:
+        first_tag = True
+        cluster_obj.micro_clusters.clear()
+
+    # do recluster
+    simplify_cluster(cluster_obj=cluster_obj, dataset=reCluster_dataset, cluster_status='reCluster')
+    print("reCluster Finish !")
 
 
 
@@ -64,18 +181,22 @@ def main():
     # all_path = {path1: [energy1, index1], path2: [energy2, index2]}
     # label_map_reCluster = {trace_id1: label1, trace_id2: label2}
     # ========================================
-    all_path = dict()
+    global all_path
+    global first_tag
     label_map_reCluster = dict()
 
     # ========================================
     # Create cluster object
+    # Init clusters
     # ========================================
     if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
         # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
         denstream = DenStream(eps=100, lambd=0.1, beta=0.2, mu=6)
+        init_Cluster(denstream, init_start_str)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=100, decay=0.001, threshold=5)
         first_tag = True
+        init_Cluster(cedas, init_start_str)
 
     # ========================================
     # Init time window
@@ -103,25 +224,31 @@ def main():
     # Data loader
     # ========================================
     if dataLevel == 'trace':
-        print("Data loading ...")
+        print("Main Data loading ...")
         file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
         raw_data_total = json.load(file)
-        print("Finish data load !")
+        print("Finish main data load !")
 
     print('Start !')
     # main loop start
     while True:
         print('--------------------------------')
         print(f'time window: {ms2str(start)} ~ {ms2str(end)}')
+        # temp
+        if dataLevel == 'trace':
+            if str(ms2str(start)) not in ['2022-02-25 01:00:00', '2022-02-25 02:00:00', '2022-02-25 03:00:00', '2022-02-25 05:00:00', '2022-02-25 09:00:00', '2022-02-25 11:00:00', '2022-02-25 13:00:00', '2022-02-25 14:00:00', '2022-02-25 17:00:00', '2022-02-25 18:00:00', '2022-02-25 19:00:00']:
+                start = end
+                end = start + window_duration
+                continue
         timeWindow_count += 1
         abnormal_count = 0
         abnormal_map = {}
         STV_map_window = {}
         tid_list = []
         if dataLevel == 'span':
-            dataset, raw_data_dict = load_dataset(start, end, dataLevel)
+            dataset, raw_data_dict = load_dataset(start, end, dataLevel, 'main')
         elif dataLevel == 'trace':
-            dataset, raw_data_dict = load_dataset(start, end, dataLevel, raw_data_total)
+            dataset, raw_data_dict = load_dataset(start, end, dataLevel, 'main', raw_data_total)
             
         if len(dataset) == 0:
             break
@@ -207,15 +334,17 @@ def main():
                     a_pred.append(0)
             AD_pattern = [micro_cluster for micro_cluster in cedas.micro_clusters if micro_cluster.AD_selected==True]
 
+
+        print('Manual labeling count is ', manual_count)
         print('Manual labeling ratio is %.3f' % (manual_count/len(dataset)))
         print('--------------------------------')
         a_acc = accuracy_score(a_true, a_pred)
-        a_recall = recall_score(a_true, a_pred)
         a_prec = precision_score(a_true, a_pred)
+        a_recall = recall_score(a_true, a_pred)
         a_F1_score = (2 * a_prec * a_recall)/(a_prec + a_recall)
         print('AD accuracy score is %.5f' % a_acc)
-        print('AD recall score is %.5f' % a_recall)
         print('AD precision score is %.5f' % a_prec)
+        print('AD recall score is %.5f' % a_recall)
         print('AD F1 score is %.5f' % a_F1_score)
         print('--------------------------------')
 
@@ -277,8 +406,13 @@ def main():
 
         start = end
         end = start + window_duration
-        # if timeWindow_count % reCluster_thres == 0:
-        #     do_reCluster(start, end, all_path=all_path, label_map_reCluster=label_map_reCluster)
+
+        delete_index_candidate = [status[1] for status in all_path.values() if status[0]<path_thres]
+        if len(delete_index_candidate) / len(all_path) >= reCluster_thres:
+            if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
+                do_reCluster(cluster_obj=denstream, label_map_reCluster=label_map_reCluster)
+            else:
+                do_reCluster(cluster_obj=cedas, label_map_reCluster=label_map_reCluster)
         # main loop end
     print('main loop end')
     

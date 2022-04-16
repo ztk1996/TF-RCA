@@ -18,7 +18,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import requests
 import wordninja
 from transformers import AutoTokenizer, AutoModel
-from .params import data_path_list, mm_data_path_list, mm_trace_root_list, span_chaos_dict
+from .params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list, span_chaos_dict
 
 data_root = '/data/TraceCluster/raw'
 
@@ -243,7 +243,7 @@ def load_sw_span(data_path_list: List[str]) -> List[DataFrame]:
     return raw_spans
 
 
-def load_span(is_wechat: bool) -> List[DataFrame]:
+def load_span(is_wechat: bool, stage: str) -> List[DataFrame]:
     """
     load raw sapn data from pathList
     """
@@ -251,10 +251,10 @@ def load_span(is_wechat: bool) -> List[DataFrame]:
 
     if is_wechat:
         global mm_root_map
-        mm_root_map, raw_spans = load_mm_span(mm_trace_root_list, mm_data_path_list)
+        mm_root_map, raw_spans = load_mm_span(mm_trace_root_list, mm_data_path_list if stage=='main' else init_mm_data_path_list)
 
     else:
-        raw_spans = load_sw_span(data_path_list)
+        raw_spans = load_sw_span(data_path_list if stage=='main' else init_data_path_list)
 
     return raw_spans
 
@@ -894,14 +894,14 @@ def task(ns, idx, divide_word: bool = True):
 
 # use for data cache
 dataset = []
-def preprocess_span(start: int, end: int) -> dict:
+def preprocess_span(start: int, end: int, stage: str) -> dict:
     """
     获取毫秒时间戳start~end之间的span, 保存为data.json
     返回一个data dict
     """
     global dataset
     if len(dataset) == 0:
-        dataset = load_span(is_wechat)
+        dataset = load_span(is_wechat, stage)
     win_spans = []
     for df in dataset:
         ss = df.loc[(df.StartTime > start) & (df.StartTime < end)]
