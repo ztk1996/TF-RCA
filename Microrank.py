@@ -16,7 +16,7 @@ from DenStream.DenStream import DenStream
 from CEDAS.CEDAS import CEDAS
 from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo, get_operation_duration_data
 from MicroRank.online_rca import rca_MicroRank
-from DataPreprocess.params import chaos_dict
+from DataPreprocess.params import span_chaos_dict
 from DataPreprocess.SpanProcess import preprocess_span
 import warnings
 warnings.filterwarnings("ignore")
@@ -78,7 +78,7 @@ def main():
         abnormal_count = 0
         abnormal_map = {}
         tid_list = []
-        raw_data = preprocess_span(start, end)
+        raw_data = preprocess_span(start=start, end=end, stage='main')
 
         a_true, a_pred = [], []
         span_list = get_span(start=start, end=end)
@@ -139,7 +139,7 @@ def main():
                 topK = top_list[:K if len(top_list) > K else len(top_list)]
                 print(f'top-{K} root cause is', topK)
                 start_hour = time.localtime(start//1000).tm_hour
-                chaos_service = chaos_dict.get(start_hour)
+                chaos_service = span_chaos_dict.get(start_hour)
                 print(f'ground truth root cause is', chaos_service)
 
                 # zhoutong add
