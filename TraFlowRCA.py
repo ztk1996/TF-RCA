@@ -18,7 +18,7 @@ from DenStream.DenStream import DenStream
 from CEDAS.CEDAS import CEDAS
 from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo
 from MicroRank.online_rca import rca
-from DataPreprocess.params import span_chaos_dict, trace_chaos_dict
+from DataPreprocess.params import span_chaos_dict, trace_chaos_dict, request_period_log
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -28,7 +28,7 @@ K = 3
 all_path = dict()
 manual_labels_list = []    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
 first_tag = True
-start_str = '2022-04-16 20:08:00'    # trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
+start_str = '2022-04-16 20:08:00'    # trace: '2022-02-25 00:00:00', '2022-04-16 20:08:03'; span: '2022-01-13 00:00:00'
 init_start_str = '2022-01-13 00:00:00'    # normal traces  trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
 window_duration = 6 * 60 * 1000    # ms
 AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
@@ -383,8 +383,15 @@ def main():
                 start_hour = time.localtime(start//1000).tm_hour
                 if dataLevel == 'span':
                     chaos_service = span_chaos_dict.get(start_hour)
+                # elif dataLevel == 'trace':
+                #     chaos_service = trace_chaos_dict.get(start_hour)
                 elif dataLevel == 'trace':
-                    chaos_service = trace_chaos_dict.get(start_hour)
+                    chaos_service = ''
+                    for root_cause_item in request_period_log:
+                        if start>=root_cause_item[1] and start<=root_cause_item[2]:
+                            chaos_service = root_cause_item[0][0]
+                            break
+
                 print(f'ground truth root cause is', chaos_service)
 
                 # zhoutong add
