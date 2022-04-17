@@ -67,10 +67,10 @@ change_order2 = [
 change_order = change_order1
 
 
-def wait_for_deployment_complete(api: client.AppsV1Api, name, timeout=300):
+def wait_for_deployment_complete(api: client.AppsV1Api, name, timeout=600):
     start = time.time()
 
-    while True:
+    while time.time()-start < timeout:
         time.sleep(10)
         response = api.read_namespaced_deployment_status(name, ts_namespace)
         s = response.status
@@ -136,13 +136,20 @@ def main():
             deploy_names.append(deploy_name)
             new_image = change[1]
 
-            old_image = update_deployment_image(api, deploy_name, new_image)
+            old_image = update_deployment_image(
+                api, deploy_name, new_image)
             old_images.append(old_image)
 
         # wait for completing update
-        for name in deploy_names:
-            wait_for_deployment_complete(api, name)
-
+        try:
+            for name in deploy_names:
+                wait_for_deployment_complete(api, name)
+        except Exception:
+            print('[ERROR] deployment update failed')
+            for image in old_images:
+                print(f"[INFO] recover deployment image to {image}")
+                update_deployment_image(api, deploy_name, image)
+            continue
         # send requests
         start = int(round(time.time() * 1000))
         query_func[deploy_name]()
