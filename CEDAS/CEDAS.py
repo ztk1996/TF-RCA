@@ -270,6 +270,15 @@ class CEDAS(Generic[T]):
         return labels, confidenceScores, sampleRates
 
     def visualization_tool(self):
+        sample_data = []
+        for cluster in self.micro_clusters:
+            for data_item in cluster.members.values():
+                sample_data.append(np.append(data_item[0], [0]*(len(cluster.centre)-len(data_item[0]))))    # extended STVector
+        sample_data_2 = TSNE(n_components=2).fit_transform(sample_data)
+        sample_data_2_trans = list(map(list, zip(*sample_data_2)))
+        sample_data_x = sample_data_2_trans[0]
+        sample_data_y = sample_data_2_trans[1]
+
         macro_clusters_list = self._get_macro_cluster()
 
         for i, macro_cluster in enumerate(macro_clusters_list):
@@ -314,6 +323,8 @@ class CEDAS(Generic[T]):
                     )
                 idx += 1
 
+        plt.scatter(sample_data_x, sample_data_y, marker=".", color="black", linewidths=1)
+        
         # plt.axis('equal')
         plt.axis('scaled')
         ax.set_xlim((np.min([center[0] for center in cluster_centers_2])-5*self.r0, np.max([center[0] for center in cluster_centers_2])+5*self.r0))
