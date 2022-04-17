@@ -26,6 +26,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 K = 3
 all_path = dict()
+manual_labels_list = []    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
 first_tag = True
 start_str = '2022-01-13 00:00:00'    # trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
 init_start_str = '2022-01-13 00:00:00'    # normal traces  trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
@@ -62,16 +63,16 @@ def simplify_cluster(cluster_obj, dataset, cluster_status, data_status):    # da
             STVector = data[0]
 
         if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
-            sample_label, label_status = cluster_obj.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data if cluster_status=='init' else data[1], data_status=data_status)
+            sample_label, label_status = cluster_obj.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data if cluster_status=='init' else data[1], data_status=data_status, manual_labels_list=manual_labels_list)
         elif AD_method in ['CEDAS_withoutscore', 'CEDAS_withscore']:
             if first_tag:
                 # 1. Initialization
-                sample_label, label_status = cluster_obj.initialization(sample=np.array(STVector), sample_info=data if cluster_status=='init' else data[1], data_status=data_status)
+                sample_label, label_status = cluster_obj.initialization(sample=np.array(STVector), sample_info=data if cluster_status=='init' else data[1], data_status=data_status, manual_labels_list=manual_labels_list)
                 first_tag = False
             else:
                 cluster_obj.changed_cluster = None
                 # 2. Update Micro-Clusters
-                sample_label, label_status = cluster_obj.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data if cluster_status=='init' else data[1], data_status=data_status)
+                sample_label, label_status = cluster_obj.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data if cluster_status=='init' else data[1], data_status=data_status, manual_labels_list=manual_labels_list)
                 # 3. Kill Clusters
                 cluster_obj.kill()
                 if cluster_obj.changed_cluster and cluster_obj.changed_cluster.count > cluster_obj.threshold:
@@ -183,6 +184,7 @@ def main():
     # ========================================
     global all_path
     global first_tag
+    global manual_labels_list
     label_map_reCluster = dict()
 
     # ========================================
@@ -192,11 +194,11 @@ def main():
     if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
         # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
         denstream = DenStream(eps=100, lambd=0.1, beta=0.2, mu=6)
-        # init_Cluster(denstream, init_start_str)
+        init_Cluster(denstream, init_start_str)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=100, decay=0.001, threshold=5)
         first_tag = True
-        # init_Cluster(cedas, init_start_str)
+        init_Cluster(cedas, init_start_str)
 
     # ========================================
     # Init time window
@@ -269,20 +271,20 @@ def main():
             a_true.append(data['trace_bool'])
 
             if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
-                sample_label, label_status = denstream.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data, data_status='main')
+                sample_label, label_status = denstream.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data, data_status='main', manual_labels_list=manual_labels_list)
                 if label_status == 'manual':
                     label_map_reCluster[data['trace_id']] = sample_label
             elif AD_method in ['CEDAS_withoutscore', 'CEDAS_withscore']:
                 if first_tag:
                     # 1. Initialization
-                    sample_label, label_status = cedas.initialization(sample=np.array(STVector), sample_info=data, data_status='main')
+                    sample_label, label_status = cedas.initialization(sample=np.array(STVector), sample_info=data, data_status='main', manual_labels_list=manual_labels_list)
                     if label_status == 'manual':
                         label_map_reCluster[data['trace_id']] = sample_label
                     first_tag = False
                 else:
                     cedas.changed_cluster = None
                     # 2. Update Micro-Clusters
-                    sample_label, label_status = cedas.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data, data_status='main')
+                    sample_label, label_status = cedas.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data, data_status='main', manual_labels_list=manual_labels_list)
                     if label_status == 'manual':
                         label_map_reCluster[data['trace_id']] = sample_label
                     # 3. Kill Clusters
@@ -310,6 +312,7 @@ def main():
                 manual_count += 1
 
         if AD_method == 'DenStream_withscore':
+            manual_labels_list = denstream.update_cluster_labels(manual_labels_list)
             labels, confidenceScores, sampleRates = denstream.get_labels_confidenceScores_sampleRates(STV_map=STV_map_window, cluster_type=Sample_method)
             # sample_label
             for tid, sample_label in labels.items():
@@ -322,6 +325,7 @@ def main():
                     a_pred.append(0)
             AD_pattern = [micro_cluster for micro_cluster in denstream.p_micro_clusters+denstream.o_micro_clusters if micro_cluster.AD_selected==True]
         elif AD_method == 'CEDAS_withscore':
+            manual_labels_list = cedas.update_cluster_labels(manual_labels_list)
             labels, confidenceScores, sampleRates = cedas.get_labels_confidenceScores_sampleRates(STV_map=STV_map_window, cluster_type=Sample_method)
             # sample_label
             for tid, sample_label in labels.items():

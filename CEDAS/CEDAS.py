@@ -68,18 +68,18 @@ class CEDAS(Generic[T]):
         self.threshold = threshold
 
     # 1. Initialization
-    def initialization(self, sample: T, sample_info, data_status):
+    def initialization(self, sample: T, sample_info, data_status, manual_labels_list):
         first_sample = sample
         # request expert knowledge
-        # cluster_label = self._request_expert_knowledge(sample, sample_info)
-        cluster_label = 'normal' if data_status=='init' else 'abnormal' 
+        # cluster_label = self._request_expert_knowledge(sample, sample_info) 
+        cluster_label = 'normal' if data_status=='init' or sample_info['trace_id'] in manual_labels_list else 'abnormal'
         first_cluster = MicroCluster(centre=first_sample, label=cluster_label)
         first_cluster.members[sample_info['trace_id']] = [first_sample, sample_info]
         self.micro_clusters: list[MicroCluster] = [first_cluster]
         return cluster_label, 'auto'
 
     # 2. Update Micro-Clusters
-    def Cluster_AnomalyDetector(self, sample: T, sample_info, data_status):
+    def Cluster_AnomalyDetector(self, sample: T, sample_info, data_status, manual_labels_list):
         # update Micro-Clusters dimension
         for cluster in self.micro_clusters:
             cluster.update_dimension(sample)
@@ -101,11 +101,14 @@ class CEDAS(Generic[T]):
                 nearest_cluster.update_center(sample)
             self.changed_cluster = nearest_cluster
 
+            if sample_info['trace_id'] in manual_labels_list:
+                nearest_cluster.label = 'normal'
+            
             return nearest_cluster.label, 'auto'
         else:
             # request expert knowledge
             # cluster_label = self._request_expert_knowledge(sample, sample_info)
-            cluster_label = 'normal' if data_status=='init' else 'abnormal' 
+            cluster_label = 'normal' if data_status=='init' or sample_info['trace_id'] in manual_labels_list else 'abnormal' 
 
             # create new micro cluster
             new_micro_cluster = MicroCluster(centre=sample, label=cluster_label)
@@ -199,7 +202,27 @@ class CEDAS(Generic[T]):
             sampleRates[trace_id] = sample_rate
 
         return sampleRates
-        
+
+    def update_cluster_labels(self, manual_labels_list):
+        """
+        Update cluster labels if manual_labels_list is different. New normal traces will appear.
+
+        Parameters
+        ----------
+        manual_labels_list : [trace_id1, trace_id2]    
+
+        Returns
+        ----------
+        manual_labels_list : delete labels which not used in any clusters    
+        """
+        new_manual_labels_list = list()
+        for manual_label in manual_labels_list:
+            for micro_cluster in self.micro_clusters:
+                if manual_label in micro_cluster.members.keys():
+                    micro_cluster.label = 'normal'
+                    new_manual_labels_list.append(manual_label)
+                    break
+        return new_manual_labels_list   
     
     def get_labels_confidenceScores_sampleRates(self, STV_map, cluster_type):
         """

@@ -186,8 +186,28 @@ class DenStream:
             sampleRates[trace_id] = sample_rate
 
         return sampleRates
+    
+    def update_cluster_labels(self, manual_labels_list):
+        """
+        Update cluster labels if manual_labels_list is different. New normal traces will appear.
 
+        Parameters
+        ----------
+        manual_labels_list : [trace_id1, trace_id2]    
 
+        Returns
+        ----------
+        manual_labels_list : delete labels which not used in any clusters    
+        """
+        new_manual_labels_list = list()
+        for manual_label in manual_labels_list:
+            for micro_cluster in self.p_micro_clusters + self.o_micro_clusters:
+                if manual_label in micro_cluster.members.keys():
+                    micro_cluster.label = 'normal'
+                    new_manual_labels_list.append(manual_label)
+                    break
+        return new_manual_labels_list
+        
     def get_labels_confidenceScores_sampleRates(self, STV_map, cluster_type):
         """
         Get labels and sample rates of traces and confidence score of each label
@@ -424,7 +444,7 @@ class DenStream:
                 return True
         return False
 
-    def _merging(self, sample, sample_info, weight, data_status):
+    def _merging(self, sample, sample_info, weight, data_status, manual_labels_list):
         # 若到来的样本在人工标注字典中出现过，则所属的簇直接标记正常
         # Update MicroCluster center dimension
         for cluster in self.p_micro_clusters + self.o_micro_clusters:
@@ -442,13 +462,15 @@ class DenStream:
                 if nearest_o_micro_cluster.weight() > self.beta * self.mu:
                     del self.o_micro_clusters[index]
                     self.p_micro_clusters.append(nearest_o_micro_cluster)
+                if sample_info['trace_id'] in manual_labels_list:
+                    nearest_o_micro_cluster.label = 'normal'
                 return nearest_o_micro_cluster.label, 'auto'
             else:
                 # Request expert knowledge
                 # improvement
                 # cluster_label = self._request_expert_knowledge(sample, sample_info)
                 # 人标注对其的影响也要考虑上，不一定绝对是‘abnormal’。若这个样本在人工标注字典中，则cluster_label为true
-                cluster_label = 'normal' if data_status=='init' else 'abnormal'              
+                cluster_label = 'normal' if data_status=='init' or sample_info['trace_id'] in manual_labels_list else 'abnormal'              
 
                 # Create new o_micro_cluster
                 micro_cluster = MicroCluster(self.lambd, sample_info['time_stamp'], cluster_label)    # improvement
@@ -456,6 +478,8 @@ class DenStream:
                 self.o_micro_clusters.append(micro_cluster)
                 return micro_cluster.label, 'auto'
         else:
+            if sample_info['trace_id'] in manual_labels_list:
+                nearest_p_micro_cluster.label = 'normal'
             return nearest_p_micro_cluster.label, 'auto'
 
     def _request_expert_knowledge(self, sample, sample_info):
@@ -478,10 +502,10 @@ class DenStream:
     def _decay_function(self, t):
         return 2 ** ((-self.lambd) * (t))
 
-    def Cluster_AnomalyDetector(self, sample, sample_info, data_status):
+    def Cluster_AnomalyDetector(self, sample, sample_info, data_status, manual_labels_list):
         # improvement 这里各个 trace 的权重应该由已有的聚类计算出来，暂时还没想好
         sample_weight = self._validate_sample_weight(sample_weight=None, n_samples=1)
-        sample_label, label_status = self._merging(sample, sample_info, sample_weight, data_status)
+        sample_label, label_status = self._merging(sample, sample_info, sample_weight, data_status, manual_labels_list)
         # improvement 这里加上对每个簇 energy 的衰减，要不要换成时间窗衰减函数
         for cluster in self.p_micro_clusters + self.o_micro_clusters:
             cluster.energy -= self.decay
