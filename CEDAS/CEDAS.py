@@ -10,6 +10,7 @@ from sklearn import datasets
 
 from matplotlib.colors import hsv_to_rgb
 from sklearn.manifold import TSNE
+import random
 
 # data type
 T = TypeVar("T")
@@ -231,7 +232,7 @@ class CEDAS(Generic[T]):
         Parameters
         ----------
         STV_map : {trace_id1: STVector1, trace_id2: STVector2}
-        cluster_type : 'micro', 'macro', 'none'
+        cluster_type : 'micro', 'macro', 'none', 'rate'
         
         Returns
         ----------
@@ -239,6 +240,12 @@ class CEDAS(Generic[T]):
         confidenceScores : {trace_id1: score1, trace_id2: score2}
         sampleRates : {trace_id1: rate1, trace_id2: rate2}
         """
+        sRate = 0.8
+        sampled_tid_list = list()
+        if cluster_type == 'rate':
+            for micro_cluster in self.micro_clusters:
+                sampled_tid_list += random.sample(micro_cluster.members.keys(), int(micro_cluster.count*sRate))
+
         for micro_cluster in self.micro_clusters:
             micro_cluster.AD_selected = False
 
@@ -283,6 +290,11 @@ class CEDAS(Generic[T]):
                 sample_rate = ((np.sum(micro_cluster_counts)/np.mean(neighbor_count_list)) if len(neighbor_count_list)!=0 else (np.sum(micro_cluster_counts)/nearest_cluster.count)) / np.sum(micro_cluster_scores)
                 # method 3
                 sample_rate = ((np.sum(micro_cluster_counts)/np.mean(neighbor_count_list)) if len(neighbor_count_list)!=0 else (np.sum(micro_cluster_counts)/nearest_cluster.count)) / np.max(micro_cluster_scores)
+            elif cluster_type == 'rate':
+                if trace_id in sampled_tid_list:
+                    sample_rate = 1
+                else:
+                    sample_rate = 0
             elif cluster_type == 'none':
                 sample_rate = 1
             sampleRates[trace_id] = sample_rate
