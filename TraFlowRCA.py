@@ -29,7 +29,7 @@ all_path = dict()
 manual_labels_list = []    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
 first_tag = True
 start_str = '2022-04-16 20:08:00'    # trace: '2022-02-25 00:00:00', '2022-04-16 20:08:03'; span: '2022-01-13 00:00:00'
-init_start_str = '2022-01-13 00:00:00'    # normal traces  trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
+init_start_str = '2022-02-17 15:13:51'    # normal traces  trace: '2022-02-25 00:00:00', '2022-02-17 15:13:51'; span: '2022-01-13 00:00:00'
 window_duration = 6 * 60 * 1000    # ms
 AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'rate'    # 'none', 'micro', 'macro', 'rate'
@@ -97,7 +97,8 @@ def init_Cluster(cluster_obj, init_start_str):
     # ========================================
     if dataLevel == 'trace':
         print("Init Data loading ...")
-        file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
+        # file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
+        file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-17_20-55-12/data.json', 'r')
         raw_data_total = json.load(file)
         print("Finish init data load !")
 
@@ -194,11 +195,11 @@ def main():
     if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
         # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
         denstream = DenStream(eps=100, lambd=0.1, beta=0.2, mu=6)
-        # init_Cluster(denstream, init_start_str)
+        init_Cluster(denstream, init_start_str)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=100, decay=0.001, threshold=5)
         first_tag = True
-        # init_Cluster(cedas, init_start_str)
+        init_Cluster(cedas, init_start_str)
 
     # ========================================
     # Init time window
