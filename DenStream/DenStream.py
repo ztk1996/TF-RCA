@@ -454,6 +454,8 @@ class DenStream:
                 # improvement
                 micro_cluster.energy = 1
                 micro_cluster.count += 1
+                # Add new member
+                micro_cluster.members[sample_info['trace_id']] = [sample, sample_info]
                 return True
         return False
 
@@ -488,6 +490,8 @@ class DenStream:
                 # Create new o_micro_cluster
                 micro_cluster = MicroCluster(self.lambd, sample_info['time_stamp'], cluster_label)    # improvement
                 micro_cluster.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
+                # Add new member
+                micro_cluster.members[sample_info['trace_id']] = [sample, sample_info]
                 self.o_micro_clusters.append(micro_cluster)
                 return micro_cluster.label, 'auto'
         else:

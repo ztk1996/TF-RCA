@@ -28,12 +28,12 @@ K = 3
 all_path = dict()
 manual_labels_list = []    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
 first_tag = True
-start_str = '2022-01-13 00:00:00'    # trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
+start_str = '2022-04-16 20:08:00'    # trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
 init_start_str = '2022-01-13 00:00:00'    # normal traces  trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
-window_duration = 60 * 60 * 1000    # ms
+window_duration = 6 * 60 * 1000    # ms
 AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'rate'    # 'none', 'micro', 'macro', 'rate'
-dataLevel = 'span'    # 'trace', 'span'
+dataLevel = 'trace'    # 'trace', 'span'
 path_decay = 0.01
 path_thres = 0.5
 reCluster_thres = 0.1
@@ -107,11 +107,11 @@ def init_Cluster(cluster_obj, init_start_str):
         print('--------------------------------')
         print(f'time window: {ms2str(start)} ~ {ms2str(end)}')
         # temp
-        if dataLevel == 'trace':
-            if str(ms2str(start)) not in ['2022-02-25 01:00:00', '2022-02-25 02:00:00', '2022-02-25 03:00:00', '2022-02-25 05:00:00', '2022-02-25 09:00:00', '2022-02-25 11:00:00', '2022-02-25 13:00:00', '2022-02-25 14:00:00', '2022-02-25 17:00:00', '2022-02-25 18:00:00', '2022-02-25 19:00:00']:
-                start = end
-                end = start + window_duration
-                continue
+        # if dataLevel == 'trace':
+        #     if str(ms2str(start)) not in ['2022-02-25 01:00:00', '2022-02-25 02:00:00', '2022-02-25 03:00:00', '2022-02-25 05:00:00', '2022-02-25 09:00:00', '2022-02-25 11:00:00', '2022-02-25 13:00:00', '2022-02-25 14:00:00', '2022-02-25 17:00:00', '2022-02-25 18:00:00', '2022-02-25 19:00:00']:
+        #         start = end
+        #         end = start + window_duration
+        #         continue
         timeWindow_count += 1
 
         if dataLevel == 'span':
@@ -194,11 +194,11 @@ def main():
     if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
         # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
         denstream = DenStream(eps=100, lambd=0.1, beta=0.2, mu=6)
-        init_Cluster(denstream, init_start_str)
+        # init_Cluster(denstream, init_start_str)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=100, decay=0.001, threshold=5)
         first_tag = True
-        init_Cluster(cedas, init_start_str)
+        # init_Cluster(cedas, init_start_str)
 
     # ========================================
     # Init time window
@@ -227,7 +227,8 @@ def main():
     # ========================================
     if dataLevel == 'trace':
         print("Main Data loading ...")
-        file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
+        # file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
+        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-17_15-29-46/data.json', 'r')
         raw_data_total = json.load(file)
         print("Finish main data load !")
 
@@ -237,11 +238,11 @@ def main():
         print('--------------------------------')
         print(f'time window: {ms2str(start)} ~ {ms2str(end)}')
         # temp
-        if dataLevel == 'trace':
-            if str(ms2str(start)) not in ['2022-02-25 01:00:00', '2022-02-25 02:00:00', '2022-02-25 03:00:00', '2022-02-25 05:00:00', '2022-02-25 09:00:00', '2022-02-25 11:00:00', '2022-02-25 13:00:00', '2022-02-25 14:00:00', '2022-02-25 17:00:00', '2022-02-25 18:00:00', '2022-02-25 19:00:00']:
-                start = end
-                end = start + window_duration
-                continue
+        # if dataLevel == 'trace':
+        #     if str(ms2str(start)) not in ['2022-02-25 01:00:00', '2022-02-25 02:00:00', '2022-02-25 03:00:00', '2022-02-25 05:00:00', '2022-02-25 09:00:00', '2022-02-25 11:00:00', '2022-02-25 13:00:00', '2022-02-25 14:00:00', '2022-02-25 17:00:00', '2022-02-25 18:00:00', '2022-02-25 19:00:00']:
+        #         start = end
+        #         end = start + window_duration
+        #         continue
         timeWindow_count += 1
         abnormal_count = 0
         abnormal_map = {}

@@ -19,8 +19,6 @@ class MicroCluster:
         self.color = None
 
     def insert_sample(self, sample, sample_info, weight):
-        # Add new member
-        self.members[sample_info['trace_id']] = [sample, sample_info]
         if self.sum_of_weights != 0:
             # Update sum of weights
             old_sum_of_weights = self.sum_of_weights
