@@ -125,8 +125,8 @@ class CEDAS(Generic[T]):
 
         cluster_label = "abnormal" if sample_info['trace_bool']==1 else "normal" 
         # cluster_label = input("Please input the label of trace {}:".format(sample_info['trace_id']))
-        # Check cluster label (normal, abnormal, change normal)
-        while cluster_label not in ["normal", "abnormal", "change_normal"]:
+        # Check cluster label (normal, abnormal)
+        while cluster_label not in ["normal", "abnormal"]:
             cluster_label = input("Illegal label! Please input the label of trace {}:".format(sample_info['trace_id']))
         return cluster_label
 
@@ -265,7 +265,7 @@ class CEDAS(Generic[T]):
             # if score != 1:
             #     print("find it !")
         
-        self.visualization_tool()
+        # self.visualization_tool()
         
         return labels, confidenceScores, sampleRates
 
@@ -288,7 +288,7 @@ class CEDAS(Generic[T]):
         idx = 0
         for cluster in self.micro_clusters:
             if cluster.count > self.threshold:
-                if cluster.label == 'normal':    # normal, abnormal, change_normal
+                if cluster.label == 'normal':    # normal, abnormal
                     ax.add_artist(
                         plt.Circle(
                             (cluster_centers_2[idx][0], cluster_centers_2[idx][1]),
@@ -309,18 +309,6 @@ class CEDAS(Generic[T]):
                             color=cluster.color,
                             clip_on=False,
                             hatch='/',    # hatch = {'/', '', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
-                            linewidth=1
-                        )
-                    )
-                elif cluster.label == 'change_normal':
-                    ax.add_artist(
-                        plt.Circle(
-                            (cluster_centers_2[idx][0], cluster_centers_2[idx][1]),
-                            self.r0,
-                            alpha=cluster.energy,
-                            color=cluster.color,
-                            clip_on=False,
-                            hatch='o',    # hatch = {'/', '', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
                             linewidth=1
                         )
                     )

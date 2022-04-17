@@ -11,7 +11,6 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import hsv_to_rgb
 from sklearn.manifold import TSNE
 
-dbscan_label_list = []
 
 class DenStream:
 
@@ -218,8 +217,6 @@ class DenStream:
         
         dbscan = DBSCAN(eps=50, min_samples=5, algorithm='brute')
         dbscan.fit(micro_cluster_centers, sample_weight=micro_cluster_weights)
-        global dbscan_label_list
-        dbscan_label_list = dbscan.labels_
 
         labels = {}
         confidenceScores = {}
@@ -291,6 +288,13 @@ class DenStream:
         return macro_clusters_list
 
     def visualization_tool(self):
+        micro_cluster_centers = np.array([micro_cluster.center() for
+                                          micro_cluster in
+                                          self.p_micro_clusters + self.o_micro_clusters])
+        dbscan = DBSCAN(eps=50, min_samples=5, algorithm='brute')
+        dbscan.fit(micro_cluster_centers)
+        dbscan_label_list = dbscan.labels_
+
         macro_clusters_list = self._get_macro_cluster(dbscan_label_list)
 
         for i, macro_cluster in enumerate(macro_clusters_list):
@@ -306,7 +310,7 @@ class DenStream:
         cluster_centers_2 = TSNE(n_components=2).fit_transform(cluster_centers)
 
         for idx, cluster in enumerate(self.p_micro_clusters+self.o_micro_clusters):
-            if cluster.label == 'normal':    # normal, abnormal, change_normal
+            if cluster.label == 'normal':    # normal, abnormal
                 ax.add_artist(
                     plt.Circle(
                         (cluster_centers_2[idx][0], cluster_centers_2[idx][1]),
@@ -327,18 +331,6 @@ class DenStream:
                         color=cluster.color,
                         clip_on=False,
                         hatch='/',    # hatch = {'/', '', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
-                        linewidth=1
-                    )
-                )
-            elif cluster.label == 'change_normal':
-                ax.add_artist(
-                    plt.Circle(
-                        (cluster_centers_2[idx][0], cluster_centers_2[idx][1]),
-                        cluster.radius(),
-                        # alpha=cluster.energy,
-                        color=cluster.color,
-                        clip_on=False,
-                        hatch='o',    # hatch = {'/', '', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
                         linewidth=1
                     )
                 )
@@ -462,8 +454,8 @@ class DenStream:
 
         cluster_label = "abnormal" if sample_info['trace_bool']==1 else "normal" 
         # cluster_label = input("Please input the label of trace {}:".format(sample_info['trace_id']))
-        # Check cluster label (normal, abnormal, change normal)
-        while cluster_label not in ["normal", "abnormal", "change_normal"]:
+        # Check cluster label (normal, abnormal)
+        while cluster_label not in ["normal", "abnormal"]:
             cluster_label = input("Illegal label! Please input the label of trace {}:".format(sample_info['trace_id']))
         return cluster_label
 

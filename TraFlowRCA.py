@@ -30,7 +30,7 @@ first_tag = True
 start_str = '2022-01-13 00:00:00'    # trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
 init_start_str = '2022-01-13 00:00:00'    # normal traces  trace: '2022-02-25 00:00:00', span: '2022-01-13 00:00:00'
 window_duration = 60 * 60 * 1000    # ms
-AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
+AD_method = 'CEDAS_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'none'    # 'none', 'micro', 'macro'
 dataLevel = 'span'    # 'trace', 'span'
 path_decay = 0.01
@@ -192,11 +192,11 @@ def main():
     if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
         # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
         denstream = DenStream(eps=100, lambd=0.1, beta=0.2, mu=6)
-        init_Cluster(denstream, init_start_str)
+        # init_Cluster(denstream, init_start_str)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=100, decay=0.001, threshold=5)
         first_tag = True
-        init_Cluster(cedas, init_start_str)
+        # init_Cluster(cedas, init_start_str)
 
     # ========================================
     # Init time window
@@ -407,12 +407,21 @@ def main():
         start = end
         end = start + window_duration
 
+        # reCluster ...
         delete_index_candidate = [status[1] for status in all_path.values() if status[0]<path_thres]
         if len(delete_index_candidate) / len(all_path) >= reCluster_thres:
             if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
                 do_reCluster(cluster_obj=denstream, label_map_reCluster=label_map_reCluster)
             else:
                 do_reCluster(cluster_obj=cedas, label_map_reCluster=label_map_reCluster)
+        
+        # visualization ...
+        if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
+            if len((denstream.p_micro_clusters+denstream.o_micro_clusters)) > 1:
+                denstream.visualization_tool()
+        else:
+            if len(cedas.micro_clusters) > 1:
+                cedas.visualization_tool()
         # main loop end
     print('main loop end')
     
