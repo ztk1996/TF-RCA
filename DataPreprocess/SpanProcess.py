@@ -438,10 +438,13 @@ def check_changed_span(span: Span) -> bool:
         r_start = int(set[1])
         r_end = int(set[2])
         if r_start < span.startTime and span.startTime < r_end:
-            changes = set[0]
+            changes.extend(set[0])
             break
 
     if len(changes) == 0:
+        return False
+
+    if span.duration < 1000 and not span.isError:
         return False
 
     for change in changes:
@@ -505,7 +508,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         if span.spanType in ['Exit', 'Producer', 'Local']:
             continue
 
-        if check_abnormal_span(span) or check_changed_span(span):
+        if check_changed_span(span):
             is_abnormal = 1
             chaos_root.append(chaos_dict.get(
                 time.localtime(span.startTime).tm_hour))
