@@ -45,7 +45,7 @@ def timestamp(datetime: str) -> int:
 def ms2str(ms: int) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ms/1000))
 
-def simplify_cluster(cluster_obj, dataset, cluster_status):    # dataset: [[STVector1, sample_info1], [STVector2, sample_info2]]
+def simplify_cluster(cluster_obj, dataset, cluster_status, data_status):    # dataset: [[STVector1, sample_info1], [STVector2, sample_info2]]
     global all_path
     global first_tag
     manual_count = 0
@@ -62,16 +62,16 @@ def simplify_cluster(cluster_obj, dataset, cluster_status):    # dataset: [[STVe
             STVector = data[0]
 
         if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
-            sample_label, label_status = cluster_obj.Cluster_AnomalyDetector(np.array(STVector), data if cluster_status=='init' else data[1])
+            sample_label, label_status = cluster_obj.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data if cluster_status=='init' else data[1], data_status=data_status)
         elif AD_method in ['CEDAS_withoutscore', 'CEDAS_withscore']:
             if first_tag:
                 # 1. Initialization
-                sample_label, label_status = cluster_obj.initialization(np.array(STVector), data if cluster_status=='init' else data[1])
+                sample_label, label_status = cluster_obj.initialization(sample=np.array(STVector), sample_info=data if cluster_status=='init' else data[1], data_status=data_status)
                 first_tag = False
             else:
                 cluster_obj.changed_cluster = None
                 # 2. Update Micro-Clusters
-                sample_label, label_status = cluster_obj.Cluster_AnomalyDetector(np.array(STVector), data if cluster_status=='init' else data[1])
+                sample_label, label_status = cluster_obj.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data if cluster_status=='init' else data[1], data_status=data_status)
                 # 3. Kill Clusters
                 cluster_obj.kill()
                 if cluster_obj.changed_cluster and cluster_obj.changed_cluster.count > cluster_obj.threshold:
@@ -122,19 +122,19 @@ def init_Cluster(cluster_obj, init_start_str):
             break
         
         # do cluster
-        simplify_cluster(cluster_obj=cluster_obj, dataset=dataset, cluster_status='init')
+        simplify_cluster(cluster_obj=cluster_obj, dataset=dataset, cluster_status='init', data_status='init')
 
         start = end
         end = start + window_duration
 
         delete_index_candidate = [status[1] for status in all_path.values() if status[0]<path_thres]
         if len(delete_index_candidate) / len(all_path) >= reCluster_thres:
-            do_reCluster(cluster_obj=cluster_obj)
+            do_reCluster(cluster_obj=cluster_obj, data_status='init')
     print('Init finish !')
 
         
 
-def do_reCluster(cluster_obj, label_map_reCluster=dict()):
+def do_reCluster(cluster_obj, data_status, label_map_reCluster=dict()):
     print("reCluster Start ...")
     global all_path
     global first_tag
@@ -170,7 +170,7 @@ def do_reCluster(cluster_obj, label_map_reCluster=dict()):
         cluster_obj.micro_clusters.clear()
 
     # do recluster
-    simplify_cluster(cluster_obj=cluster_obj, dataset=reCluster_dataset, cluster_status='reCluster')
+    simplify_cluster(cluster_obj=cluster_obj, dataset=reCluster_dataset, cluster_status='reCluster', data_status=data_status)
     print("reCluster Finish !")
 
 
@@ -269,20 +269,20 @@ def main():
             a_true.append(data['trace_bool'])
 
             if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
-                sample_label, label_status = denstream.Cluster_AnomalyDetector(np.array(STVector), data)
+                sample_label, label_status = denstream.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data, data_status='main')
                 if label_status == 'manual':
                     label_map_reCluster[data['trace_id']] = sample_label
             elif AD_method in ['CEDAS_withoutscore', 'CEDAS_withscore']:
                 if first_tag:
                     # 1. Initialization
-                    sample_label, label_status = cedas.initialization(np.array(STVector), data)
+                    sample_label, label_status = cedas.initialization(sample=np.array(STVector), sample_info=data, data_status='main')
                     if label_status == 'manual':
                         label_map_reCluster[data['trace_id']] = sample_label
                     first_tag = False
                 else:
                     cedas.changed_cluster = None
                     # 2. Update Micro-Clusters
-                    sample_label, label_status = cedas.Cluster_AnomalyDetector(np.array(STVector), data)
+                    sample_label, label_status = cedas.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data, data_status='main')
                     if label_status == 'manual':
                         label_map_reCluster[data['trace_id']] = sample_label
                     # 3. Kill Clusters
@@ -411,9 +411,11 @@ def main():
         delete_index_candidate = [status[1] for status in all_path.values() if status[0]<path_thres]
         if len(delete_index_candidate) / len(all_path) >= reCluster_thres:
             if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
-                do_reCluster(cluster_obj=denstream, label_map_reCluster=label_map_reCluster)
+                # if data_status is 'main', all new cluster labels are 'abnormal' and label_status is 'auto'
+                # if data_status is 'init', all new cluster labels are 'normal' and label_status is 'auto'
+                do_reCluster(cluster_obj=denstream, data_status='main', label_map_reCluster=label_map_reCluster)
             else:
-                do_reCluster(cluster_obj=cedas, label_map_reCluster=label_map_reCluster)
+                do_reCluster(cluster_obj=cedas, data_status='main', label_map_reCluster=label_map_reCluster)
         
         # visualization ...
         if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:

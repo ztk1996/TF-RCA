@@ -424,7 +424,8 @@ class DenStream:
                 return True
         return False
 
-    def _merging(self, sample, sample_info, weight):
+    def _merging(self, sample, sample_info, weight, data_status):
+        # 若到来的样本在人工标注字典中出现过，则所属的簇直接标记正常
         # Update MicroCluster center dimension
         for cluster in self.p_micro_clusters + self.o_micro_clusters:
             cluster.update_center_dimension(sample)
@@ -445,13 +446,15 @@ class DenStream:
             else:
                 # Request expert knowledge
                 # improvement
-                cluster_label = self._request_expert_knowledge(sample, sample_info)              
+                # cluster_label = self._request_expert_knowledge(sample, sample_info)
+                # 人标注对其的影响也要考虑上，不一定绝对是‘abnormal’。若这个样本在人工标注字典中，则cluster_label为true
+                cluster_label = 'normal' if data_status=='init' else 'abnormal'              
 
                 # Create new o_micro_cluster
                 micro_cluster = MicroCluster(self.lambd, sample_info['time_stamp'], cluster_label)    # improvement
                 micro_cluster.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
                 self.o_micro_clusters.append(micro_cluster)
-                return micro_cluster.label, 'manual'
+                return micro_cluster.label, 'auto'
         else:
             return nearest_p_micro_cluster.label, 'auto'
 
@@ -475,10 +478,10 @@ class DenStream:
     def _decay_function(self, t):
         return 2 ** ((-self.lambd) * (t))
 
-    def Cluster_AnomalyDetector(self, sample, sample_info):
+    def Cluster_AnomalyDetector(self, sample, sample_info, data_status):
         # improvement 这里各个 trace 的权重应该由已有的聚类计算出来，暂时还没想好
         sample_weight = self._validate_sample_weight(sample_weight=None, n_samples=1)
-        sample_label, label_status = self._merging(sample, sample_info, sample_weight)
+        sample_label, label_status = self._merging(sample, sample_info, sample_weight, data_status)
         # improvement 这里加上对每个簇 energy 的衰减，要不要换成时间窗衰减函数
         for cluster in self.p_micro_clusters + self.o_micro_clusters:
             cluster.energy -= self.decay

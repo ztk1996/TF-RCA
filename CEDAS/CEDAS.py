@@ -19,8 +19,8 @@ def distance(x: T, y: T) -> float:
     return np.linalg.norm(x - y)
 
 
-# def update_center(centre: T, count: int, data_sample: T) -> T:
-#     return ((count - 1) * centre + data_sample) / count
+# def update_center(centre: T, count: int, sample: T) -> T:
+#     return ((count - 1) * centre + sample) / count
 
 
 @dataclass
@@ -33,17 +33,17 @@ class MicroCluster(Generic[T]):
     AD_selected: bool = False
     members: dict = field(default_factory=dict)    # {trace_id1: [STVector1, sample_info1], trace_id2: [STVector2, sample_info2]}
 
-    def update_dimension(self, data_sample: T):
+    def update_dimension(self, sample: T):
         # update centre
-        self.centre = np.append(self.centre, [0]*(len(data_sample)-len(self.centre)))
+        self.centre = np.append(self.centre, [0]*(len(sample)-len(self.centre)))
         # update edges
         edges_list = list(self.edges)
         for idx in range(len(edges_list)):
-            edges_list[idx].centre = np.append(edges_list[idx].centre, [0]*(len(data_sample)-len(edges_list[idx].centre)))
+            edges_list[idx].centre = np.append(edges_list[idx].centre, [0]*(len(sample)-len(edges_list[idx].centre)))
         self.edges = set(edges_list)
 
-    def update_center(self, data_sample: T):
-        self.centre = ((self.count - 1) * self.centre + data_sample) / self.count
+    def update_center(self, sample: T):
+        self.centre = ((self.count - 1) * self.centre + sample) / self.count
 
     def __hash__(self) -> int:
         return hash(self.energy)
@@ -68,49 +68,51 @@ class CEDAS(Generic[T]):
         self.threshold = threshold
 
     # 1. Initialization
-    def initialization(self, data_sample: T, sample_info):
-        first_sample = data_sample
+    def initialization(self, sample: T, sample_info, data_status):
+        first_sample = sample
         # request expert knowledge
-        cluster_label = self._request_expert_knowledge(data_sample, sample_info)
+        # cluster_label = self._request_expert_knowledge(sample, sample_info)
+        cluster_label = 'normal' if data_status=='init' else 'abnormal' 
         first_cluster = MicroCluster(centre=first_sample, label=cluster_label)
         first_cluster.members[sample_info['trace_id']] = [first_sample, sample_info]
         self.micro_clusters: list[MicroCluster] = [first_cluster]
-        return cluster_label, 'manual'
+        return cluster_label, 'auto'
 
     # 2. Update Micro-Clusters
-    def Cluster_AnomalyDetector(self, data_sample: T, sample_info):
+    def Cluster_AnomalyDetector(self, sample: T, sample_info, data_status):
         # update Micro-Clusters dimension
         for cluster in self.micro_clusters:
-            cluster.update_dimension(data_sample)
+            cluster.update_dimension(sample)
         # find nearest micro cluster
         nearest_cluster = min(
             self.micro_clusters,
-            key=lambda cluster: distance(data_sample, cluster.centre),
+            key=lambda cluster: distance(sample, cluster.centre),
         )
-        min_dist = distance(data_sample, nearest_cluster.centre)
+        min_dist = distance(sample, nearest_cluster.centre)
 
         if min_dist < self.r0:
             nearest_cluster.energy = 1
             nearest_cluster.count += 1
-            nearest_cluster.members[sample_info['trace_id']] = [data_sample, sample_info]
+            nearest_cluster.members[sample_info['trace_id']] = [sample, sample_info]
 
             # if data is within the kernel?
             if min_dist < self.r0 / 2:
                 # todo: xd
-                nearest_cluster.update_center(data_sample)
+                nearest_cluster.update_center(sample)
             self.changed_cluster = nearest_cluster
 
             return nearest_cluster.label, 'auto'
         else:
             # request expert knowledge
-            cluster_label = self._request_expert_knowledge(data_sample, sample_info)
+            # cluster_label = self._request_expert_knowledge(sample, sample_info)
+            cluster_label = 'normal' if data_status=='init' else 'abnormal' 
 
             # create new micro cluster
-            new_micro_cluster = MicroCluster(centre=data_sample, label=cluster_label)
-            new_micro_cluster.members[sample_info['trace_id']] = [data_sample, sample_info]
+            new_micro_cluster = MicroCluster(centre=sample, label=cluster_label)
+            new_micro_cluster.members[sample_info['trace_id']] = [sample, sample_info]
             self.micro_clusters.append(new_micro_cluster)
 
-            return new_micro_cluster.label, 'manual'
+            return new_micro_cluster.label, 'auto'
     
     # Request expert knowledge
     def _request_expert_knowledge(self, sample, sample_info):
@@ -340,9 +342,9 @@ class CEDAS(Generic[T]):
     def run(self) -> None:
         self.initialization()
 
-        for data_sample in self.stream:
+        for sample in self.stream:
             self.changed_cluster = None
-            self.update(data_sample)
+            self.update(sample)
             self.kill()
 
             if self.changed_cluster and self.changed_cluster.count > self.threshold:
