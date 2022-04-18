@@ -510,8 +510,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
 
         if check_changed_span(span):
             is_abnormal = 1
-            chaos_root.append(chaos_dict.get(
-                time.localtime(span.startTime).tm_hour))
+            chaos_root.append(span.service)
 
         # get the parent server span id
         if span.parentSpanId == '-1':

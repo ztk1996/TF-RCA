@@ -1,3 +1,4 @@
+from multiprocessing import Pool
 from time import sleep
 from kubernetes import client, config, utils
 from query import *
@@ -39,35 +40,35 @@ query_func = {
 }
 
 change_order1 = [
-    [0], [11], [2], [11], [8],
-    [1], [10], [2], [0], [13],
-    [0], [7], [2], [1], [2],
-    [2], [3], [11], [1], [1],
-    [7], [1], [2], [2], [0],
-    [1], [11], [2], [0], [5],
-    [9], [10], [0], [1], [1],
-    [8], [12], [0], [2], [4],
-    [2], [1], [1], [4], [0],
-    [4], [0], [2], [4], [0]
+    [0], [3], [6], [5], [7],
+    [1], [7], [2], [0], [3],
+    [11], [2], [5], [10], [8],
+    [5], [2], [6], [5], [2],
+    [1], [8], [9], [13], [11],
+    [0], [1], [12], [0], [1],
+    [2], [3], [1], [6], [9],
+    [10], [4], [3], [8], [3],
+    [11], [8], [0], [2], [8],
+    [2], [0], [5], [6], [0],
 ]
 
 change_order2 = [
-    [3, 13], [6, 8], [2, 2], [1, 0], [13, 0],
-    [10, 13], [0, 0], [12, 7], [0, 2], [12, 9],
-    [6, 13], [0, 1], [2, 5], [3, 4], [9, 6],
-    [1, 0], [0, 2], [0, 1], [9, 8], [9, 13],
-    [13, 7], [5, 4], [10, 1], [7, 7], [0, 0],
-    [2, 2], [5, 8], [2, 1], [5, 3], [12, 6],
-    [9, 6], [1, 9], [2, 0], [4, 4], [1, 2],
-    [8, 10], [9, 4], [2, 6], [1, 2], [1, 1],
-    [1, 1], [1, 0], [1, 6], [1, 2], [7, 6],
-    [2, 1], [1, 2], [1, 0], [12, 9], [4, 11],
+    [3, 4], [10, 12], [12, 7], [3, 10], [10, 11],
+    [9, 9], [5, 10], [2, 1], [9, 3], [6, 11],
+    [8, 13], [13, 7], [8, 11], [11, 7], [2, 0],
+    [0, 1], [10, 8], [2, 0], [13, 8], [1, 0],
+    [2, 0], [0, 2], [8, 4], [13, 6], [2, 1],
+    [0, 1], [10, 8], [12, 5], [3, 11], [2, 0],
+    [1, 2], [5, 12], [6, 4], [6, 10], [0, 1],
+    [11, 13], [1, 0], [7, 6], [1, 1], [2, 1],
+    [2, 0], [1, 2], [6, 10], [12, 5], [1, 2],
+    [4, 5], [8, 12], [0, 1], [13, 9], [0, 2],
 ]
 
 change_order = change_order1
 
 
-def wait_for_deployment_complete(api: client.AppsV1Api, name, timeout=600):
+def wait_for_deployment_complete(api: client.AppsV1Api, name, timeout=300):
     start = time.time()
 
     while time.time()-start < timeout:
@@ -83,7 +84,7 @@ def wait_for_deployment_complete(api: client.AppsV1Api, name, timeout=600):
             print(f'[INFO] [updated_replicas:{s.updated_replicas},replicas:{s.replicas}'
                   f',available_replicas:{s.available_replicas},observed_generation:{s.observed_generation}] waiting...')
 
-    raise RuntimeError(f'Waiting timeout for deployment {name}')
+    raise True
 
 
 def update_deployment_image(api: client.AppsV1Api, name, image) -> str:
@@ -119,13 +120,14 @@ def main():
     # k8s_client = client.ApiClient()
     api = client.AppsV1Api()
     request_period_log = []
-
+    p = Pool(4)
     contact_image = update_deployment_image(
         api, 'ts-contacts-service', 'cqqcqq/contacts_sleep:latest')
 
     for order in change_order:
         old_images = []
         deploy_names = []
+        wait_names = []
         print("-----------------------------------------")
         for order_id in order:
             # get current change
@@ -134,6 +136,9 @@ def main():
             # update deployment
             deploy_name = change[0]
             deploy_names.append(deploy_name)
+            if order_id < 8 and order_id > 10:
+                # not port error service
+                wait_names.append(deploy_name)
             new_image = change[1]
 
             old_image = update_deployment_image(
@@ -141,24 +146,22 @@ def main():
             old_images.append(old_image)
 
         # wait for completing update
-        try:
-            for name in deploy_names:
-                wait_for_deployment_complete(api, name)
-        except Exception:
-            print('[ERROR] deployment update failed')
-            for image in old_images:
-                print(f"[INFO] recover deployment image to {image}")
-                update_deployment_image(api, deploy_name, image)
-            continue
+        for name in wait_names:
+            wait_for_deployment_complete(api, name)
+
         # send requests
         start = int(round(time.time() * 1000))
-        query_func[deploy_name]()
+        if len(deploy_names) > 1:
+            p.apply_async(query_func[deploy_names[1]])
+        p.apply(query_func[deploy_names[0]])
         end = int(round(time.time() * 1000))
+
         root_services = []
         for i in order:
             if i >= 3:
-                root_services.append(service_changes[i])
-        request_period_log.append((root_services, start, end))
+                root_services.append(service_changes[i][0])
+        if len(root_services) > 0:
+            request_period_log.append((root_services, start, end))
         # recover deployment
         for image in old_images:
             print(f"[INFO] recover deployment image to {image}")
@@ -166,7 +169,7 @@ def main():
 
         # wait 5 minutes
         print(f"[INFO] waitting...")
-        sleep(10)
+        sleep(100)
 
     print('-----------------------------------------')
     update_deployment_image(api, 'ts-contacts-service',
