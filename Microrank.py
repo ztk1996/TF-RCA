@@ -16,7 +16,7 @@ from DenStream.DenStream import DenStream
 from CEDAS.CEDAS import CEDAS
 from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo, get_operation_duration_data
 from MicroRank.online_rca import rca_MicroRank
-from DataPreprocess.params import span_chaos_dict
+from DataPreprocess.params import span_chaos_dict, request_period_log
 from DataPreprocess.SpanProcess import preprocess_span
 import warnings
 warnings.filterwarnings("ignore")
@@ -26,11 +26,9 @@ MAX_INT = sys.maxsize
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 K = 3
-start_str = '2022-01-13 00:00:00'
-window_duration = 60 * 60 * 1000 # ms
-init_window_duration = 1 * 60 * 1000 # ms
-AD_method = 'CEDAS_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
-Sample_method = 'macro'    # 'none', 'micro', 'macro'
+start_str = '2022-04-16 20:08:00'    # '2022-01-13 00:00:00' ---> '2022-04-17 02:56:08'
+window_duration = 20 * 60 * 1000 # ms
+init_window_duration = 5 * 60 * 1000 # ms
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
@@ -107,7 +105,8 @@ def main():
                     expect_duration += operation_count[trace_id][operation] * (
                         slo[operation][0] + 1.5 * slo[operation][1])
 
-            if real_duration > expect_duration:
+            # if real_duration > expect_duration:
+            if raw_data[trace_id]['abnormal']:
                 a_pred.append(1)
                 abnormal_map[trace_id] = True
                 abnormal_count += 1
@@ -128,7 +127,7 @@ def main():
         print('AD F1 score is %.5f' % a_F1_score)
         print('--------------------------------')
 
-        if abnormal_count > 8:
+        if abnormal_count > 4:
             print('********* RCA start *********')
             r_true.append(True)
 
@@ -139,24 +138,31 @@ def main():
                 topK = top_list[:K if len(top_list) > K else len(top_list)]
                 print(f'top-{K} root cause is', topK)
                 start_hour = time.localtime(start//1000).tm_hour
-                chaos_service = span_chaos_dict.get(start_hour)
-                print(f'ground truth root cause is', chaos_service)
+                # chaos_service = span_chaos_dict.get(start_hour)
+                chaos_service_list = []
+                for root_cause_item in request_period_log:
+                    # A: start, end    B: root_cause_item[1], root_cause_item[2]
+                    if ((root_cause_item[1]>end and root_cause_item[1]<root_cause_item[2]) or (start<end and root_cause_item[1]>root_cause_item[2]) or (start>end and start<root_cause_item[2])):
+                    # if start>=root_cause_item[1] and start<=root_cause_item[2]:
+                        chaos_service_list.append(root_cause_item[0][0])
+                        print(f'ground truth root cause is', root_cause_item[0][0])
 
-                # zhoutong add
-                in_topK = True
-                candidate_list = []
-                for topS in topK:
-                    candidate_list += topS.split('/')
-                if isinstance(chaos_service, list):
-                    for service in chaos_service:
-                        gt_service = service.replace('-', '')[2:]
-                        if gt_service not in candidate_list:
-                            in_topK = False
-                            break
-                else:
-                    gt_service = chaos_service.replace('-', '')[2:]
-                    if gt_service not in candidate_list:
-                        in_topK = False
+
+                # # zhoutong add
+                # in_topK = True
+                # candidate_list = []
+                # for topS in topK:
+                #     candidate_list += topS.split('/')
+                # if isinstance(chaos_service, list):
+                #     for service in chaos_service:
+                #         gt_service = service.replace('-', '')[2:]
+                #         if gt_service not in candidate_list:
+                #             in_topK = False
+                #             break
+                # else:
+                #     gt_service = chaos_service.replace('-', '')[2:]
+                #     if gt_service not in candidate_list:
+                #         in_topK = False
                         
             # top_list is empty
             elif len(top_list) == 0:

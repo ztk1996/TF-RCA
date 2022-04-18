@@ -18,7 +18,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import requests
 import wordninja
 from transformers import AutoTokenizer, AutoModel
-from .params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list, span_chaos_dict
+from .params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list, span_chaos_dict, request_period_log
 
 data_root = '/data/TraceCluster/raw'
 
@@ -31,9 +31,9 @@ cache_file = '/home/kagaya/work/TraceCluster/secrets/cache.json'
 embedding_name = ''
 
 # get features of the edge directed to current span
-operation_select_keys = ['childrenSpanNum', 'requestDuration', 'responseDuration',
-                                 'requestAndResponseDuration', 'workDuration', 'subspanNum',
-                                 'duration', 'rawDuration', 'timeScale']
+operation_select_keys = ['childrenSpanNum', 'requestDuration', 'responseDuration',        
+                        'requestAndResponseDuration', 'workDuration', 'subspanNum',
+                        'duration', 'rawDuration', 'timeScale']
 
 def normalize(x: float) -> float: return x
 
@@ -188,7 +188,8 @@ def load_mm_span(clickstream_list: List[str], callgraph_list: List[str]) -> Tupl
                 str(s['CallerNodeID']) + str(s['CallerCmdID']))
             spans[ITEM.TRACE_ID].append(s['GraphIdBase64'])
             spans[ITEM.SPAN_TYPE].append('Entry')
-            spans[ITEM.START_TIME].append(int(time.mktime(time.strptime(s['TimeStamp'], "%Y-%m-%d %H:%M:%S"))) * 1000)
+            spans[ITEM.START_TIME].append(
+                int(time.mktime(time.strptime(s['TimeStamp'], "%Y-%m-%d %H:%M:%S"))) * 1000)
             spans[ITEM.DURATION].append(int(s['CostTime']))
 
             # 尝试替换id为name
@@ -412,19 +413,48 @@ def calculate_edge_features(current_span: Span, trace_duration: dict, spanChildr
 
     return features
 
+def check_changed_span(span: Span) -> bool:
+    changes = []
+    for set in request_period_log:
+        r_start = int(set[1])
+        r_end = int(set[2])
+        if r_start < span.startTime and span.startTime < r_end:
+            changes.extend(set[0])
+            break
 
-def check_abnormal_span(span: Span) -> bool:
-    start_hour = time.localtime(span.startTime//1000).tm_hour
-    chaos_service = span_chaos_dict.get(start_hour)
-
-    if start_hour not in span_chaos_dict.keys() or not span.service.startswith(chaos_service):
+    if len(changes) == 0:
         return False
 
-    # 故障请求延时为5s，所以小于5000ms的不是根因
-    if span.duration < 5000 and not span.isError:
+    if span.duration < 1000 and not span.isError:
         return False
 
-    return True
+    for change in changes:
+        if change == span.service:
+            return True
+
+    return False
+
+# def check_abnormal_span(span: Span) -> bool:
+#     # start_hour = time.localtime(span.startTime//1000).tm_hour
+#     # chaos_service = span_chaos_dict.get(start_hour)
+
+#     # if start_hour not in span_chaos_dict.keys() or not span.service.startswith(chaos_service):
+#     #     return False
+
+#     chaos_service = ''
+#     for root_cause_item in request_period_log:
+#         if span.startTime>=root_cause_item[1] and span.startTime<=root_cause_item[2]:
+#                 chaos_service = root_cause_item[0][0]
+#                 break
+
+#     if chaos_service == '' or not span.service.startswith(chaos_service):
+#         return False
+
+#     # 故障请求延时为5s，所以小于5000ms的不是根因
+#     if span.duration < 5000 and not span.isError:
+#         return False
+
+#     return True
 
 
 def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], operation_map: dict):
@@ -468,7 +498,8 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
                 spanChildrenMap[local_span_parent.spanId].append(child)
 
     is_abnormal = 0
-    chaos_root = ''
+    # chaos_root = ''
+    chaos_root = []
     # process other span
     for span in trace:
         """
@@ -481,9 +512,15 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         if span.spanType in ['Exit', 'Producer', 'Local']:
             continue
 
-        if check_abnormal_span(span):
+        # if check_abnormal_span(span):
+        if check_changed_span(span):
             is_abnormal = 1
-            chaos_root = span_chaos_dict.get(time.localtime(span.startTime).tm_hour)
+            # chaos_root = span_chaos_dict.get(time.localtime(span.startTime).tm_hour)
+            # for root_cause_item in request_period_log:
+            #     if span.startTime>=root_cause_item[1] and span.startTime<=root_cause_item[2]:
+            #             chaos_root = root_cause_item[0][0]
+            #             break
+            chaos_root.append(span.service)
 
         # get the parent server span id
         if span.parentSpanId == '-1':
@@ -566,7 +603,9 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     root_cmdid = mm_root_map[traceId]['cmdid']
     root_span_id = root_nodeid + root_ossid + root_cmdid
     root_code = mm_root_map[traceId]['code']
-    root_start_time = int(time.mktime(time.strptime(mm_root_map[traceId]['start_time'], "%Y-%m-%d %H:%M:%S")))
+    # root_start_time = int(time.mktime(time.strptime(mm_root_map[traceId]['start_time'], "%Y-%m-%d %H:%M:%S")))
+    root_start_time = int(time.mktime(time.strptime(
+        mm_root_map[traceId]['start_time'], "%Y-%m-%d %H:%M:%S")))
     root_service_name = get_service_name(root_ossid)
     root_duration = int(mm_root_map[traceId]['cost_time'])
     if root_service_name == "":

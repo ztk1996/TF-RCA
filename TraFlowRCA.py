@@ -195,11 +195,11 @@ def main():
     if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
         # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
         denstream = DenStream(eps=100, lambd=0.1, beta=0.2, mu=6)
-        init_Cluster(denstream, init_start_str)
+        # init_Cluster(denstream, init_start_str)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=100, decay=0.001, threshold=5)
         first_tag = True
-        init_Cluster(cedas, init_start_str)
+        # init_Cluster(cedas, init_start_str)
 
     # ========================================
     # Init time window
