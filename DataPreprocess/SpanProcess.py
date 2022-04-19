@@ -11,15 +11,15 @@ from pandas.core.frame import DataFrame
 import numpy as np
 import argparse
 from tqdm import tqdm
-from . import utils
+import utils
 from typing import List, Callable, Dict, Tuple
 from multiprocessing import cpu_count, Manager, current_process
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import requests
 import wordninja
 from transformers import AutoTokenizer, AutoModel
-from .params import data_path_list, mm_data_path_list, mm_trace_root_list, chaos_dict
-from .params import request_period_log
+from params import data_path_list, mm_data_path_list, mm_trace_root_list, chaos_dict
+from params import request_period_log
 
 data_root = '/data/TraceCluster/raw'
 
@@ -470,6 +470,9 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     has_root = False
     for span in trace:
         if span.parentSpanId == '-1':
+            trace_duration["start"] = span.startTime
+            trace_duration["end"] = span.startTime + \
+                span.duration + 1 if span.duration <= 0 else 0
             has_root = True
         spanMap[span.spanId] = span
         if span.parentSpanId not in spanChildrenMap.keys():
@@ -515,9 +518,6 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         # get the parent server span id
         if span.parentSpanId == '-1':
             rootSpan = span
-            trace_duration["start"] = span.startTime
-            trace_duration["end"] = span.startTime + \
-                span.duration + 1 if span.duration <= 0 else 0
             parentSpanId = '-1'
         else:
             if spanMap.get(span.parentSpanId) is None:
