@@ -130,7 +130,7 @@ def constant_query(targets: list, timeout: int = 5 * minute):
 
 
 # 随机次数随机场景进行查询
-def random_query(q: Query, weights: dict, interval: int = random.randint(10, 20)):
+def random_query(q: Query, weights: dict, interval: int = random.randint(1, 5)):
     """
     登陆一个用户并按权重随机发起请求
     :param weights: 权重dict
@@ -155,13 +155,10 @@ def random_query(q: Query, weights: dict, interval: int = random.randint(10, 20)
 
 def run(task: Callable, timeout: int):
     start = time.time()
-    end = start
-    count = random.randint(3, 5)
-    for _ in range(0, count):
-        if time.time() - start > timeout:
-            break
+    while time.time() - start < timeout:
         task()
-        end = time.time()
+
+    end = time.time()
     return start, end
 
 

@@ -1067,17 +1067,17 @@ def main():
 
 
 if __name__ == '__main__':
-    # main()
-    def timestamp(datetime) -> int:
-        timeArray = time.strptime(datetime, "%Y-%m-%d %H:%M:%S")
-        ts = int(time.mktime(timeArray)) * 1000
-        # print(ts)
-        return ts
+    main()
+    # def timestamp(datetime) -> int:
+    #     timeArray = time.strptime(datetime, "%Y-%m-%d %H:%M:%S")
+    #     ts = int(time.mktime(timeArray)) * 1000
+    #     # print(ts)
+    #     return ts
 
-    start = '2022-02-27 01:00:00'
-    end = '2022-02-27 01:30:00'
+    # start = '2022-02-27 01:00:00'
+    # end = '2022-02-27 01:30:00'
 
-    res = preprocess_span(start=timestamp(start), end=timestamp(end))
-    print(res)
+    # res = preprocess_span(start=timestamp(start), end=timestamp(end))
+    # print(res)
 
     print('preprocess finished :)')

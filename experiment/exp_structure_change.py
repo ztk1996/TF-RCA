@@ -65,7 +65,7 @@ change_order2 = [
     [4, 5], [8, 12], [0, 1], [13, 9], [0, 2],
 ]
 
-change_order = change_order1
+change_order = change_order2
 
 
 def wait_for_deployment_complete(api: client.AppsV1Api, name, timeout=300):
