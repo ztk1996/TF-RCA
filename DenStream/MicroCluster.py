@@ -14,8 +14,11 @@ class MicroCluster:
         self.label = micro_cluster_label
         self.energy = 1    # float
         self.count = 1    # int
+        self.AD_selected = False
+        self.members = {}    # {trace_id1: [STVector1, sample_info1], trace_id2: [STVector2, sample_info2]}
+        self.color = None
 
-    def insert_sample(self, sample, weight):
+    def insert_sample(self, sample, sample_info, weight):
         if self.sum_of_weights != 0:
             # Update sum of weights
             old_sum_of_weights = self.sum_of_weights
@@ -64,5 +67,8 @@ class MicroCluster:
         # improvement
         new_micro_cluster.energy = self.energy    # float
         new_micro_cluster.count = self.count    # int
+        new_micro_cluster.AD_selected = self.AD_selected
+        new_micro_cluster.members = self.members
+        new_micro_cluster.color = self.color
 
         return new_micro_cluster

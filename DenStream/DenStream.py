@@ -1,3 +1,5 @@
+import random
+from statistics import mean
 import sys
 import numpy as np
 from sklearn import cluster
@@ -6,6 +8,10 @@ from copy import copy
 from DenStream.MicroCluster import MicroCluster
 from math import ceil
 from sklearn.cluster import DBSCAN
+
+from matplotlib import pyplot as plt
+from matplotlib.colors import hsv_to_rgb
+from sklearn.manifold import TSNE
 
 
 class DenStream:
@@ -149,50 +155,240 @@ class DenStream:
 
         return y
     
-    def get_labels_and_confidenceScores(self, STV_map):
+    def get_sampleRates(self, STV_map, cluster_type):
         """
-        Get labels of traces and confidence score of each label
+        Get sample rate of each trace
 
         Parameters
         ----------
         STV_map : {trace_id1: STVector1, trace_id2: STVector2}
+        cluster_type : 'micro', 'macro'
+
+        Returns
+        ----------
+        sampleRates : {trace_id1: rate1, trace_id2: rate2}
+        """
+        sampleRates = {}
+        for trace_id, STVector in STV_map.items():
+            STVector = np.append(STVector, [0]*(len(self.p_micro_clusters[0].center() if len(self.p_micro_clusters)!=0 
+                       else self.o_micro_clusters[0].center()) - len(STVector)))
+
+            nearest_index, nearest_cluster = self._get_nearest_micro_cluster(STVector, self.p_micro_clusters + self.o_micro_clusters)
+
+            # get count of all micro_clusters
+            clusterCounts = [cluster.count for cluster in self.p_micro_clusters+self.o_micro_clusters]
+            
+            # get sample rate
+            # method 1
+            sample_rate = 1 / (1 + np.exp(2*np.mean(clusterCounts)-nearest_cluster.count))
+            # method 2
+            sample_rate = nearest_cluster.count / np.sum(clusterCounts)
+
+            sampleRates[trace_id] = sample_rate
+
+        return sampleRates
+    
+    def update_cluster_labels(self, manual_labels_list):
+        """
+        Update cluster labels if manual_labels_list is different. New normal traces will appear.
+
+        Parameters
+        ----------
+        manual_labels_list : [trace_id1, trace_id2]    
+
+        Returns
+        ----------
+        manual_labels_list : delete labels which not used in any clusters    
+        """
+        new_manual_labels_list = list()
+        for manual_label in manual_labels_list:
+            for micro_cluster in self.p_micro_clusters + self.o_micro_clusters:
+                if manual_label in micro_cluster.members.keys():
+                    micro_cluster.label = 'normal'
+                    new_manual_labels_list.append(manual_label)
+                    break
+        return new_manual_labels_list
+        
+    def get_labels_confidenceScores_sampleRates(self, STV_map, cluster_type):
+        """
+        Get labels and sample rates of traces and confidence score of each label
+
+        Parameters
+        ----------
+        STV_map : {trace_id1: STVector1, trace_id2: STVector2}
+        cluster_type : 'micro', 'macro', 'none', 'rate'
         
         Returns
         ----------
         labels : {trace_id1: label1, trace_id2: label2}
         confidenceScores : {trace_id1: score1, trace_id2: score2}
+        sampleRates : {trace_id1: rate1, trace_id2: rate2}
         """
+        sRate = 0.8
+        sampled_tid_list = list()
+        if cluster_type == 'rate':
+            for micro_cluster in self.p_micro_clusters + self.o_micro_clusters:
+                sampled_tid_list += random.sample(micro_cluster.members.keys(), int(micro_cluster.count*sRate))
+
+
+        for micro_cluster in self.p_micro_clusters + self.o_micro_clusters:
+            micro_cluster.AD_selected = False
+
         micro_cluster_centers = np.array([micro_cluster.center() for
                                             micro_cluster in
                                             self.p_micro_clusters + self.o_micro_clusters])
         micro_cluster_weights = [micro_cluster.weight()[0] for micro_cluster in
                                    self.p_micro_clusters + self.o_micro_clusters]
-        dbscan = DBSCAN(eps=0.3, min_samples=10, algorithm='brute')
+        micro_cluster_counts = [micro_cluster.count for micro_cluster in 
+                                self.p_micro_clusters+self.o_micro_clusters]
+        micro_cluster_scores = [np.sum(micro_cluster_counts)/micro_cluster_count
+                                for micro_cluster_count in micro_cluster_counts]
+        
+        dbscan = DBSCAN(eps=50, min_samples=5, algorithm='brute')
         dbscan.fit(micro_cluster_centers, sample_weight=micro_cluster_weights)
 
         labels = {}
         confidenceScores = {}
+        sampleRates = {}
         for trace_id, STVector in STV_map.items():
             STVector = np.append(STVector, [0]*(len(self.p_micro_clusters[0].center() if len(self.p_micro_clusters)!=0 
                        else self.o_micro_clusters[0].center()) - len(STVector)))
             
             nearest_index, nearest_cluster = self._get_nearest_micro_cluster(STVector, self.p_micro_clusters + self.o_micro_clusters)
 
+            # get selected cluster
+            if nearest_cluster.label == 'abnormal':
+                nearest_cluster.AD_selected = True
+                
             # get label 
             labels[trace_id] = nearest_cluster.label
 
             # get confidence score
+            # method 1
             neighbor_index_list = [index for index, label in enumerate(dbscan.labels_) if label == dbscan.labels_[nearest_index] and label != -1]
             neighbor_cluster_list = [(self.p_micro_clusters+self.o_micro_clusters)[idx] for idx in neighbor_index_list]
             score = sum([cluster.weight() for cluster in neighbor_cluster_list if cluster.label == nearest_cluster.label]) / sum([cluster.weight() for cluster in neighbor_cluster_list]) if bool(neighbor_cluster_list) else 1
+            # method 2
+            score = 1/nearest_cluster.count
             confidenceScores[trace_id] = score
 
-            if score != 1:
-                print("find it !")
+            # get sample rate
+            if cluster_type == 'micro':
+                # method 1
+                sample_rate = 1 / (1 + np.exp(2*np.mean(micro_cluster_scores)-np.sum(micro_cluster_counts)/nearest_cluster.count))
+                # method 2
+                sample_rate = (np.sum(micro_cluster_counts)/nearest_cluster.count) / np.sum(micro_cluster_scores)
+                # method 3
+                sample_rate = (np.sum(micro_cluster_counts)/nearest_cluster.count) / np.max(micro_cluster_scores)
+            elif cluster_type == 'macro':
+                neighbor_count_list = [cluster.count for cluster in neighbor_cluster_list]
+                # method 1
+                sample_rate = 1 / (1 + np.exp(2*np.mean(micro_cluster_scores)-((np.sum(micro_cluster_counts)/np.mean(neighbor_count_list)) if len(neighbor_count_list)!=0 else (np.sum(micro_cluster_counts)/nearest_cluster.count))))
+                # method 2
+                sample_rate = ((np.sum(micro_cluster_counts)/np.mean(neighbor_count_list)) if len(neighbor_count_list)!=0 else (np.sum(micro_cluster_counts)/nearest_cluster.count)) / np.sum(micro_cluster_scores)
+                # method 3
+                sample_rate = ((np.sum(micro_cluster_counts)/np.mean(neighbor_count_list)) if len(neighbor_count_list)!=0 else (np.sum(micro_cluster_counts)/nearest_cluster.count)) / np.max(micro_cluster_scores)
+            elif cluster_type == 'rate':
+                if trace_id in sampled_tid_list:
+                    sample_rate = 1
+                else:
+                    sample_rate = 0
+            elif cluster_type == 'none':
+                sample_rate = 1
+            sampleRates[trace_id] = sample_rate
 
-        return labels, confidenceScores
+            # if score != 1:
+            #    print("find it !")
+
+        # if len((self.p_micro_clusters+self.o_micro_clusters)) > 1:
+        #     self.visualization_tool()
+
+        return labels, confidenceScores, sampleRates
+    
+    def _get_same_element_index(self, ob_list, element):
+        return [i for (i, v) in enumerate(ob_list) if v == element]
+    
+    def _get_macro_cluster(self, label_list):
+        macro_clusters_list = []
+        n_clusters_ = len(set(label_list))
+        for label in range(-1, n_clusters_-1):
+            macro_cluster_index = self._get_same_element_index(label_list, label)
+            if label == -1:
+                for noisy_cluster_index in macro_cluster_index:
+                    macro_clusters_list.append([(self.p_micro_clusters+self.o_micro_clusters)[noisy_cluster_index]])
+            else:            
+                macro_cluster = [(self.p_micro_clusters+self.o_micro_clusters)[idx] for idx in macro_cluster_index]
+                macro_clusters_list.append(macro_cluster)
+        return macro_clusters_list
+
+    def visualization_tool(self):
+        sample_data = []
+        for cluster in self.p_micro_clusters+self.o_micro_clusters:
+            for data_item in cluster.members.values():
+                sample_data.append(np.append(data_item[0], [0]*(len(cluster.mean)-len(data_item[0]))))    # extended STVector
+        sample_data_2 = TSNE(n_components=2).fit_transform(sample_data)
+        sample_data_2_trans = list(map(list, zip(*sample_data_2)))
+        sample_data_x = sample_data_2_trans[0]
+        sample_data_y = sample_data_2_trans[1]
 
 
+        micro_cluster_centers = np.array([micro_cluster.center() for
+                                          micro_cluster in
+                                          self.p_micro_clusters + self.o_micro_clusters])
+        dbscan = DBSCAN(eps=50, min_samples=5, algorithm='brute')
+        dbscan.fit(micro_cluster_centers)
+        dbscan_label_list = dbscan.labels_
+
+        macro_clusters_list = self._get_macro_cluster(dbscan_label_list)
+
+        for i, macro_cluster in enumerate(macro_clusters_list):
+            color = hsv_to_rgb([(i * 0.618033988749895) % 1.0, 1, 1])
+            for micro_cluster in macro_cluster:
+                micro_cluster.color = color
+        
+        fig, ax = plt.subplots()
+
+        cluster_centers = []
+        for cluster in (self.p_micro_clusters+self.o_micro_clusters):
+            cluster_centers.append(cluster.center())
+        cluster_centers_2 = TSNE(n_components=2).fit_transform(cluster_centers)
+
+        for idx, cluster in enumerate(self.p_micro_clusters+self.o_micro_clusters):
+            if cluster.label == 'normal':    # normal, abnormal
+                ax.add_artist(
+                    plt.Circle(
+                        (cluster_centers_2[idx][0], cluster_centers_2[idx][1]),
+                        cluster.radius(),
+                        # alpha=cluster.energy,
+                        color=cluster.color,
+                        clip_on=False,
+                        hatch='*',    # hatch = {'/', '', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
+                        linewidth=1
+                    )
+                )
+            elif cluster.label == 'abnormal':
+                ax.add_artist(
+                    plt.Circle(
+                        (cluster_centers_2[idx][0], cluster_centers_2[idx][1]),
+                        cluster.radius(),
+                        # alpha=cluster.energy,
+                        color=cluster.color,
+                        clip_on=False,
+                        hatch='/',    # hatch = {'/', '', '|', '-', '+', 'x', 'o', 'O', '.', '*'}
+                        linewidth=1
+                    )
+                )
+
+        plt.scatter(sample_data_x, sample_data_y, marker=".", color="black", linewidths=1)
+        
+        # plt.axis('equal')
+        plt.axis('scaled')
+        ax.set_xlim((np.min([center[0] for center in cluster_centers_2])-50, np.max([center[0] for center in cluster_centers_2])+50))
+        ax.set_ylim((np.min([center[1] for center in cluster_centers_2])-50, np.max([center[1] for center in cluster_centers_2])+50))
+        
+        plt.show()
+        fig.savefig("micro_clusters.png")
+    
     def predict(self, X, y=None, sample_weight=None):
         """
         Lorem ipsum dolor sit amet
@@ -249,47 +445,58 @@ class DenStream:
                 nearest_micro_cluster_index = i
         return nearest_micro_cluster_index, nearest_micro_cluster
 
-    def _try_merge(self, sample, weight, micro_cluster):
+    def _try_merge(self, sample, sample_info, weight, micro_cluster):
         if micro_cluster is not None:
             micro_cluster_copy = copy(micro_cluster)
-            micro_cluster_copy.insert_sample(sample, weight)
+            micro_cluster_copy.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
             if micro_cluster_copy.radius() <= self.eps:    # improvement 这里可以加上密度阈值判断，判断 count，参考 CEDAS
-                micro_cluster.insert_sample(sample, weight)
+                micro_cluster.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
                 # improvement
                 micro_cluster.energy = 1
                 micro_cluster.count += 1
+                # Add new member
+                micro_cluster.members[sample_info['trace_id']] = [sample, sample_info]
                 return True
         return False
 
-    def _merging(self, sample, sample_info, weight):
+    def _merging(self, sample, sample_info, weight, data_status, manual_labels_list):
+        # 若到来的样本在人工标注字典中出现过，则所属的簇直接标记正常
         # Update MicroCluster center dimension
         for cluster in self.p_micro_clusters + self.o_micro_clusters:
             cluster.update_center_dimension(sample)
         # Try to merge the sample with its nearest p_micro_cluster
         _, nearest_p_micro_cluster = \
             self._get_nearest_micro_cluster(sample, self.p_micro_clusters)
-        success = self._try_merge(sample, weight, nearest_p_micro_cluster)
+        success = self._try_merge(sample, sample_info, weight, nearest_p_micro_cluster)
         if not success:
             # Try to merge the sample into its nearest o_micro_cluster
             index, nearest_o_micro_cluster = \
                 self._get_nearest_micro_cluster(sample, self.o_micro_clusters)
-            success = self._try_merge(sample, weight, nearest_o_micro_cluster)
+            success = self._try_merge(sample, sample_info, weight, nearest_o_micro_cluster)
             if success:
                 if nearest_o_micro_cluster.weight() > self.beta * self.mu:
                     del self.o_micro_clusters[index]
                     self.p_micro_clusters.append(nearest_o_micro_cluster)
+                if sample_info['trace_id'] in manual_labels_list:
+                    nearest_o_micro_cluster.label = 'normal'
                 return nearest_o_micro_cluster.label, 'auto'
             else:
                 # Request expert knowledge
                 # improvement
-                cluster_label = self._request_expert_knowledge(sample, sample_info)              
+                # cluster_label = self._request_expert_knowledge(sample, sample_info)
+                # 人标注对其的影响也要考虑上，不一定绝对是‘abnormal’。若这个样本在人工标注字典中，则cluster_label为true
+                cluster_label = 'normal' if data_status=='init' or sample_info['trace_id'] in manual_labels_list else 'abnormal'              
 
                 # Create new o_micro_cluster
                 micro_cluster = MicroCluster(self.lambd, sample_info['time_stamp'], cluster_label)    # improvement
-                micro_cluster.insert_sample(sample, weight)
+                micro_cluster.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
+                # Add new member
+                micro_cluster.members[sample_info['trace_id']] = [sample, sample_info]
                 self.o_micro_clusters.append(micro_cluster)
-                return micro_cluster.label, 'manual'
+                return micro_cluster.label, 'auto'
         else:
+            if sample_info['trace_id'] in manual_labels_list:
+                nearest_p_micro_cluster.label = 'normal'
             return nearest_p_micro_cluster.label, 'auto'
 
     def _request_expert_knowledge(self, sample, sample_info):
@@ -304,22 +511,23 @@ class DenStream:
 
         cluster_label = "abnormal" if sample_info['trace_bool']==1 else "normal" 
         # cluster_label = input("Please input the label of trace {}:".format(sample_info['trace_id']))
-        # Check cluster label (normal, abnormal, change normal)
-        while cluster_label not in ["normal", "abnormal", "change_normal"]:
+        # Check cluster label (normal, abnormal)
+        while cluster_label not in ["normal", "abnormal"]:
             cluster_label = input("Illegal label! Please input the label of trace {}:".format(sample_info['trace_id']))
         return cluster_label
 
     def _decay_function(self, t):
         return 2 ** ((-self.lambd) * (t))
 
-    def Cluster_AnomalyDetector(self, sample, sample_info):
+    def Cluster_AnomalyDetector(self, sample, sample_info, data_status, manual_labels_list):
         # improvement 这里各个 trace 的权重应该由已有的聚类计算出来，暂时还没想好
         sample_weight = self._validate_sample_weight(sample_weight=None, n_samples=1)
-        sample_label, label_status = self._merging(sample, sample_info, sample_weight)
+        sample_label, label_status = self._merging(sample, sample_info, sample_weight, data_status, manual_labels_list)
         # improvement 这里加上对每个簇 energy 的衰减，要不要换成时间窗衰减函数
         for cluster in self.p_micro_clusters + self.o_micro_clusters:
             cluster.energy -= self.decay
 
+        # if sample_info["time_stamp"] % 30 == 0:
         if sample_info["time_stamp"] % self.tp == 0:    # 不懂这一步是在干啥？每隔一段时间更新所有簇的状态，有的消失，有的保留
             self.p_micro_clusters = [p_micro_cluster for p_micro_cluster
                                      in self.p_micro_clusters if

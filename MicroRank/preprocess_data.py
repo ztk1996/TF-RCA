@@ -266,17 +266,20 @@ def get_operation_duration_data(operation_list: List[str], span_list: List[Span]
     operation_dict = {}
     trace_id = span_list[0].traceId
 
-    def init_dict(trace_id):
+    def init_dict(trace_id, operation_name):
         if trace_id not in operation_dict:
             operation_dict[trace_id] = {}
-            for operation in operation_list:
-                operation_dict[trace_id][operation] = 0
+            # for operation in operation_list:
+            #     operation_dict[trace_id][operation] = 0
             operation_dict[trace_id]['duration'] = 0
+            operation_dict[trace_id][operation_name] = 0
+        else:
+            operation_dict[trace_id][operation_name] = 0
 
     for span in span_list:
         operation_name = span.operation
 
-        init_dict(span.traceId)
+        init_dict(span.traceId, operation_name)
 
         if trace_id == span.traceId:
             operation_dict[trace_id][operation_name] += 1
@@ -310,12 +313,64 @@ def get_operation_duration_data(operation_list: List[str], span_list: List[Span]
        trace_operation 存储 operation被哪些trace 访问过, 左下角 coverage graph
        trace_operation[operation_name] = [traceid1, traceid2]  
        
-       pr_trace: 存储trace id 经过了哪些operation，不去重
+       pr_trace: 存储trace id 经过了哪些operation, 不去重
        pr_trace[traceid] = [operation_name1, operation_name2]
 '''
 
+def get_pagerank_graph_traceLevel(traces_dict):
+    operation_operation = {}
+    operation_trace = {}
+    trace_operation = {}
+    pr_trace = {}
 
-def get_pagerank_graph(trace_list: List[str], span_list: List[Span]):
+    for trace_id, trace in traces_dict.items():
+        # operation_operation 存储子节点 Call graph
+        # operation_operation[operation_name] = [operation_name1, operation_name1]
+        for parent, children in trace['edges'].items():
+            if parent == '0':
+                continue
+            elif trace['vertexs'][parent][1] not in operation_operation.keys():
+                operation_operation[trace['vertexs'][parent][1]] = []
+            for child in children:
+                if trace['vertexs'][str(child['vertexId'])][1] not in operation_operation[trace['vertexs'][parent][1]]:
+                    operation_operation[trace['vertexs'][parent][1]].append(trace['vertexs'][str(child['vertexId'])][1])
+        for idx, operation in trace['vertexs'].items():
+            if idx == '0':
+                continue
+            elif operation[1] not in operation_operation.keys():
+                operation_operation[operation[1]] = []
+                
+        # operation_trace 存储trace经过了哪些operation, 右上角 coverage graph
+        # operation_trace[traceid] = [operation_name1, operation_name2]
+        operation_trace[trace_id] = []
+        for idx, operation in trace['vertexs'].items():
+            if idx == '0':
+                continue
+            elif operation[1] not in operation_trace[trace_id]:
+                operation_trace[trace_id].append(operation[1])
+
+        # trace_operation 存储 operation被哪些trace 访问过, 左下角 coverage graph
+        # trace_operation[operation_name] = [traceid1, traceid2]
+        for idx, operation in trace['vertexs'].items():
+            if idx == '0':
+                continue
+            elif operation[1] not in trace_operation.keys():
+                trace_operation[operation[1]] = [trace_id]
+            elif operation[1] in trace_operation.keys():
+                trace_operation[operation[1]].append(trace_id)
+
+        # pr_trace: 存储trace id 经过了哪些operation, 不去重
+        # pr_trace[traceid] = [operation_name1, operation_name2]
+        pr_trace[trace_id] = []
+        for idx, operation in trace['vertexs'].items():
+            if idx == '0':
+                continue
+            pr_trace[trace_id].append(operation[1])
+        
+    return operation_operation, operation_trace, trace_operation, pr_trace
+
+
+def get_pagerank_graph_spanLevel(trace_list: List[str], span_list: List[Span]):
     template = {
         'parent': '',  # parent span
         'operation': '',  # current servicename_operation

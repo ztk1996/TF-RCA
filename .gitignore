@@ -1,6 +1,8 @@
 .DS_Store
 exp
 data
+# png file
+*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

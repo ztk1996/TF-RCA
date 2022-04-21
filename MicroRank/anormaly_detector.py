@@ -40,8 +40,8 @@ def get_slo():
 '''
 
 
-def system_anormaly_detect(slo, operation_list):
-    span_list = get_span()
+def system_anormaly_detect(start_time, end_time, slo, operation_list):
+    span_list = get_span(start=start_time, end=end_time)
     if len(span_list) == 0:
         print("Error: Current span list is empty ")
         return False
@@ -95,8 +95,13 @@ def trace_anormaly_detect(operation_list, slo):
     for operation in operation_list:
         if operation == "duration":
             continue
+        # 如果trace出现新的span，那么直接当作正常数据
+        if operation not in slo:
+            return False
+        
+        # TODO 调整n的大小
         expect_duration += operation_list[operation] * \
-            (slo[operation][0] + 1.5 * slo[operation][1])
+            (slo[operation][0] + 1.5 * slo[operation][1])    # 1.5 --> 0.5
 
     if real_duration > expect_duration:
         return True
