@@ -28,14 +28,14 @@ K = 3
 all_path = dict()
 manual_labels_list = []    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
 first_tag = True
-start_str = '2022-04-16 20:08:00'    # trace: '2022-02-25 00:00:00', '2022-04-16 20:08:03'; span: '2022-01-13 00:00:00'
-init_start_str = '2022-02-17 15:13:51'    # normal traces  trace: '2022-02-25 00:00:00', '2022-02-17 15:13:51'; span: '2022-01-13 00:00:00'
+start_str = '2022-04-18 21:08:00' # '2022-04-19 10:42:59'    # trace: '2022-02-25 00:00:00', '2022-04-16 20:08:03', '2022-04-18 11:00:00', '2022-04-18 21:00:00'; span: '2022-01-13 00:00:00'
+init_start_str = '2022-04-18 00:00:05'    # normal traces  trace: '2022-02-25 00:00:00', '2022-02-17 15:13:51', '2022-04-20 00:00:05'; span: '2022-01-13 00:00:00'
 window_duration = 6 * 60 * 1000    # ms
 AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
-Sample_method = 'rate'    # 'none', 'micro', 'macro', 'rate'
+Sample_method = 'none'    # 'none', 'micro', 'macro', 'rate'
 dataLevel = 'trace'    # 'trace', 'span'
-path_decay = 0.01
-path_thres = 0.5
+path_decay = 0.001
+path_thres = 0.0
 reCluster_thres = 0.1
 
 def timestamp(datetime: str) -> int:
@@ -45,6 +45,12 @@ def timestamp(datetime: str) -> int:
 
 def ms2str(ms: int) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ms/1000))
+
+def intersect_or_not(start1: int, end1: int, start2: int, end2: int):
+    if max(start1, start2) < min(end1, end2):
+        return True
+    else:
+        return False
 
 def simplify_cluster(cluster_obj, dataset, cluster_status, data_status):    # dataset: [[STVector1, sample_info1], [STVector2, sample_info2]]
     global all_path
@@ -63,7 +69,7 @@ def simplify_cluster(cluster_obj, dataset, cluster_status, data_status):    # da
             STVector = data[0]
 
         if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
-            sample_label, label_status = cluster_obj.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data if cluster_status=='init' else data[1], data_status=data_status, manual_labels_list=manual_labels_list)
+            sample_label, label_status = cluster_obj.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data if cluster_status=='init' else data[1], data_status=data_status, manual_labels_list=manual_labels_list, stage=cluster_status)
         elif AD_method in ['CEDAS_withoutscore', 'CEDAS_withscore']:
             if first_tag:
                 # 1. Initialization
@@ -98,7 +104,10 @@ def init_Cluster(cluster_obj, init_start_str):
     if dataLevel == 'trace':
         print("Init Data loading ...")
         # file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
-        file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-17_20-55-12/data.json', 'r')
+        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-17_20-55-12/data.json', 'r')
+        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_10-05-14/data.json', 'r')
+        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_11-10-06/data.json', 'r')
+        file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_17-34-08/data.json', 'r')
         raw_data_total = json.load(file)
         print("Finish init data load !")
 
@@ -173,6 +182,29 @@ def do_reCluster(cluster_obj, data_status, label_map_reCluster=dict()):
 
     # do recluster
     simplify_cluster(cluster_obj=cluster_obj, dataset=reCluster_dataset, cluster_status='reCluster', data_status=data_status)
+    
+    # assign cluster label
+    if len(label_map_reCluster) != 0:
+        new_label_map_reCluster = dict()
+        for cluster in cluster_obj.p_micro_clusters+cluster_obj.o_micro_clusters:
+            normal_count = 0
+            abnormal_count = 0
+            for trace_id in cluster.members.keys():
+                if trace_id not in label_map_reCluster.keys():
+                    normal_count += 1
+                elif trace_id in label_map_reCluster.keys():
+                    # delete useless label items
+                    new_label_map_reCluster[trace_id] = label_map_reCluster[trace_id]
+                    if label_map_reCluster[trace_id] == 'normal':
+                        normal_count += 1
+                    else:
+                        abnormal_count += 1
+            if normal_count >= abnormal_count:
+                cluster.label = 'normal'
+            else:
+                cluster.label = 'abnormal'
+        label_map_reCluster = new_label_map_reCluster
+
     print("reCluster Finish !")
 
 
@@ -194,12 +226,12 @@ def main():
     # ========================================
     if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
         # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
-        denstream = DenStream(eps=100, lambd=0.1, beta=0.2, mu=6)
-        # init_Cluster(denstream, init_start_str)
+        denstream = DenStream(eps=80, lambd=0.1, beta=0.2, mu=6)    # eps=80    beta=0.2   mu=6
+        init_Cluster(denstream, init_start_str)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=100, decay=0.001, threshold=5)
         first_tag = True
-        # init_Cluster(cedas, init_start_str)
+        init_Cluster(cedas, init_start_str)
 
     # ========================================
     # Init time window
@@ -216,7 +248,12 @@ def main():
     # ========================================
     # Init evaluation for RCA
     # ========================================
-    r_true, r_pred = [], []    
+    r_true_count = len(request_period_log)
+    r_pred_count = 0
+    TP = 0    # TP 是预测为正类且预测正确 
+    TN = 0    # TN 是预测为负类且预测正确
+    FP = 0    # FP 是把实际负类分类（预测）成了正类
+    FN = 0    # FN 是把实际正类分类（预测）成了负类
 
     # ========================================
     # Init root cause pattern
@@ -229,7 +266,9 @@ def main():
     if dataLevel == 'trace':
         print("Main Data loading ...")
         # file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
-        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-17_15-29-46/data.json', 'r')
+        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-17_15-29-46/data.json', 'r')
+        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')
+        file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_11-34-58/data.json', 'r')
         raw_data_total = json.load(file)
         print("Finish main data load !")
 
@@ -270,25 +309,29 @@ def main():
             STVector = embedding_to_vector(data, all_path)
             STV_map_window[data['trace_id']] = np.array(STVector)
 
+            # 前面的元素是 o_micro_cluster 的创建时间，后面的是加入的样本。前面的时间戳应该小，后面的时间戳应该大
+            # if data['trace_id'] == '6fd7f2ebbfdc4d878e8301931b161baf.44.16502894139220011' or data['trace_id'] == '05e91fa5336a4afe869aca6cba23a016.42.16502891790960001':
+            #     print("find it !")
+
             a_true.append(data['trace_bool'])
 
             if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
                 sample_label, label_status = denstream.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data, data_status='main', manual_labels_list=manual_labels_list)
-                if label_status == 'manual':
-                    label_map_reCluster[data['trace_id']] = sample_label
+                # if label_status == 'manual':
+                label_map_reCluster[data['trace_id']] = sample_label
             elif AD_method in ['CEDAS_withoutscore', 'CEDAS_withscore']:
                 if first_tag:
                     # 1. Initialization
                     sample_label, label_status = cedas.initialization(sample=np.array(STVector), sample_info=data, data_status='main', manual_labels_list=manual_labels_list)
-                    if label_status == 'manual':
-                        label_map_reCluster[data['trace_id']] = sample_label
+                    # if label_status == 'manual':
+                    label_map_reCluster[data['trace_id']] = sample_label
                     first_tag = False
                 else:
                     cedas.changed_cluster = None
                     # 2. Update Micro-Clusters
                     sample_label, label_status = cedas.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data, data_status='main', manual_labels_list=manual_labels_list)
-                    if label_status == 'manual':
-                        label_map_reCluster[data['trace_id']] = sample_label
+                    # if label_status == 'manual':
+                    label_map_reCluster[data['trace_id']] = sample_label
                     # 3. Kill Clusters
                     cedas.kill()
                     if cedas.changed_cluster and cedas.changed_cluster.count > cedas.threshold:
@@ -318,6 +361,7 @@ def main():
             labels, confidenceScores, sampleRates = denstream.get_labels_confidenceScores_sampleRates(STV_map=STV_map_window, cluster_type=Sample_method)
             # sample_label
             for tid, sample_label in labels.items():
+                label_map_reCluster[tid] = sample_label
                 if sample_label == 'abnormal':
                     a_pred.append(1)
                     abnormal_map[tid] = True
@@ -331,6 +375,7 @@ def main():
             labels, confidenceScores, sampleRates = cedas.get_labels_confidenceScores_sampleRates(STV_map=STV_map_window, cluster_type=Sample_method)
             # sample_label
             for tid, sample_label in labels.items():
+                label_map_reCluster[tid] = sample_label
                 if sample_label == 'abnormal':
                     a_pred.append(1)
                     abnormal_map[tid] = True
@@ -354,13 +399,13 @@ def main():
         print('AD F1 score is %.5f' % a_F1_score)
         print('--------------------------------')
 
-        pattern_IoU = len(set(AD_pattern)&set(rc_pattern)) / len(set(AD_pattern)|set(rc_pattern)) if len(set(AD_pattern)|set(rc_pattern)) != 0 else -1
+        if AD_method in ['DenStream_withscore', 'CEDAS_withscore']:
+            pattern_IoU = len(set(AD_pattern)&set(rc_pattern)) / len(set(AD_pattern)|set(rc_pattern)) if len(set(AD_pattern)|set(rc_pattern)) != 0 else -1
 
         if abnormal_count > 8 and pattern_IoU < 0.5:
             rc_pattern = AD_pattern
 
             print('********* RCA start *********')
-            r_true.append(True)
 
             if AD_method in ['DenStream_withscore', 'CEDAS_withscore']:
                 # 在这里对 trace 进行尾采样，若一个微簇/宏观簇的样本数越多，则采样概率低，否则采样概率高
@@ -382,41 +427,85 @@ def main():
                 topK = top_list[:K if len(top_list) > K else len(top_list)]
                 print(f'top-{K} root cause is', topK)
                 start_hour = time.localtime(start//1000).tm_hour
-                if dataLevel == 'span':
-                    chaos_service = span_chaos_dict.get(start_hour)
-                # elif dataLevel == 'trace':
-                #     chaos_service = trace_chaos_dict.get(start_hour)
-                elif dataLevel == 'trace':
-                    chaos_service = ''
-                    for root_cause_item in request_period_log:
-                        if start>=root_cause_item[1] and start<=root_cause_item[2]:
-                            chaos_service = root_cause_item[0][0]
-                            break
+                # chaos_service = span_chaos_dict.get(start_hour)
+                chaos_service_list = []
+                for root_cause_item in request_period_log:
+                    # A: start, end    B: root_cause_item[1], root_cause_item[2]
+                    # if ((root_cause_item[1]>end and root_cause_item[1]<root_cause_item[2]) or (start<end and root_cause_item[1]>root_cause_item[2]) or (start>end and start<root_cause_item[2])):
+                    # if start>=root_cause_item[1] and start<=root_cause_item[2]:
+                    if intersect_or_not(start1=start, end1=end, start2=root_cause_item[1], end2=root_cause_item[2]):
+                        chaos_service_list.append(root_cause_item[0][0])
+                        print(f'ground truth root cause is', root_cause_item[0][0])
+                if len(chaos_service_list) == 0:
+                    FP += 1
+                    print("Ground truth root cause is empty !")
+                    continue
 
-                print(f'ground truth root cause is', chaos_service)
-
-                # zhoutong add
-                in_topK = True
+                in_topK = False
                 candidate_list = []
                 for topS in topK:
                     candidate_list += topS.split('/')
-                if isinstance(chaos_service, list):
-                    for service in chaos_service:
-                        gt_service = service.replace('-', '')[2:]
-                        if gt_service not in candidate_list:
-                            in_topK = False
+                if isinstance(chaos_service_list[0], list):    # 一次注入两个故障
+                    for service_pair in chaos_service_list:
+                        if (service_pair[0].replace('-', '')[2:] in candidate_list) and (service_pair[1].replace('-', '')[2:] in candidate_list):
+                            in_topK = True
                             break
                 else:
-                    gt_service = chaos_service.replace('-', '')[2:]
-                    if gt_service not in candidate_list:
-                        in_topK = False
+                    for service in chaos_service_list:
+                        if service.replace('-', '')[2:] in candidate_list:
+                            in_topK = True
+                            break
+                
+                if in_topK == True:
+                    r_pred_count += 1
+
+
+            # # top_list is not empty
+            # if len(top_list) != 0:   
+            #     topK = top_list[:K if len(top_list) > K else len(top_list)]
+            #     print(f'top-{K} root cause is', topK)
+            #     start_hour = time.localtime(start//1000).tm_hour
+            #     if dataLevel == 'span':
+            #         chaos_service = span_chaos_dict.get(start_hour)
+            #     # elif dataLevel == 'trace':
+            #     #     chaos_service = trace_chaos_dict.get(start_hour)
+            #     elif dataLevel == 'trace':
+            #         chaos_service = ''
+            #         for root_cause_item in request_period_log:
+            #             if start>=root_cause_item[1] and start<=root_cause_item[2]:
+            #                 chaos_service = root_cause_item[0][0]
+            #                 break
+
+            #     print(f'ground truth root cause is', chaos_service)
+
+            #     # zhoutong add
+            #     in_topK = True
+            #     candidate_list = []
+            #     for topS in topK:
+            #         candidate_list += topS.split('/')
+            #     if isinstance(chaos_service, list):
+            #         for service in chaos_service:
+            #             gt_service = service.replace('-', '')[2:]
+            #             if gt_service not in candidate_list:
+            #                 in_topK = False
+            #                 break
+            #     else:
+            #         gt_service = chaos_service.replace('-', '')[2:]
+            #         if gt_service not in candidate_list:
+            #             in_topK = False
                         
-            # top_list is empty
-            elif len(top_list) == 0:
-                in_topK = False
-            r_pred.append(in_topK)
+            # # top_list is empty
+            # elif len(top_list) == 0:
+            #     in_topK = False
+            # r_pred.append(in_topK)
         else:
             rc_pattern = []
+            TN += 1
+            for root_cause_item in request_period_log:
+                if intersect_or_not(start1=start, end1=end, start2=root_cause_item[1], end2=root_cause_item[2]):
+                    TN -= 1
+                    FN += 1
+                    break
 
         start = end
         end = start + window_duration
@@ -459,9 +548,12 @@ def main():
     # Evaluation for RCA
     # ========================================
     print('--------------------------------')
-    r_acc = accuracy_score(r_true, r_pred)
-    r_recall = recall_score(r_true, r_pred)
-    r_prec = precision_score(r_true, r_pred)
+    TP = r_pred_count
+    hit_rate = r_pred_count / r_true_count
+    r_acc = (TP + TN)/(TP + FP + TN + FN)
+    r_recall = TP/(TP + FN)
+    r_prec = TP/(TP + FP)
+    print('RCA Top@{} hit rate is {}'.format(K, hit_rate))
     print('RCA accuracy score is %.5f' % r_acc)
     print('RCA recall score is %.5f' % r_recall)
     print('RCA precision score is %.5f' % r_prec)

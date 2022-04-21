@@ -26,9 +26,12 @@ MAX_INT = sys.maxsize
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 K = 3
-start_str = '2022-04-16 20:08:00'    # '2022-01-13 00:00:00' ---> '2022-04-17 02:56:08'
-window_duration = 20 * 60 * 1000 # ms
-init_window_duration = 5 * 60 * 1000 # ms
+# format stage
+start_str = '2022-04-18 21:08:00'    # changes    # '2022-01-13 00:00:00' ---> '2022-04-17 02:56:08'   '2022-04-18 21:00:00'
+window_duration = 6 * 60 * 1000 # ms
+# init stage
+init_start_str = '2022-04-20 00:00:05'    # normal
+init_end_str = '2022-04-20 09:59:55'
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
@@ -38,25 +41,33 @@ def timestamp(datetime: str) -> int:
 def ms2str(ms: int) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ms/1000))
 
+def intersect_or_not(start1: int, end1: int, start2: int, end2: int):
+    if max(start1, start2) < min(end1, end2):
+        return True
+    else:
+        return False
+
+
 def main():
     # ========================================
     # Init time window
     # ========================================
+    init_start = timestamp(init_start_str)
+    init_end = timestamp(init_end_str)
+    
     start = timestamp(start_str)
-    end = start + init_window_duration
+    end = start + window_duration
 
     # ========================================
     # Init operation list
     # ========================================
-    span_list = get_span(start=start, end=end)
+    span_list = get_span(start=init_start, end=init_end, stage='init')
     # print(span_list)
     operation_list = get_service_operation_list(span_list)
     # print(operation_list)
     slo = get_operation_slo(
         service_operation_list=operation_list, span_list=span_list)
     # print(slo)
-    start = end
-    end = start + window_duration
 
     # ========================================
     # Init evaluation for AD
@@ -65,8 +76,13 @@ def main():
 
     # ========================================
     # Init evaluation for RCA
-    # ========================================
-    r_true, r_pred = [], []    
+    # ========================================    
+    r_true_count = len(request_period_log)
+    r_pred_count = 0
+    TP = 0    # TP 是预测为正类且预测正确 
+    TN = 0    # TN 是预测为负类且预测正确
+    FP = 0    # FP 是把实际负类分类（预测）成了正类
+    FN = 0    # FN 是把实际正类分类（预测）成了负类
 
     print('Start !')
     # main loop start
@@ -78,7 +94,7 @@ def main():
         tid_list = []
         raw_data = preprocess_span(start=start, end=end, stage='main')
 
-        a_true, a_pred = [], []
+        # a_true, a_pred = [], []
         span_list = get_span(start=start, end=end)
         if len(span_list) == 0:
             print("Error: Current span list is empty ")
@@ -99,14 +115,14 @@ def main():
                 if "duration" == operation:
                     continue
                 if operation not in slo:
-                    expect_duration = MAX_INT
+                    expect_duration = -1
                     break
                 else:
                     expect_duration += operation_count[trace_id][operation] * (
                         slo[operation][0] + 1.5 * slo[operation][1])
 
-            # if real_duration > expect_duration:
-            if raw_data[trace_id]['abnormal']:
+            if real_duration > expect_duration:
+            # if raw_data[trace_id]['abnormal']:
                 a_pred.append(1)
                 abnormal_map[trace_id] = True
                 abnormal_count += 1
@@ -116,20 +132,19 @@ def main():
 
         print("anormaly_count:", abnormal_count)
 
-        print('--------------------------------')
-        a_acc = accuracy_score(a_true, a_pred)
-        a_recall = recall_score(a_true, a_pred)
-        a_prec = precision_score(a_true, a_pred)
-        a_F1_score = (2 * a_prec * a_recall)/(a_prec + a_recall)
-        print('AD accuracy score is %.5f' % a_acc)
-        print('AD recall score is %.5f' % a_recall)
-        print('AD precision score is %.5f' % a_prec)
-        print('AD F1 score is %.5f' % a_F1_score)
-        print('--------------------------------')
+        # print('--------------------------------')
+        # a_acc = accuracy_score(a_true, a_pred)
+        # a_recall = recall_score(a_true, a_pred)
+        # a_prec = precision_score(a_true, a_pred)
+        # a_F1_score = (2 * a_prec * a_recall)/(a_prec + a_recall)
+        # print('AD accuracy score is %.5f' % a_acc)
+        # print('AD recall score is %.5f' % a_recall)
+        # print('AD precision score is %.5f' % a_prec)
+        # print('AD F1 score is %.5f' % a_F1_score)
+        # print('--------------------------------')
 
-        if abnormal_count > 4:
+        if abnormal_count > 8:
             print('********* RCA start *********')
-            r_true.append(True)
 
             top_list = rca_MicroRank(start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map, operation_list=operation_list, slo=slo)
             
@@ -142,13 +157,35 @@ def main():
                 chaos_service_list = []
                 for root_cause_item in request_period_log:
                     # A: start, end    B: root_cause_item[1], root_cause_item[2]
-                    if ((root_cause_item[1]>end and root_cause_item[1]<root_cause_item[2]) or (start<end and root_cause_item[1]>root_cause_item[2]) or (start>end and start<root_cause_item[2])):
+                    # if ((root_cause_item[1]>end and root_cause_item[1]<root_cause_item[2]) or (start<end and root_cause_item[1]>root_cause_item[2]) or (start>end and start<root_cause_item[2])):
                     # if start>=root_cause_item[1] and start<=root_cause_item[2]:
+                    if intersect_or_not(start1=start, end1=end, start2=root_cause_item[1], end2=root_cause_item[2]):
                         chaos_service_list.append(root_cause_item[0][0])
                         print(f'ground truth root cause is', root_cause_item[0][0])
+                if len(chaos_service_list) == 0:
+                    FP += 1
+                    print("Ground truth root cause is empty !")
+                    continue
 
+                in_topK = False
+                candidate_list = []
+                for topS in topK:
+                    candidate_list += topS.split('/')
+                if isinstance(chaos_service_list[0], list):    # 一次注入两个故障
+                    for service_pair in chaos_service_list:
+                        if (service_pair[0].replace('-', '')[2:] in candidate_list) and (service_pair[1].replace('-', '')[2:] in candidate_list):
+                            in_topK = True
+                            break
+                else:
+                    for service in chaos_service_list:
+                        if service.replace('-', '')[2:] in candidate_list:
+                            in_topK = True
+                            break
+                
+                if in_topK == True:
+                    r_pred_count += 1
 
-                # # zhoutong add
+                # zhoutong add
                 # in_topK = True
                 # candidate_list = []
                 # for topS in topK:
@@ -163,11 +200,13 @@ def main():
                 #     gt_service = chaos_service.replace('-', '')[2:]
                 #     if gt_service not in candidate_list:
                 #         in_topK = False
-                        
-            # top_list is empty
-            elif len(top_list) == 0:
-                in_topK = False
-            r_pred.append(in_topK)
+        else:
+            TN += 1
+            for root_cause_item in request_period_log:
+                if intersect_or_not(start1=start, end1=end, start2=root_cause_item[1], end2=root_cause_item[2]):
+                    TN -= 1
+                    FN += 1
+                    break
 
         start = end
         end = start + window_duration
@@ -192,9 +231,12 @@ def main():
     # Evaluation for RCA
     # ========================================
     print('--------------------------------')
-    r_acc = accuracy_score(r_true, r_pred)
-    r_recall = recall_score(r_true, r_pred)
-    r_prec = precision_score(r_true, r_pred)
+    TP = r_pred_count
+    hit_rate = r_pred_count / r_true_count
+    r_acc = (TP + TN)/(TP + FP + TN + FN)
+    r_recall = TP/(TP + FN)
+    r_prec = TP/(TP + FP)
+    print('RCA Top@{} hit rate is {}'.format(K, hit_rate))
     print('RCA accuracy score is %.5f' % r_acc)
     print('RCA recall score is %.5f' % r_recall)
     print('RCA precision score is %.5f' % r_prec)

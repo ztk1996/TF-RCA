@@ -9,7 +9,7 @@ import sys
 
 sys.path.append('/home/kagaya/work/TF-RCA')
 from DataPreprocess.SpanProcess import Span, load_mm_span, load_sw_span
-from DataPreprocess.params import data_path_list, mm_data_path_list, mm_trace_root_list
+from DataPreprocess.params import init_data_path, data_path_list, mm_data_path_list, mm_trace_root_list
 
 
 root_index = '-1'
@@ -62,7 +62,7 @@ def fix_root(span_list: List[Span], mm_root_map: dict):
     return spans
 
 
-def get_span(start: int = 0, end: int = 0) -> List[Span]:
+def get_span(start: int = 0, end: int = 0, stage: str = None) -> List[Span]:
     global g_start, g_end, span_list
     if start == 0 or end == 0:
         return span_list
@@ -72,7 +72,7 @@ def get_span(start: int = 0, end: int = 0) -> List[Span]:
         if is_wechat:
             mm_root_map, span_data = load_mm_span(mm_trace_root_list, mm_data_path_list)
         else:
-            span_data = load_sw_span(data_path_list)
+            span_data = load_sw_span(init_data_path if stage=='init' else data_path_list)
         span_data = pd.concat(span_data, axis=0, ignore_index=True)
         all_span_data = span_data.groupby('TraceId').apply(
             lambda x: x.sort_values('StartTime', ascending=True)).reset_index(drop=True)
@@ -84,6 +84,9 @@ def get_span(start: int = 0, end: int = 0) -> List[Span]:
             span_list = fix_root(span_list, mm_root_map)
         g_start = start
         g_end = end
+
+    if stage == 'init':
+        all_span_data = DataFrame()
         
     return span_list
 

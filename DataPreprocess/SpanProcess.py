@@ -473,6 +473,9 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     has_root = False
     for span in trace:
         if span.parentSpanId == '-1':
+            trace_duration["start"] = span.startTime
+            trace_duration["end"] = span.startTime + \
+                span.duration + 1 if span.duration <= 0 else 0
             has_root = True
         spanMap[span.spanId] = span
         if span.parentSpanId not in spanChildrenMap.keys():

@@ -95,9 +95,9 @@ def trace_anormaly_detect(operation_list, slo):
     for operation in operation_list:
         if operation == "duration":
             continue
-        # 如果trace出现新的span，那么直接当作正常数据
+        # 如果trace出现新的span，那么直接当作异常数据
         if operation not in slo:
-            return False
+            return True
         
         # TODO 调整n的大小
         expect_duration += operation_list[operation] * \
