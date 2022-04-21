@@ -6,12 +6,13 @@ new_data_list = [
     # Normal
     # 'normal/2022-01-11_00-00-00_12h_traces.csv',
     # 'normal/2022-01-11_12-00-00_6h_traces.csv',
+    'normal/2022-04-20_00-00-00_10h_traces.csv'
 
     # Chaos
     # 'chaos/2022-04-16_20-00-00_8h_traces.csv',
     # 'chaos/2022-04-18_11-00-00_8h_traces.csv',
     # 'chaos/2022-04-18_21-00-00_6h_traces.csv',
-    'chaos/2022-04-19_09-00-00_9h_traces.csv',
+    # 'chaos/2022-04-19_09-00-00_9h_traces.csv',
 ]
 
 old_data_list = [
