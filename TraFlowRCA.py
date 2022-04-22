@@ -24,12 +24,16 @@ warnings.filterwarnings("ignore")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-K = 3
+K = [2, 3, 5]
 all_path = dict()
 manual_labels_list = []    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
 first_tag = True
-start_str = '2022-04-18 21:08:00' # '2022-04-19 10:42:59'    # trace: '2022-02-25 00:00:00', '2022-04-16 20:08:03', '2022-04-18 11:00:00', '2022-04-18 21:00:00'; span: '2022-01-13 00:00:00'
-init_start_str = '2022-04-18 00:00:05'    # normal traces  trace: '2022-02-25 00:00:00', '2022-02-17 15:13:51', '2022-04-20 00:00:05'; span: '2022-01-13 00:00:00'
+# start_str = '2022-04-19 10:42:59'    # '2022-04-18 21:08:00' # '2022-04-19 10:42:59'    # trace: '2022-02-25 00:00:00', '2022-04-16 20:08:03', '2022-04-18 11:00:00', '2022-04-18 21:00:00'; span: '2022-01-13 00:00:00'
+# format stage
+# start_str = '2022-04-18 21:08:00'    # changes
+start_str = '2022-04-19 10:42:59'    # 2 abnormal
+# init stage
+init_start_str = '2022-04-18 00:00:05'    # normal
 window_duration = 6 * 60 * 1000    # ms
 AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'none'    # 'none', 'micro', 'macro', 'rate'
@@ -249,7 +253,9 @@ def main():
     # Init evaluation for RCA
     # ========================================
     r_true_count = len(request_period_log)
-    r_pred_count = 0
+    r_pred_count_0 = 0
+    r_pred_count_1 = 0
+    r_pred_count_2 = 0
     TP = 0    # TP 是预测为正类且预测正确 
     TN = 0    # TN 是预测为负类且预测正确
     FP = 0    # FP 是把实际负类分类（预测）成了正类
@@ -267,8 +273,8 @@ def main():
         print("Main Data loading ...")
         # file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-17_15-29-46/data.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')
-        file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_11-34-58/data.json', 'r')
+        file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')
+        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_11-34-58/data.json', 'r')
         raw_data_total = json.load(file)
         print("Finish main data load !")
 
@@ -308,10 +314,6 @@ def main():
             all_path = process_one_trace(data, all_path)
             STVector = embedding_to_vector(data, all_path)
             STV_map_window[data['trace_id']] = np.array(STVector)
-
-            # 前面的元素是 o_micro_cluster 的创建时间，后面的是加入的样本。前面的时间戳应该小，后面的时间戳应该大
-            # if data['trace_id'] == '6fd7f2ebbfdc4d878e8301931b161baf.44.16502894139220011' or data['trace_id'] == '05e91fa5336a4afe869aca6cba23a016.42.16502891790960001':
-            #     print("find it !")
 
             a_true.append(data['trace_bool'])
 
@@ -422,10 +424,18 @@ def main():
             else:
                 top_list = rca(start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map, traces_dict=raw_data_dict, dataLevel=dataLevel)
             
-            # top_list is not empty
+             # top_list is not empty
             if len(top_list) != 0:   
-                topK = top_list[:K if len(top_list) > K else len(top_list)]
-                print(f'top-{K} root cause is', topK)
+                # topK_0
+                topK_0 = top_list[:K[0] if len(top_list) > K[0] else len(top_list)]
+                print(f'top-{K[0]} root cause is', topK_0)
+                # topK_1
+                topK_1 = top_list[:K[1] if len(top_list) > K[1] else len(top_list)]
+                print(f'top-{K[1]} root cause is', topK_1)
+                # topK_2
+                topK_2 = top_list[:K[2] if len(top_list) > K[2] else len(top_list)]
+                print(f'top-{K[2]} root cause is', topK_2)
+
                 start_hour = time.localtime(start//1000).tm_hour
                 # chaos_service = span_chaos_dict.get(start_hour)
                 chaos_service_list = []
@@ -439,26 +449,46 @@ def main():
                 if len(chaos_service_list) == 0:
                     FP += 1
                     print("Ground truth root cause is empty !")
+                    start = end
+                    end = start + window_duration
                     continue
 
-                in_topK = False
-                candidate_list = []
-                for topS in topK:
-                    candidate_list += topS.split('/')
+                in_topK_0 = False
+                in_topK_1 = False
+                in_topK_2 = False
+
+                candidate_list_0 = []
+                candidate_list_1 = []
+                candidate_list_2 = []
+                for topS in topK_0:
+                    candidate_list_0 += topS.split('/')
+                for topS in topK_1:
+                    candidate_list_1 += topS.split('/')
+                for topS in topK_2:
+                    candidate_list_2 += topS.split('/')
                 if isinstance(chaos_service_list[0], list):    # 一次注入两个故障
                     for service_pair in chaos_service_list:
-                        if (service_pair[0].replace('-', '')[2:] in candidate_list) and (service_pair[1].replace('-', '')[2:] in candidate_list):
-                            in_topK = True
-                            break
+                        if (service_pair[0].replace('-', '')[2:] in candidate_list_0) and (service_pair[1].replace('-', '')[2:] in candidate_list_0):
+                            in_topK_0 = True
+                        if (service_pair[0].replace('-', '')[2:] in candidate_list_1) and (service_pair[1].replace('-', '')[2:] in candidate_list_1):
+                            in_topK_1 = True
+                        if (service_pair[0].replace('-', '')[2:] in candidate_list_2) and (service_pair[1].replace('-', '')[2:] in candidate_list_2):
+                            in_topK_2 = True
                 else:
                     for service in chaos_service_list:
-                        if service.replace('-', '')[2:] in candidate_list:
-                            in_topK = True
-                            break
+                        if service.replace('-', '')[2:] in candidate_list_0:
+                            in_topK_0 = True
+                        if service.replace('-', '')[2:] in candidate_list_1:
+                            in_topK_1 = True
+                        if service.replace('-', '')[2:] in candidate_list_2:
+                            in_topK_2 = True
                 
-                if in_topK == True:
-                    r_pred_count += 1
-
+                if in_topK_0 == True:
+                    r_pred_count_0 += 1
+                if in_topK_1 == True:
+                    r_pred_count_1 += 1
+                if in_topK_2 == True:
+                    r_pred_count_2 += 1
 
             # # top_list is not empty
             # if len(top_list) != 0:   
@@ -521,12 +551,12 @@ def main():
                 do_reCluster(cluster_obj=cedas, data_status='main', label_map_reCluster=label_map_reCluster)
         
         # visualization ...
-        if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
-            if len((denstream.p_micro_clusters+denstream.o_micro_clusters)) > 1:
-                denstream.visualization_tool()
-        else:
-            if len(cedas.micro_clusters) > 1:
-                cedas.visualization_tool()
+        # if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
+        #     if len((denstream.p_micro_clusters+denstream.o_micro_clusters)) > 1:
+        #         denstream.visualization_tool()
+        # else:
+        #     if len(cedas.micro_clusters) > 1:
+        #         cedas.visualization_tool()
         # main loop end
     print('main loop end')
     
@@ -548,12 +578,35 @@ def main():
     # Evaluation for RCA
     # ========================================
     print('--------------------------------')
-    TP = r_pred_count
-    hit_rate = r_pred_count / r_true_count
+    print("Top@{}:".format(K[0]))
+    TP = r_pred_count_0
+    hit_rate = r_pred_count_0 / r_true_count
     r_acc = (TP + TN)/(TP + FP + TN + FN)
     r_recall = TP/(TP + FN)
     r_prec = TP/(TP + FP)
-    print('RCA Top@{} hit rate is {}'.format(K, hit_rate))
+    print('RCA hit rate is %.5f' % hit_rate)
+    print('RCA accuracy score is %.5f' % r_acc)
+    print('RCA recall score is %.5f' % r_recall)
+    print('RCA precision score is %.5f' % r_prec)
+    print('* * * * * * * *')
+    print("Top@{}:".format(K[1]))
+    TP = r_pred_count_1
+    hit_rate = r_pred_count_1 / r_true_count
+    r_acc = (TP + TN)/(TP + FP + TN + FN)
+    r_recall = TP/(TP + FN)
+    r_prec = TP/(TP + FP)
+    print('RCA hit rate is %.5f' % hit_rate)
+    print('RCA accuracy score is %.5f' % r_acc)
+    print('RCA recall score is %.5f' % r_recall)
+    print('RCA precision score is %.5f' % r_prec)
+    print('* * * * * * * *')
+    print("Top@{}:".format(K[2]))
+    TP = r_pred_count_2
+    hit_rate = r_pred_count_2 / r_true_count
+    r_acc = (TP + TN)/(TP + FP + TN + FN)
+    r_recall = TP/(TP + FN)
+    r_prec = TP/(TP + FP)
+    print('RCA hit rate is %.5f' % hit_rate)
     print('RCA accuracy score is %.5f' % r_acc)
     print('RCA recall score is %.5f' % r_recall)
     print('RCA precision score is %.5f' % r_prec)

@@ -508,7 +508,7 @@ class DenStream:
                     if item[1]['service_seq'] not in all_seq:
                         all_seq.append(item[1]['service_seq'])
             
-            test_seq = ['start', 'ts-auth-service']
+            test_seq = ['start', 'ts-travel-service', 'ts-ticketinfo-service']
             # ['start', 'ts-travel-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-route-service', 'ts-route-service', 'ts-route-service', 'ts-route-service', 'ts-route-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-station-service', 'ts-train-service', 'ts-route-service', 'ts-price-service', 'ts-station-service', 'ts-station-service', 'ts-order-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-seat-service', 'ts-travel-service', 'ts-route-service', 'ts-order-service', 'ts-travel-service', 'ts-train-service', 'ts-config-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-seat-service', 'ts-travel-service', 'ts-route-service', 'ts-order-service', 'ts-travel-service', 'ts-train-service', 'ts-config-service', 'ts-train-service']
             # ['start', 'ts-verification-code-service']
             # ['start', 'ts-order-other-service', 'ts-station-service'], 'time_seq': [950, 9]
@@ -519,17 +519,17 @@ class DenStream:
             
             # ['start', 'ts-auth-service']
 
-            if sample_info['service_seq'] == test_seq and sample_info['trace_bool'] == 0:
+            if sample_info['service_seq'] == test_seq:
                 print("find it")
 
-            # if sample_info['trace_bool'] == 1 and micro_cluster.label == "normal": # 越远越好 找最小 10095
-            #     print("check it !")
-            # elif sample_info['trace_bool'] == 1 and micro_cluster.label == "abnormal": # 越近越好 找最大 20186
-            #     print("check it !")
-            # elif sample_info['trace_bool'] == 0 and micro_cluster.label == 'normal': # 越近越好 找最大 1660 2197 10744
-            #     print("check it !")
-            # elif sample_info['trace_bool'] == 0 and micro_cluster.label == 'abnormal': # 越远越好 找最小 870  27.48 494 71.55
-            #     print("check it !")
+            if sample_info['trace_bool'] == 1 and micro_cluster.label == "normal" and sample_info['service_seq']==test_seq: # 越远越好 找最小 10095
+                print("check it !")
+            elif sample_info['trace_bool'] == 1 and micro_cluster.label == "abnormal" and sample_info['service_seq']==test_seq: # 越近越好 找最大 20186
+                print("check it !")
+            elif sample_info['trace_bool'] == 0 and micro_cluster.label == 'normal' and sample_info['service_seq']==test_seq: # 越近越好 找最大 1660 2197 10744
+                print("check it !")
+            elif sample_info['trace_bool'] == 0 and micro_cluster.label == 'abnormal' and sample_info['service_seq']==test_seq: # 越远越好 找最小 870  27.48 494 71.55
+                print("check it !")
             if micro_cluster_copy.radius() <= self.eps:    # self.eps 越大则簇的个数越少，更多的样本将被归为一簇 improvement 这里可以加上密度阈值判断，判断 count，参考 CEDAS
                 micro_cluster.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
                 # improvement 
@@ -629,8 +629,7 @@ class DenStream:
                 Xis = [self.beta * self.mu for o_micro_cluster in self.o_micro_clusters]
             else:
                 Xis = [((self._decay_function(sample_info["time_stamp"] - o_micro_cluster.creation_time + self.tp) - 1) /
-                        (self._decay_function(self.tp) - 1)) if sample_info["time_stamp"] - o_micro_cluster.creation_time > 0 
-                        else self.beta * self.mu for o_micro_cluster in self.o_micro_clusters]
+                        (self._decay_function(self.tp) - 1)) for o_micro_cluster in self.o_micro_clusters]
             self.o_micro_clusters = [o_micro_cluster for Xi, o_micro_cluster in
                                      zip(Xis, self.o_micro_clusters) if
                                      o_micro_cluster.weight() >= Xi and o_micro_cluster.energy > 0]    # improvement
