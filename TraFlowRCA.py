@@ -25,6 +25,7 @@ warnings.filterwarnings("ignore")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 K = [2, 3, 5]
+Two_error = True
 all_path = dict()
 manual_labels_list = []    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
 first_tag = True
@@ -302,7 +303,7 @@ def main():
         if len(dataset) == 0:
             break
         
-        a_true, a_pred = [], []
+        # a_true, a_pred = [], []
         # Init manual count
         manual_count = 0
         for _, data in tqdm(enumerate(dataset), desc="Time Window Samples: "):
@@ -388,18 +389,18 @@ def main():
             AD_pattern = [micro_cluster for micro_cluster in cedas.micro_clusters if micro_cluster.AD_selected==True]
 
 
-        print('Manual labeling count is ', manual_count)
-        print('Manual labeling ratio is %.3f' % (manual_count/len(dataset)))
-        print('--------------------------------')
-        a_acc = accuracy_score(a_true, a_pred)
-        a_prec = precision_score(a_true, a_pred)
-        a_recall = recall_score(a_true, a_pred)
-        a_F1_score = (2 * a_prec * a_recall)/(a_prec + a_recall)
-        print('AD accuracy score is %.5f' % a_acc)
-        print('AD precision score is %.5f' % a_prec)
-        print('AD recall score is %.5f' % a_recall)
-        print('AD F1 score is %.5f' % a_F1_score)
-        print('--------------------------------')
+        # print('Manual labeling count is ', manual_count)
+        # print('Manual labeling ratio is %.3f' % (manual_count/len(dataset)))
+        # print('--------------------------------')
+        # a_acc = accuracy_score(a_true, a_pred)
+        # a_prec = precision_score(a_true, a_pred)
+        # a_recall = recall_score(a_true, a_pred)
+        # a_F1_score = (2 * a_prec * a_recall)/(a_prec + a_recall)
+        # print('AD accuracy score is %.5f' % a_acc)
+        # print('AD precision score is %.5f' % a_prec)
+        # print('AD recall score is %.5f' % a_recall)
+        # print('AD F1 score is %.5f' % a_F1_score)
+        # print('--------------------------------')
 
         if AD_method in ['DenStream_withscore', 'CEDAS_withscore']:
             pattern_IoU = len(set(AD_pattern)&set(rc_pattern)) / len(set(AD_pattern)|set(rc_pattern)) if len(set(AD_pattern)|set(rc_pattern)) != 0 else -1
@@ -452,6 +453,9 @@ def main():
                     start = end
                     end = start + window_duration
                     continue
+                elif len(chaos_service_list) > 1 and Two_error == True:
+                    new_chaos_service_list = [[chaos_service_list[0], chaos_service_list[1]]]
+                    chaos_service_list = new_chaos_service_list
 
                 in_topK_0 = False
                 in_topK_1 = False
@@ -560,6 +564,9 @@ def main():
         # main loop end
     print('main loop end')
     
+
+    print('--------------------------------')
+    print("Evaluation for TraceStream")
     # ========================================
     # Evaluation for AD
     # ========================================

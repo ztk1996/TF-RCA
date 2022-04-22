@@ -26,6 +26,7 @@ MAX_INT = sys.maxsize
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 K = [2, 3, 5]
+Two_error = True
 # format stage
 # start_str = '2022-04-18 21:08:00'    # changes    # '2022-01-13 00:00:00' ---> '2022-04-17 02:56:08'   '2022-04-18 21:00:00'
 start_str = '2022-04-19 10:42:59'    # 2 abnormal
@@ -179,6 +180,9 @@ def main():
                     start = end
                     end = start + window_duration
                     continue
+                elif len(chaos_service_list) > 1 and Two_error == True:
+                    new_chaos_service_list = [[chaos_service_list[0], chaos_service_list[1]]]
+                    chaos_service_list = new_chaos_service_list
 
                 in_topK_0 = False
                 in_topK_1 = False
@@ -245,6 +249,8 @@ def main():
         # main loop end
     print('main loop end')
     
+    print('--------------------------------')
+    print("Evaluation for MicroRank")
     # ========================================
     # Evaluation for AD
     # ========================================
