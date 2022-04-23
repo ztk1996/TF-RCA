@@ -420,20 +420,6 @@ def calculate_edge_features(current_span: Span, trace_duration: dict, spanChildr
 
 
 def check_abnormal_span(span: Span) -> bool:
-    start_hour = time.localtime(span.startTime//1000).tm_hour
-    chaos_service = span_chaos_dict.get(start_hour)
-
-    if start_hour not in span_chaos_dict.keys() or not span.service.startswith(chaos_service):
-        return False
-
-    # 故障请求延时为5s，所以小于5000ms的不是根因
-    if span.duration < 5000 and not span.isError:
-        return False
-
-    return True
-
-
-def check_changed_span(span: Span) -> bool:
     changes = []
     for set in request_period_log:
         r_start = int(set[1])
@@ -512,7 +498,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         if span.spanType in ['Exit', 'Producer', 'Local']:
             continue
 
-        if check_changed_span(span):
+        if check_abnormal_span(span):
             is_abnormal = 1
             chaos_root.append(span.service)
 
