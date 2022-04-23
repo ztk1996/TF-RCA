@@ -403,7 +403,6 @@ def workflow(times: int = 50, task_timeout: int = 5 * minute, module: int = 1):
         "travel-plan": query_travel_plan,
         "station": query_station,
     }
-    p = Pool(4)
     # # 持续进行正常query
     # logger.info('start constant query')
     # p.apply_async(constant_query)
@@ -432,19 +431,25 @@ def workflow(times: int = 50, task_timeout: int = 5 * minute, module: int = 1):
             apply(chaos_path[fault])
         time.sleep(10)
         # 正常
+        p = Pool(4)
         p.apply_async(constant_query, args=(targets, task_timeout))
         # 异常
-        start = time.time()
+        start_time = time.time()
+        name_list = []
         for index, task in enumerate(task_list):
             logger.info(f'execute task: {task.__name__}')
-            start_time, end_time = p.apply(
+            p.apply_async(
                 task, args=(task_timeout / len(task_list),))
             name = "ts-" + targets[index] + "-service"
-            request_period_log.append(
-                ([name], int(round(start_time*1000)), int(round(end_time*1000))))
+            name_list.append(name)
+
         # 恢复故障
-        while time.time() - start < task_timeout:
-            time.sleep(10)
+        p.close()
+        p.join()
+        end_time = time.time()
+        request_period_log.append(
+            (name_list, int(round(start_time*1000)), int(round(end_time*1000))))
+
         for fault in faults:
             logger.info(f'fault recover: {fault}')
             delete(chaos_path[fault])
@@ -465,7 +470,7 @@ def arguments():
     parser.add_argument('--url', help='train ticket server url',
                         default='http://139.196.152.44:32677')
     parser.add_argument('--module', help='single or double',
-                        default=1)
+                        default=2)
     return parser.parse_args()
 
 
