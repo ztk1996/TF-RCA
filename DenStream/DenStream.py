@@ -1,22 +1,24 @@
+from doctest import testfile
 import random
 from statistics import mean
 import sys
 import numpy as np
 from sklearn import cluster
 from sklearn.utils import check_array
-from copy import copy
+from copy import copy, deepcopy
 from DenStream.MicroCluster import MicroCluster
-from math import ceil
+from math import ceil, pow, log2
 from sklearn.cluster import DBSCAN
 
 from matplotlib import pyplot as plt
 from matplotlib.colors import hsv_to_rgb
 from sklearn.manifold import TSNE
+from .dist_method import *
 
 
 class DenStream:
 
-    def __init__(self, lambd=1, eps=1, beta=2, mu=2):
+    def __init__(self, lambd=1, eps=1, beta=2, mu=2, k_std = 3):
         """
         DenStream - Density-Based Clustering over an Evolving Data Stream with
         Noise.
@@ -55,16 +57,22 @@ class DenStream:
         self.eps = eps
         self.beta = beta
         self.mu = mu
+        self.k_std = k_std
         # improvement
         self.decay = 0.001
 
         # self.t = 0
         self.p_micro_clusters = []
         self.o_micro_clusters = []
+        # lambd
         if lambd > 0:
             self.tp = ceil((1 / lambd) * np.log((beta * mu) / (beta * mu - 1)))
+            # self.tp = int(-1/self.lambd*log2(self.beta)) + 1
         else:
             self.tp = sys.maxsize
+        # mu
+        if self.mu == 'auto':
+            self.mu = (1/(1-pow(2, -self.lambd)))
 
     def partial_fit(self, X, TimeStamp_list, y=None, sample_weight=None):
         """
@@ -154,6 +162,36 @@ class DenStream:
             y.append(dbscan.labels_[index])
 
         return y
+    
+    
+    # def updateAll(self, micro_cluster):
+    #     # if len(self.p_micro_clusters) > 0:
+    #     #     try:
+    #     #         mc_start = self.p_micro_clusters[0]
+    #     #         max_update = mc_start.r_mean + mc_start.r_std*self.k_std
+    #     #         max_w = mc_start.weight()
+    #     #     except Exception as e:
+    #     #         max_update = self.eps
+
+    #     #     for cluster in self.p_micro_clusters:                
+    #     #         if (cluster != micro_cluster):
+    #     #             cluster.noNewSamples()    
+    #     #         if cluster.weight() > max_w:
+    #     #             max_w = cluster.weight()
+    #     #             max_update = cluster.r_mean + cluster.r_std*self.k_std
+    #     #     self.eps = deepcopy(max_update)
+    #     # else:
+    #     #     pass
+        
+    #     if len(self.p_micro_clusters) > 0:
+    #         for cluster in self.p_micro_clusters:                
+    #             if (cluster != micro_cluster):
+    #                 cluster.noNewSamples()
+
+    #     for cluster in self.o_micro_clusters:
+    #         if (cluster != micro_cluster):
+    #             cluster.noNewSamples()
+
     
     def get_sampleRates(self, STV_map, cluster_type):
         """
@@ -261,6 +299,12 @@ class DenStream:
                 nearest_cluster.AD_selected = True
                 
             # get label 
+            micro_cluster_copy = copy(nearest_cluster)
+            micro_cluster_copy.insert_sample(sample=STVector, sample_info=None, weight=[1])
+            if micro_cluster_copy.radius() <= self.eps:
+                labels[trace_id] = nearest_cluster.label
+            else:
+                labels[trace_id] = 'abnormal'
             labels[trace_id] = nearest_cluster.label
 
             # get confidence score
@@ -438,7 +482,15 @@ class DenStream:
         nearest_micro_cluster = None
         nearest_micro_cluster_index = -1
         for i, micro_cluster in enumerate(micro_clusters):
-            current_distance = np.linalg.norm(micro_cluster.center() - sample)
+            # current_distance = np.linalg.norm(micro_cluster.center() - sample)
+            # 欧几里得相似度
+            current_distance = eculidDisSim(micro_cluster.center(), sample)
+            # 余弦相似度
+            # current_distance = cosSim(micro_cluster.center(), sample)
+            # 皮尔森相似度
+            # current_distance = pearsonrSim(micro_cluster.center(), sample)
+            # 曼哈顿相似度
+            # current_distance = manhattanDisSim(micro_cluster.center(), sample)
             if current_distance < smallest_distance:
                 smallest_distance = current_distance
                 nearest_micro_cluster = micro_cluster
@@ -449,13 +501,42 @@ class DenStream:
         if micro_cluster is not None:
             micro_cluster_copy = copy(micro_cluster)
             micro_cluster_copy.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
-            if micro_cluster_copy.radius() <= self.eps:    # improvement 这里可以加上密度阈值判断，判断 count，参考 CEDAS
+            
+            all_seq = []
+            for cluster in self.p_micro_clusters+self.o_micro_clusters:
+                for item in cluster.members.values():
+                    if item[1]['service_seq'] not in all_seq:
+                        all_seq.append(item[1]['service_seq'])
+            
+            test_seq = ['start', 'ts-travel-service']
+            # ['start', 'ts-travel-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-route-service', 'ts-route-service', 'ts-route-service', 'ts-route-service', 'ts-route-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-station-service', 'ts-train-service', 'ts-route-service', 'ts-price-service', 'ts-station-service', 'ts-station-service', 'ts-order-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-seat-service', 'ts-travel-service', 'ts-route-service', 'ts-order-service', 'ts-travel-service', 'ts-train-service', 'ts-config-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-seat-service', 'ts-travel-service', 'ts-route-service', 'ts-order-service', 'ts-travel-service', 'ts-train-service', 'ts-config-service', 'ts-train-service']
+            # ['start', 'ts-verification-code-service']
+            # ['start', 'ts-order-other-service', 'ts-station-service'], 'time_seq': [950, 9]
+            # ['start', 'ts-order-service', 'ts-station-service']  ['start', 'ts-order-service']  ['start', 'ts-travel-service', 'ts-ticketinfo-service', 'ts-basic-service'] ['start', 'ts-travel2-service', 'ts-ticketinfo-service', 'ts-basic-service']
+            
+            # ['start', 'ts-cancel-service', 'ts-order-service', 'ts-order-service', 'ts-inside-payment-service', 'ts-user-service']
+            # ['start', 'ts-inside-payment-service', 'ts-order-other-service', 'ts-payment-service', 'ts-order-other-service']    ['start', 'ts-execute-service', 'ts-order-service']
+            
+            # if sample_info['service_seq'] == test_seq:
+            #     print("find if !")
+
+            # if sample_info['trace_bool'] == 1 and micro_cluster.label == "normal": # 越远越好 找最小 10095
+            #     print("check it !")
+            # elif sample_info['trace_bool'] == 1 and micro_cluster.label == "abnormal": # 越近越好 找最大 20186
+            #     print("check it !")
+            # elif sample_info['trace_bool'] == 0 and micro_cluster.label == 'normal': # 越近越好 找最大 1660 2197 10744
+            #     print("check it !")
+            # elif sample_info['trace_bool'] == 0 and micro_cluster.label == 'abnormal': # 越远越好 找最小 870  27.48 494 71.55
+            #     print("check it !")
+            if micro_cluster_copy.radius() <= self.eps:
+            # if micro_cluster_copy.radius() <= self.eps or (len(sample_info['service_seq'])>=50 and (sample_info['service_seq'] in [item[1]['service_seq'] for item in micro_cluster.members.values()]) and micro_cluster_copy.radius()/len(sample_info['service_seq'])<=11):    # self.eps 越大则簇的个数越少，更多的样本将被归为一簇 improvement 这里可以加上密度阈值判断，判断 count，参考 CEDAS
                 micro_cluster.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
-                # improvement
+                # improvement 
                 micro_cluster.energy = 1
                 micro_cluster.count += 1
                 # Add new member
                 micro_cluster.members[sample_info['trace_id']] = [sample, sample_info]
+                # self.updateAll(micro_cluster)
                 return True
         return False
 
@@ -474,6 +555,8 @@ class DenStream:
                 self._get_nearest_micro_cluster(sample, self.o_micro_clusters)
             success = self._try_merge(sample, sample_info, weight, nearest_o_micro_cluster)
             if success:
+                # 若连续两个元素均归属一个簇，则这个簇的权重会超过阈值，从噪声簇转核心簇
+                # self.beta * self.mu 越小，簇越容易从噪声转核心
                 if nearest_o_micro_cluster.weight() > self.beta * self.mu:
                     del self.o_micro_clusters[index]
                     self.p_micro_clusters.append(nearest_o_micro_cluster)
@@ -492,8 +575,15 @@ class DenStream:
                 micro_cluster.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
                 # Add new member
                 micro_cluster.members[sample_info['trace_id']] = [sample, sample_info]
+                
+                # temp
+                # for clusterTest in [cluster for cluster in self.p_micro_clusters+self.o_micro_clusters if cluster.label=='normal']:
+                #     if np.linalg.norm(clusterTest.center()-micro_cluster.center()) < 2 * self.eps:
+                #         micro_cluster.label = 'normal'
+            
                 self.o_micro_clusters.append(micro_cluster)
-                return micro_cluster.label, 'auto'
+                # self.updateAll(micro_cluster)
+                return micro_cluster.label, 'manual'
         else:
             if sample_info['trace_id'] in manual_labels_list:
                 nearest_p_micro_cluster.label = 'normal'
@@ -519,7 +609,7 @@ class DenStream:
     def _decay_function(self, t):
         return 2 ** ((-self.lambd) * (t))
 
-    def Cluster_AnomalyDetector(self, sample, sample_info, data_status, manual_labels_list):
+    def Cluster_AnomalyDetector(self, sample, sample_info, data_status, manual_labels_list, stage=None):
         # improvement 这里各个 trace 的权重应该由已有的聚类计算出来，暂时还没想好
         sample_weight = self._validate_sample_weight(sample_weight=None, n_samples=1)
         sample_label, label_status = self._merging(sample, sample_info, sample_weight, data_status, manual_labels_list)
@@ -527,16 +617,18 @@ class DenStream:
         for cluster in self.p_micro_clusters + self.o_micro_clusters:
             cluster.energy -= self.decay
 
-        # if sample_info["time_stamp"] % 30 == 0:
-        if sample_info["time_stamp"] % self.tp == 0:    # 不懂这一步是在干啥？每隔一段时间更新所有簇的状态，有的消失，有的保留
+        # 每隔一段时间更新所有簇的状态，有的消失，有的保留
+        if sample_info["time_stamp"] % self.tp == 0:    # self.tp 越大则销毁簇越慢，保留的簇个数越多；self.tp 越小则销毁簇越快，保留簇个数越少
             self.p_micro_clusters = [p_micro_cluster for p_micro_cluster
                                      in self.p_micro_clusters if
                                      p_micro_cluster.weight() >= self.beta *
-                                     self.mu and p_micro_cluster.energy > 0]    # improvement 这里加上对 energy 的判断
-            Xis = [((self._decay_function(sample_info["time_stamp"] - o_micro_cluster.creation_time
-                                          + self.tp) - 1) /
-                    (self._decay_function(self.tp) - 1)) for o_micro_cluster in
-                   self.o_micro_clusters]
+                                     self.mu]
+                                     #self.mu and p_micro_cluster.energy > 0]    # improvement 这里加上对 energy 的判断
+            if stage == 'reCluster':
+                Xis = [self.beta * self.mu for o_micro_cluster in self.o_micro_clusters]
+            else:
+                Xis = [((self._decay_function(sample_info["time_stamp"] - o_micro_cluster.creation_time + self.tp) - 1) /
+                        (self._decay_function(self.tp) - 1)) for o_micro_cluster in self.o_micro_clusters]
             self.o_micro_clusters = [o_micro_cluster for Xi, o_micro_cluster in
                                      zip(Xis, self.o_micro_clusters) if
                                      o_micro_cluster.weight() >= Xi and o_micro_cluster.energy > 0]    # improvement

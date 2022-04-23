@@ -9,11 +9,17 @@ new_data_list = [
     # 'normal/2022-04-20_00-00-00_10h_traces.csv'
 
     # Chaos
-    # 'chaos/2022-04-16_20-00-00_8h_traces.csv',
-    # 'chaos/2022-04-18_11-00-00_8h_traces.csv',
-    # 'chaos/2022-04-18_21-00-00_6h_traces.csv',
-    # 'chaos/2022-04-19_09-00-00_9h_traces.csv',
-    # 'chaos/2022-04-22_22-00-00_8h_traces.csv',
+    # 'chaos/2022-01-10_16-00-00_5h_traces.csv',
+    # 'chaos/2022-01-11_00-00-00_24h_traces.csv',
+    # 'chaos/2022-01-12_00-00-00_24h_traces.csv',
+    # 'chaos/2022-01-13_00-00-00_24h_traces.csv',
+    # 'chaos/2022-02-27_00-00-00_12h_traces.csv',
+    # 'chaos/2022-03-01_11-00-00_3h_traces.csv',
+    #'chaos/2022-04-16_20-00-00_8h_traces.csv',
+    # 'chaos/2022-04-18_11-00-00_8h_traces.csv',    # 1 abnormal
+    # 'chaos/2022-04-18_21-00-00_6h_traces.csv',    # changes
+    # 'chaos/2022-04-22_22-00-00_8h_traces.csv',    # changes new
+    # 'chaos/2022-04-19_09-00-00_9h_traces.csv',    # 2 abnormal
     'chaos/2022-04-23_12-00-00_6h_traces.csv'
 ]
 
@@ -140,6 +146,8 @@ init_data_path_list = [
     # *old_data_list,
     *new_data_list,
 ]
+
+init_data_path = ['normal/2022-04-20_00-00-00_10h_traces.csv']
 
 # wechat data list
 mm_data_path_list = [
@@ -302,6 +310,7 @@ request_period_log = [
     (['ts-order-service'], 1650134796598, 1650134877487), 
     (['ts-travel-service'], 1650135288084, 1650135344221)
 ] 
+
 # 2022-4-22 22:00:00 8h change
 # request_period_log = [(['ts-ticketinfo-service'], 1650641167424, 1650641474258), (['ts-order-service'], 1650641574378, 1650641888464), (['ts-route-service'], 1650641988585, 1650642301332), (['ts-auth-service'], 1650642401453, 1650642734489), (['ts-auth-service'], 1650643240663, 1650643564678), (['ts-ticketinfo-service'], 1650644475959, 1650644780866), (['ts-order-service'], 1650644880993, 1650645186599), (['ts-route-service'], 1650645688256, 1650646003680), (['ts-user-service'], 1650646103797, 1650646403929), (['ts-order-service'], 1650646504048, 1650646810985), (['ts-route-service'], 1650646911106, 1650647229957), (['ts-order-service'], 1650647732560, 1650648038136), (['ts-route-service'], 1650648138255, 1650648476697), (['ts-order-service'], 1650649385278, 1650649690202), (['ts-route-service'], 1650649790322, 1650650108198), (['ts-user-service'], 1650650208317, 1650650510867), (['ts-order-service'], 1650650610988, 1650650915668), (['ts-route-service'], 1650651886870, 1650652192271), (['ts-ticketinfo-service'], 1650653494728, 1650653797611), (['ts-order-service'], 1650654300889, 1650654605778), (['ts-route-service'], 1650654705891, 1650655022755), (['ts-user-service'], 1650655122865, 1650655424565), (['ts-travel-service'], 1650655524681, 1650655828606), (['ts-ticketinfo-service'], 1650655928755, 1650656236254), (['ts-order-service'], 1650656336374, 1650656641766), (['ts-ticketinfo-service'], 1650656741888, 1650657044303), (['ts-order-service'], 1650657144418, 1650657448876), (['ts-order-service'], 1650657548999, 1650657854457), (['ts-order-service'], 1650658788037, 1650659091412), (['ts-route-service'], 1650659997502, 1650660373783), (['ts-order-service'], 1650660473901, 1650660775220)]
 
