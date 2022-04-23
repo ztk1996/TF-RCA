@@ -456,9 +456,7 @@ def workflow(times: int = 50, task_timeout: int = 5 * minute, module: int = 1):
         # 间隔3min
         time.sleep(3 * minute)
 
-    p.close()
     logger.info('waiting for constant query end...')
-    p.join()
     print(f'request_period_log: {request_period_log}')
     return
 
