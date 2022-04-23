@@ -18,14 +18,9 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import requests
 import wordninja
 from transformers import AutoTokenizer, AutoModel
-<<<<<<< HEAD
 
-from .params import chaos_dict
-from .params import request_period_log
-from .params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list, span_chaos_dict
-=======
-from .params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list, span_chaos_dict, request_period_log
->>>>>>> main
+from params import request_period_log
+from params import data_path_list, init_data_path_list, mm_data_path_list, mm_trace_root_list
 
 data_root = '/data/TraceCluster/raw'
 
@@ -38,16 +33,10 @@ cache_file = '/home/kagaya/work/TraceCluster/secrets/cache.json'
 embedding_name = ''
 
 # get features of the edge directed to current span
-<<<<<<< HEAD
 operation_select_keys = ['childrenSpanNum', 'requestDuration', 'responseDuration',
                          'requestAndResponseDuration', 'workDuration', 'subspanNum',
                          'duration', 'rawDuration', 'timeScale']
 
-=======
-operation_select_keys = ['childrenSpanNum', 'requestDuration', 'responseDuration',        
-                        'requestAndResponseDuration', 'workDuration', 'subspanNum',
-                        'duration', 'rawDuration', 'timeScale']
->>>>>>> main
 
 def normalize(x: float) -> float: return x
 
@@ -258,7 +247,7 @@ def load_sw_span(data_path_list: List[str]) -> List[DataFrame]:
     return raw_spans
 
 
-def load_span(is_wechat: bool, stage: str) -> List[DataFrame]:
+def load_span(is_wechat: bool, stage: str = 'main') -> List[DataFrame]:
     """
     load raw sapn data from pathList
     """
@@ -428,16 +417,6 @@ def calculate_edge_features(current_span: Span, trace_duration: dict, spanChildr
 
     return features
 
-def check_changed_span(span: Span) -> bool:
-    changes = []
-    for set in request_period_log:
-        r_start = int(set[1])
-        r_end = int(set[2])
-        if r_start < span.startTime and span.startTime < r_end:
-            changes.extend(set[0])
-            break
-
-<<<<<<< HEAD
 def check_abnormal_span(span: Span) -> bool:
     changes = []
     for set in request_period_log:
@@ -447,12 +426,10 @@ def check_abnormal_span(span: Span) -> bool:
             changes.extend(set[0])
             break
 
-=======
->>>>>>> main
     if len(changes) == 0:
         return False
 
-    if span.duration < 1000 and not span.isError:
+    if span.duration < 5000 and not span.isError:
         return False
 
     for change in changes:
@@ -460,31 +437,6 @@ def check_abnormal_span(span: Span) -> bool:
             return True
 
     return False
-<<<<<<< HEAD
-=======
-
-# def check_abnormal_span(span: Span) -> bool:
-#     # start_hour = time.localtime(span.startTime//1000).tm_hour
-#     # chaos_service = span_chaos_dict.get(start_hour)
-
-#     # if start_hour not in span_chaos_dict.keys() or not span.service.startswith(chaos_service):
-#     #     return False
-
-#     chaos_service = ''
-#     for root_cause_item in request_period_log:
-#         if span.startTime>=root_cause_item[1] and span.startTime<=root_cause_item[2]:
-#                 chaos_service = root_cause_item[0][0]
-#                 break
-
-#     if chaos_service == '' or not span.service.startswith(chaos_service):
-#         return False
-
-#     # 故障请求延时为5s，所以小于5000ms的不是根因
-#     if span.duration < 5000 and not span.isError:
-#         return False
-
-#     return True
->>>>>>> main
 
 
 def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], operation_map: dict):
@@ -531,10 +483,6 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
                 spanChildrenMap[local_span_parent.spanId].append(child)
 
     is_abnormal = 0
-<<<<<<< HEAD
-=======
-    # chaos_root = ''
->>>>>>> main
     chaos_root = []
     # process other span
     for span in trace:
@@ -549,16 +497,8 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
             continue
 
         # if check_abnormal_span(span):
-        if check_changed_span(span):
+        if check_abnormal_span(span):
             is_abnormal = 1
-<<<<<<< HEAD
-=======
-            # chaos_root = span_chaos_dict.get(time.localtime(span.startTime).tm_hour)
-            # for root_cause_item in request_period_log:
-            #     if span.startTime>=root_cause_item[1] and span.startTime<=root_cause_item[2]:
-            #             chaos_root = root_cause_item[0][0]
-            #             break
->>>>>>> main
             chaos_root.append(span.service)
 
         # get the parent server span id
@@ -639,10 +579,6 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     root_cmdid = mm_root_map[traceId]['cmdid']
     root_span_id = root_nodeid + root_ossid + root_cmdid
     root_code = mm_root_map[traceId]['code']
-<<<<<<< HEAD
-=======
-    # root_start_time = int(time.mktime(time.strptime(mm_root_map[traceId]['start_time'], "%Y-%m-%d %H:%M:%S")))
->>>>>>> main
     root_start_time = int(time.mktime(time.strptime(
         mm_root_map[traceId]['start_time'], "%Y-%m-%d %H:%M:%S")))
     root_service_name = get_service_name(root_ossid)
