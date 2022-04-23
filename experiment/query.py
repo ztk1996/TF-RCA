@@ -61,13 +61,10 @@ def query_route():
     query_weights = {
         q.query_food: 10,
         q.query_normal_ticket: 10,
-        q.query_route: 10,
 
-        q.query_high_speed_ticket: 10,
-        q.query_min_station: 10,
-        q.query_cheapest: 10,
-        q.query_quickest: 10,
-        preserve_scenario: 50,
+        q.query_route: 50,
+        q.query_high_speed_ticket: 50,
+        preserve_scenario: 20,
     }
 
     def task():
@@ -89,19 +86,20 @@ def query_order():
     def collect_scenario():
         query_and_collect(q)
 
+    def preserve_scenario():
+        query_and_preserve(q)
+
+
     query_weights = {
         q.query_food: 10,
         q.query_normal_ticket: 10,
         q.query_route: 10,
 
-        q.query_high_speed_ticket: 10,
-        q.query_min_station: 10,
-        q.query_cheapest: 10,
-        q.query_quickest: 10,
-        q.query_orders: 20,
+        q.query_orders: 50,
         payment_scenario: 30,
         cancel_scenario: 20,
         collect_scenario: 20,
+        preserve_scenario: 20,
     }
 
     def task():
@@ -186,15 +184,11 @@ def query_user():
         query_and_preserve(q)
 
     query_weights = {
-        q.query_food: 10,
         q.query_normal_ticket: 10,
         q.query_high_speed_ticket: 10,
-        q.query_min_station: 10,
-        q.query_cheapest: 10,
-        q.query_route: 10,
 
         preserve_scenario: 50,
-        cancel_scenario: 30,
+        cancel_scenario: 50,
     }
 
     def task():
