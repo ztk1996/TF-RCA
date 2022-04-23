@@ -1,4 +1,5 @@
 from importlib.resources import path
+from multiprocessing import connection
 from re import T
 import torch
 import json
@@ -19,6 +20,7 @@ from CEDAS.CEDAS import CEDAS
 from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo
 from MicroRank.online_rca import rca
 from DataPreprocess.params import span_chaos_dict, trace_chaos_dict, request_period_log
+import pymysql as pmq
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -45,6 +47,9 @@ dataLevel = 'trace'    # 'trace', 'span'
 path_decay = 0.001
 path_thres = 0.0
 reCluster_thres = 0.1
+# Connect with database
+# db_connect = pmq.connect('localhost', 'root', '123456', 'python_chenge')
+# cur = db_connect.cursor()
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
@@ -59,6 +64,21 @@ def intersect_or_not(start1: int, end1: int, start2: int, end2: int):
         return True
     else:
         return False
+
+def db_insert(cluster_id, creation_time, cluster_label, member_count, member_ids, cluster_weight):
+    sql = "INSERT INTO clusters(cluster_id, creation_time, cluster_label, member_count, member_ids, cluster_weight) VALUES('"+str(cluster_id)+"','"+str(creation_time)+"',"+str(cluster_label)+"',"+str(member_count)+"',"+str(member_count)+"',"+str(member_ids)+"',"+str(cluster_weight)+")"
+    cur.execute(sql)
+    db_connect.commit() 
+
+def db_update():
+    sql = "update clusters set cluster_label='normal' where Id = {0}".format(7)
+    cur.execute(sql)
+    db_connect.commit()
+
+def db_delete(Id):
+    sql = "delete from clusters where Id = {0}".format(Id)
+    cur.execute(sql)
+    db_connect.commit()
 
 def simplify_cluster(cluster_obj, dataset, cluster_status, data_status):    # dataset: [[STVector1, sample_info1], [STVector2, sample_info2]]
     global all_path
@@ -228,6 +248,23 @@ def main():
     global first_tag
     global manual_labels_list
     label_map_reCluster = dict()
+
+    # ========================================
+    # Create db table
+    # ========================================
+    # cluster_sql = '''
+    #         create table clusters(
+    #             id int AUTO_INCREMENT  primary key not null,
+    #             cluster_id varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci  not null,
+    #             creation_time varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci  not null,
+    #             cluster_label varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci  not null,
+    #             member_count int  not null,
+    #             member_ids varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci  not null,
+    #             cluster_weight float  not null,
+    #         )
+    # '''
+    # cur.execute(cluster_sql)
+    # db_connect.commit()
 
     # ========================================
     # Create cluster object
