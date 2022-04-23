@@ -89,7 +89,6 @@ def query_order():
     def preserve_scenario():
         query_and_preserve(q)
 
-
     query_weights = {
         q.query_food: 10,
         q.query_normal_ticket: 10,
@@ -196,3 +195,53 @@ def query_user():
 
     run(task, timeout)
     return
+
+
+def query_basic():
+    q = Query(url)
+
+    query_weights = {
+        q.query_high_speed_ticket: 10,
+        q.query_min_station: 10,
+        q.query_cheapest: 10,
+        q.query_quickest: 10,
+    }
+
+    def task():
+        random_query(q, query_weights)
+
+    return run(task, timeout)
+
+
+def query_travel_plan():
+    q = Query(url)
+
+    query_weights = {
+        q.query_min_station: 10,
+        q.query_cheapest: 10,
+        q.query_quickest: 10,
+    }
+
+    def task():
+        random_query(q, query_weights)
+
+    return run(task, timeout)
+
+
+def query_station():
+    q = Query(url)
+
+    query_weights = {
+        q.query_high_speed_ticket: 10,
+        q.query_high_speed_ticket_parallel: 10,
+        q.query_min_station: 10,
+        q.query_cheapest: 10,
+        q.query_quickest: 10,
+        q.query_orders: 20,
+        q.query_other_orders: 20,
+    }
+
+    def task():
+        random_query(q, query_weights)
+
+    return run(task, timeout)

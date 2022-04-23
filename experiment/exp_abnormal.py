@@ -8,6 +8,7 @@ import random
 import time
 import argparse
 from multiprocessing import Process, Pool
+from query import *
 
 logging.basicConfig(
     format='%(asctime)s.%(msecs)03d [%(levelname)s] %(message)s',
@@ -22,9 +23,10 @@ hour = 60 * minute
 
 # 记录异常情况下函数执行时间
 fun_dic = {}
+timeout = 5 * minute
 
 
-def constant_query(targets: list, timeout: int = 5 * minute):
+def constant_query(targets: list):
     start = time.time()
     q = Query(url)
 
@@ -127,196 +129,6 @@ def constant_query(targets: list, timeout: int = 5 * minute):
         time.sleep(interval)
 
     return
-
-
-# 随机次数随机场景进行查询
-def random_query(q: Query, weights: dict, interval: int = random.randint(1, 5)):
-    """
-    登陆一个用户并按权重随机发起请求
-    :param weights: 权重dict
-    :param count: 请求次数
-    :param interval: 请求间隔
-    """
-    if not q.login():
-        return
-
-    func = random_from_weighted(weights)
-    logger.info(f'execute query: {func.__name__}')
-    try:
-        execute_time = time.strftime("%Y-%m-%d %H:%M:%S")
-        func()
-        fun_dic[execute_time] = func.__name__
-    except Exception:
-        logger.exception(f'query {func.__name__} got an exception')
-    time.sleep(interval)
-
-    return
-
-
-def run(task: Callable, timeout: int):
-    start = time.time()
-    while time.time() - start < timeout:
-        task()
-
-    end = time.time()
-    return start, end
-
-
-def query_travel(timeout: int = 5 * minute):
-    q = Query(url)
-
-    def preserve_scenario():
-        query_and_preserve(q)
-
-    query_weights = {
-        q.query_high_speed_ticket: 10,
-        q.query_high_speed_ticket_parallel: 10,
-        q.query_min_station: 10,
-        q.query_cheapest: 10,
-        q.query_quickest: 10,
-        preserve_scenario: 50,
-    }
-
-    def task():
-        random_query(q, query_weights)
-
-    return run(task, timeout)
-
-
-def query_ticketinfo(timeout: int = 5 * minute):
-    q = Query(url)
-
-    def preserve_scenario():
-        query_and_preserve(q)
-
-    query_weights = {
-        q.query_high_speed_ticket: 10,
-        q.query_high_speed_ticket_parallel: 10,
-        q.query_min_station: 10,
-        q.query_cheapest: 10,
-        q.query_quickest: 10,
-        preserve_scenario: 50,
-    }
-
-    def task():
-        random_query(q, query_weights)
-
-    return run(task, timeout)
-
-
-def query_route(timeout: int = 5 * minute):
-    q = Query(url)
-
-    def preserve_scenario():
-        query_and_preserve(q)
-
-    query_weights = {
-        q.query_high_speed_ticket: 10,
-        q.query_min_station: 10,
-        q.query_cheapest: 10,
-        q.query_quickest: 10,
-        preserve_scenario: 50,
-    }
-
-    def task():
-        random_query(q, query_weights)
-
-    return run(task, timeout)
-
-
-def query_order(timeout: int = 5 * minute):
-    q = Query(url)
-
-    def payment_scenario():
-        query_and_pay(q)
-
-    def cancel_scenario():
-        query_and_cancel(q)
-
-    def collect_scenario():
-        query_and_collect(q)
-
-    query_weights = {
-        q.query_high_speed_ticket: 10,
-        q.query_min_station: 10,
-        q.query_cheapest: 10,
-        q.query_quickest: 10,
-        q.query_orders: 20,
-        payment_scenario: 50,
-        cancel_scenario: 50,
-        collect_scenario: 50,
-    }
-
-    def task():
-        random_query(q, query_weights)
-
-    return run(task, timeout)
-
-
-def query_basic(timeout: int = 5 * minute):
-    q = Query(url)
-
-    query_weights = {
-        q.query_high_speed_ticket: 10,
-        q.query_min_station: 10,
-        q.query_cheapest: 10,
-        q.query_quickest: 10,
-    }
-
-    def task():
-        random_query(q, query_weights)
-
-    return run(task, timeout)
-
-
-def query_travel_plan(timeout: int = 5 * minute):
-    q = Query(url)
-
-    query_weights = {
-        q.query_min_station: 10,
-        q.query_cheapest: 10,
-        q.query_quickest: 10,
-    }
-
-    def task():
-        random_query(q, query_weights)
-
-    return run(task, timeout)
-
-
-def query_station(timeout: int = 5 * minute):
-    q = Query(url)
-
-    query_weights = {
-        q.query_high_speed_ticket: 10,
-        q.query_high_speed_ticket_parallel: 10,
-        q.query_min_station: 10,
-        q.query_cheapest: 10,
-        q.query_quickest: 10,
-        q.query_orders: 20,
-        q.query_other_orders: 20,
-    }
-
-    def task():
-        random_query(q, query_weights)
-
-    return run(task, timeout)
-
-
-def query_user(timeout: int = 5 * minute):
-    q = Query(url)
-
-    def cancel_scenario():
-        query_and_cancel(q)
-
-    query_weights = {
-        cancel_scenario: 100,
-    }
-
-    def task():
-        random_query(q, query_weights)
-
-    return run(task, timeout)
 
 
 chaos_path = {'basic-network-delay': 'chaos/network_delay/basic_network_delay.yml',
@@ -432,14 +244,13 @@ def workflow(times: int = 50, task_timeout: int = 5 * minute, module: int = 1):
         time.sleep(10)
         # 正常
         p = Pool(4)
-        p.apply_async(constant_query, args=(targets, task_timeout))
+        p.apply_async(constant_query, args=(targets))
         # 异常
         start_time = time.time()
         name_list = []
         for index, task in enumerate(task_list):
             logger.info(f'execute task: {task.__name__}')
-            p.apply_async(
-                task, args=(task_timeout / len(task_list),))
+            p.apply_async(task)
             name = "ts-" + targets[index] + "-service"
             name_list.append(name)
 
