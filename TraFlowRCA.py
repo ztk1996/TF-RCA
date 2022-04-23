@@ -13,7 +13,7 @@ import time
 import sys
 import datetime
 from sklearn.metrics import accuracy_score, recall_score, precision_score
-from DataPreprocess.STVProcess import embedding_to_vector, load_dataset, process_one_trace
+from DataPreprocess.STVProcess import embedding_to_vector, load_dataset, process_one_trace, check_match
 from DenStream.DenStream import DenStream
 from CEDAS.CEDAS import CEDAS
 from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo
@@ -27,7 +27,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 K = [2, 3, 5]
 Two_error = True
 all_path = dict()
-manual_labels_list = []    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
+manual_labels_list = ['617d5c02352849119c2e5df8b70fa007.36.16503361793140001', 'dda6af5c49d546068432825e17b981aa.38.16503361824380001', '27a94f3afad745c69963997831868eb1.38.16503362398950001', '15480e1347c147a086b68221ca743874.38.16503369859250001', '262b9727d1584947a02905150a089faa.38.16503382599320123', 'ab212da6fff042febb91b313658a0005.46.16503384128150203', '0b225e568e304836a7901e0cff56205a.39.16503393835170053', '262b9727d1584947a02905150a089faa.39.16503397746270231']    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
 first_tag = True
 # start_str = '2022-04-19 10:42:59'    # '2022-04-18 21:08:00' # '2022-04-19 10:42:59'    # trace: '2022-02-25 00:00:00', '2022-04-16 20:08:03', '2022-04-18 11:00:00', '2022-04-18 21:00:00'; span: '2022-01-13 00:00:00'
 # format stage
@@ -220,6 +220,7 @@ def main():
     # all_path = {path1: [energy1, index1], path2: [energy2, index2]}
     # label_map_reCluster = {trace_id1: label1, trace_id2: label2}
     # ========================================
+    len = check_match()
     global all_path
     global first_tag
     global manual_labels_list
@@ -404,9 +405,12 @@ def main():
 
         if AD_method in ['DenStream_withscore', 'CEDAS_withscore']:
             pattern_IoU = len(set(AD_pattern)&set(rc_pattern)) / len(set(AD_pattern)|set(rc_pattern)) if len(set(AD_pattern)|set(rc_pattern)) != 0 else -1
+        else:
+            pattern_IoU = -1
 
         if abnormal_count > 8 and pattern_IoU < 0.5:
-            rc_pattern = AD_pattern
+            if AD_method in ['DenStream_withscore', 'CEDAS_withscore']:
+                rc_pattern = AD_pattern
 
             print('********* RCA start *********')
 

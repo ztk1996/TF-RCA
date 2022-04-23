@@ -446,3 +446,48 @@ def embedding_to_vector(trace, unique_path):
         vector_list[unique_path['->'.join(trace['service_seq'][:i + 1])][1]] = trace['time_seq'][i-1] 
         # vector_list[unique_path.index('->'.join(trace['service_seq'][:i + 1]))] = trace['time_seq'][i-1]    
     return vector_list
+
+
+def check_match():
+    service_seq_set_init = list()
+    file_init = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_17-34-08/data.json', 'r')
+    raw_data_init = json.load(file_init)
+
+    # print('getting trace data (api and time seq) ... 1')
+    for trace_id, trace in sorted(raw_data_init.items(), key = lambda i: i[1]['edges']['0'][0]['startTime']):
+        service_seq = ['start']
+        spans = []
+        for span in trace['edges'].values():
+            spans.extend(span)
+        spans = sorted(spans, key=lambda span: span['startTime'])
+        service_seq.extend([span['service'] for span in spans])
+        if service_seq not in service_seq_set_init:
+            service_seq_set_init.append(service_seq)
+    
+
+    service_seq_set_format = list()
+    file_format = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')
+    raw_data_format = json.load(file_format)
+
+    # print('getting trace data (api and time seq) ... 1')
+    for trace_id, trace in sorted(raw_data_format.items(), key = lambda i: i[1]['edges']['0'][0]['startTime']):
+        service_seq = ['start']
+        spans = []
+        for span in trace['edges'].values():
+            spans.extend(span)
+        spans = sorted(spans, key=lambda span: span['startTime'])
+        service_seq.extend([span['service'] for span in spans])
+        if service_seq not in service_seq_set_format:
+            service_seq_set_format.append(service_seq)
+
+    # differences = service_seq_set_format.difference(service_seq_set_init)    # 只在正式处理阶段出现的 trace 结构
+    differences = list()
+    for item in service_seq_set_format:
+        if item not in service_seq_set_init:
+            differences.append(item)
+    
+    return len(differences)
+
+if __name__ == '__main__':
+    diff_count = check_match()
+    print("{} structure dismatch !".format(diff_count))
