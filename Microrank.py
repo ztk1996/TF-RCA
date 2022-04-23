@@ -25,11 +25,13 @@ MAX_INT = sys.maxsize
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-K = [2, 3, 5]
-Two_error = True
+Two_error = False
+K = [1, 3, 5] if Two_error==False else [2, 3, 5]
 # format stage
 # start_str = '2022-04-18 21:08:00'    # changes    # '2022-01-13 00:00:00' ---> '2022-04-17 02:56:08'   '2022-04-18 21:00:00'
-start_str = '2022-04-19 10:42:59'    # 2 abnormal
+start_str = '2022-04-22 22:00:00'    # changes new
+# start_str = '2022-04-18 11:00:00'    # 1 abnormal
+# start_str = '2022-04-19 10:42:59'    # 2 abnormal
 window_duration = 6 * 60 * 1000 # ms
 # init stage
 init_start_str = '2022-04-20 00:00:05'    # normal
@@ -101,8 +103,13 @@ def main():
         # a_true, a_pred = [], []
         span_list = get_span(start=start, end=end)
         if len(span_list) == 0:
-            print("Error: Current span list is empty ")
-            break
+            if start < timestamp(start_str) + (8 * 60 * 60 * 1000):
+                start = end
+                end = start + window_duration
+                continue
+            else: 
+                print("Error: Current span list is empty ")
+                break
         #operation_list = get_service_operation_list(span_list)
         operation_count = get_operation_duration_data(operation_list, span_list)
 

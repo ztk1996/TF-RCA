@@ -24,19 +24,22 @@ warnings.filterwarnings("ignore")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-K = [2, 3, 5]
-Two_error = True
+Two_error = False
+K = [1, 3, 5] if Two_error==False else [2, 3, 5]
 all_path = dict()
-manual_labels_list = ['617d5c02352849119c2e5df8b70fa007.36.16503361793140001', 'dda6af5c49d546068432825e17b981aa.38.16503361824380001', '27a94f3afad745c69963997831868eb1.38.16503362398950001', '15480e1347c147a086b68221ca743874.38.16503369859250001', '262b9727d1584947a02905150a089faa.38.16503382599320123', 'ab212da6fff042febb91b313658a0005.46.16503384128150203', '0b225e568e304836a7901e0cff56205a.39.16503393835170053', '262b9727d1584947a02905150a089faa.39.16503397746270231']    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
+manual_labels_list = []
+# manual_labels_list = ['617d5c02352849119c2e5df8b70fa007.36.16503361793140001', 'dda6af5c49d546068432825e17b981aa.38.16503361824380001', '27a94f3afad745c69963997831868eb1.38.16503362398950001', '15480e1347c147a086b68221ca743874.38.16503369859250001', '262b9727d1584947a02905150a089faa.38.16503382599320123', 'ab212da6fff042febb91b313658a0005.46.16503384128150203', '0b225e568e304836a7901e0cff56205a.39.16503393835170053', '262b9727d1584947a02905150a089faa.39.16503397746270231']    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
 first_tag = True
 # start_str = '2022-04-19 10:42:59'    # '2022-04-18 21:08:00' # '2022-04-19 10:42:59'    # trace: '2022-02-25 00:00:00', '2022-04-16 20:08:03', '2022-04-18 11:00:00', '2022-04-18 21:00:00'; span: '2022-01-13 00:00:00'
 # format stage
 # start_str = '2022-04-18 21:08:00'    # changes
-start_str = '2022-04-19 10:42:59'    # 2 abnormal
+start_str = '2022-04-22 22:00:00'    # changes new
+# start_str = '2022-04-18 11:00:00'    # 1 abnormal
+# start_str = '2022-04-19 10:42:59'    # 2 abnormal
 # init stage
 init_start_str = '2022-04-18 00:00:05'    # normal
 window_duration = 6 * 60 * 1000    # ms
-AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
+AD_method = 'DenStream_withoutscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'none'    # 'none', 'micro', 'macro', 'rate'
 dataLevel = 'trace'    # 'trace', 'span'
 path_decay = 0.001
@@ -220,7 +223,7 @@ def main():
     # all_path = {path1: [energy1, index1], path2: [energy2, index2]}
     # label_map_reCluster = {trace_id1: label1, trace_id2: label2}
     # ========================================
-    len = check_match()
+    # differences_count, ab_count, ad_count_list = check_match()
     global all_path
     global first_tag
     global manual_labels_list
@@ -275,8 +278,10 @@ def main():
         print("Main Data loading ...")
         # file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-17_15-29-46/data.json', 'r')
-        file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_11-34-58/data.json', 'r')
+        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_10-05-14/data.json', 'r')    # 1 abnormal
+        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')    # 2 abnormal
+        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_11-34-58/data.json', 'r')    # change
+        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-23_13-34-27/data.json', 'r')    # change new
         raw_data_total = json.load(file)
         print("Finish main data load !")
 
@@ -291,6 +296,8 @@ def main():
         #         start = end
         #         end = start + window_duration
         #         continue
+        # if ms2str(start) == '2022-04-23 00:30:00' or ms2str(start) == '2022-04-22 23:30:00':
+        #     print("find it !")
         timeWindow_count += 1
         abnormal_count = 0
         abnormal_map = {}
@@ -302,7 +309,12 @@ def main():
             dataset, raw_data_dict = load_dataset(start, end, dataLevel, 'main', raw_data_total)
             
         if len(dataset) == 0:
-            break
+            if start < timestamp(start_str) + (8 * 60 * 60 * 1000):
+                start = end
+                end = start + window_duration
+                continue
+            else: 
+                break
         
         # a_true, a_pred = [], []
         # Init manual count

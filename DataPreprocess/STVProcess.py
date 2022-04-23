@@ -449,6 +449,14 @@ def embedding_to_vector(trace, unique_path):
 
 
 def check_match():
+    # request_period_log = [(['ts-ticketinfo-service'], 1650641167424, 1650641474258), (['ts-order-service'], 1650641574378, 1650641888464), (['ts-route-service'], 1650641988585, 1650642301332), (['ts-auth-service'], 1650642401453, 1650642734489), (['ts-auth-service'], 1650643240663, 1650643564678), (['ts-ticketinfo-service'], 1650644475959, 1650644780866), (['ts-order-service'], 1650644880993, 1650645186599), (['ts-route-service'], 1650645688256, 1650646003680), (['ts-user-service'], 1650646103797, 1650646403929), (['ts-order-service'], 1650646504048, 1650646810985), (['ts-route-service'], 1650646911106, 1650647229957), (['ts-order-service'], 1650647732560, 1650648038136), (['ts-route-service'], 1650648138255, 1650648476697), (['ts-order-service'], 1650649385278, 1650649690202), (['ts-route-service'], 1650649790322, 1650650108198), (['ts-user-service'], 1650650208317, 1650650510867), (['ts-order-service'], 1650650610988, 1650650915668), (['ts-route-service'], 1650651886870, 1650652192271), (['ts-ticketinfo-service'], 1650653494728, 1650653797611), (['ts-order-service'], 1650654300889, 1650654605778), (['ts-route-service'], 1650654705891, 1650655022755), (['ts-user-service'], 1650655122865, 1650655424565), (['ts-travel-service'], 1650655524681, 1650655828606), (['ts-ticketinfo-service'], 1650655928755, 1650656236254), (['ts-order-service'], 1650656336374, 1650656641766), (['ts-ticketinfo-service'], 1650656741888, 1650657044303), (['ts-order-service'], 1650657144418, 1650657448876), (['ts-order-service'], 1650657548999, 1650657854457), (['ts-order-service'], 1650658788037, 1650659091412), (['ts-route-service'], 1650659997502, 1650660373783), (['ts-order-service'], 1650660473901, 1650660775220)]
+    request_period_log = [(['ts-route-service'], 1650254059896, 1650254361387), (['ts-travel-service'], 1650254551823, 1650254853456), (['ts-travel-service'], 1650255043883, 1650255344428), (['ts-travel-service'], 1650255534831, 1650255851210), (['ts-station-service'], 1650256151142, 1650256452270), (['ts-basic-service'], 1650256642674, 1650256944234), (['ts-ticketinfo-service'], 1650257134636, 1650257435240), (['ts-user-service'], 1650257625637, 1650257927939), (['ts-order-service'], 1650258118339, 1650258421608), (['ts-order-service'], 1650258611989, 1650258912546), (['ts-order-service'], 1650259102938, 1650259403142), (['ts-basic-service'], 1650259593530, 1650259896864), (['ts-route-service'], 1650260087260, 1650260388746), (['ts-user-service'], 1650260579154, 1650260881122), (['ts-station-service'], 1650261071509, 1650261371783), (['ts-ticketinfo-service'], 1650261562192, 1650261865276), (['ts-travel-plan-service'], 1650262055678, 1650262358656), (['ts-travel-plan-service'], 1650262549050, 1650262852081), (['ts-user-service'], 1650263042497, 1650263343295), (['ts-basic-service'], 1650263533699, 1650263836890), (['ts-ticketinfo-service'], 1650264027284, 1650264328269), (['ts-station-service'], 1650264518660, 1650264821500), (['ts-travel-plan-service'], 1650265011904, 1650265312147), (['ts-route-service'], 1650265502560, 1650265803476), (['ts-travel-service'], 1650265993869, 1650266305823),
+                          (['ts-route-service'], 1650266496226, 1650266796479), (['ts-basic-service'], 1650266986888, 1650267287653), (['ts-travel-service'], 1650267478060, 1650267779310), (['ts-user-service'], 1650267969704, 1650268271204), (['ts-ticketinfo-service'], 1650268461603, 1650268763257), (['ts-travel-service'], 1650268953663, 1650269257054), (['ts-order-service'], 1650269447456, 1650269749062), (['ts-station-service'], 1650269939458, 1650270241764), (['ts-user-service'], 1650270432172, 1650270732294), (['ts-order-service'], 1650270922698, 1650271225238), (['ts-travel-plan-service'], 1650271415635, 1650271715726), (['ts-order-service'], 1650271906150, 1650272206462), (['ts-basic-service'], 1650272396851, 1650272699948), (['ts-basic-service'], 1650272890362, 1650273192473), (['ts-route-service'], 1650273382897, 1650273684256), (['ts-station-service'], 1650273874658, 1650274177836), (['ts-ticketinfo-service'], 1650274368244, 1650274668476), (['ts-station-service'], 1650274858860, 1650275159546), (['ts-route-service'], 1650275349948, 1650275652839), (['ts-travel-plan-service'], 1650275843231, 1650276144522), (['ts-user-service'], 1650276334921, 1650276636243), (['ts-ticketinfo-service'], 1650276826642, 1650277128245), (['ts-travel-plan-service'], 1650277318638, 1650277619725), (['ts-order-service'], 1650277810111, 1650278110838), (['ts-travel-service'], 1650278301231, 1650278626536)]
+    ad_count_list = list()
+    for root_cause_item in request_period_log:
+        ad_count_list.append(0)
+
+
     service_seq_set_init = list()
     file_init = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_17-34-08/data.json', 'r')
     raw_data_init = json.load(file_init)
@@ -466,10 +474,12 @@ def check_match():
     
 
     service_seq_set_format = list()
-    file_format = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')
+    # file_format = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')
+    file_format = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_10-05-14/data.json', 'r')
     raw_data_format = json.load(file_format)
 
     # print('getting trace data (api and time seq) ... 1')
+    ab_count = 0
     for trace_id, trace in sorted(raw_data_format.items(), key = lambda i: i[1]['edges']['0'][0]['startTime']):
         service_seq = ['start']
         spans = []
@@ -477,6 +487,11 @@ def check_match():
             spans.extend(span)
         spans = sorted(spans, key=lambda span: span['startTime'])
         service_seq.extend([span['service'] for span in spans])
+        ab_count = ab_count + (1 if trace['abnormal'] else 0)
+        if trace['abnormal'] == 1:
+            for idx, root_cause_item in enumerate(request_period_log):
+                if trace['edges']['0'][0]['startTime'] >= root_cause_item[1] and trace['edges']['0'][0]['startTime'] < root_cause_item[2]:
+                    ad_count_list[idx] += 1
         if service_seq not in service_seq_set_format:
             service_seq_set_format.append(service_seq)
 
@@ -486,7 +501,7 @@ def check_match():
         if item not in service_seq_set_init:
             differences.append(item)
     
-    return len(differences)
+    return len(differences), ab_count, ad_count_list
 
 if __name__ == '__main__':
     diff_count = check_match()
