@@ -15,12 +15,13 @@ new_data_list = [
     # 'chaos/2022-01-13_00-00-00_24h_traces.csv',
     # 'chaos/2022-02-27_00-00-00_12h_traces.csv',
     # 'chaos/2022-03-01_11-00-00_3h_traces.csv',
-    #'chaos/2022-04-16_20-00-00_8h_traces.csv',
+    # 'chaos/2022-04-16_20-00-00_8h_traces.csv',
     # 'chaos/2022-04-18_11-00-00_8h_traces.csv',    # 1 abnormal
     # 'chaos/2022-04-18_21-00-00_6h_traces.csv',    # changes
     # 'chaos/2022-04-22_22-00-00_8h_traces.csv',    # changes new
     # 'chaos/2022-04-19_09-00-00_9h_traces.csv',    # 2 abnormal
-    'chaos/2022-04-23_12-00-00_6h_traces.csv'
+    # 'chaos/2022-04-23_12-00-00_6h_traces.csv', # 2 abnormal
+    'chaos/2022-04-23_18-00-00_7h_traces.csv' # 1 changes
 ]
 
 old_data_list = [
@@ -234,85 +235,89 @@ span_chaos_dict = {
 
 trace_chaos_dict = {
     0: 'ts-payment-service',    # pod fail
-    1: 'ts-ticketinfo-service', # http delay
+    1: 'ts-ticketinfo-service',  # http delay
     2: 'ts-route-service',  # network delay
     3: 'ts-order-service',  # network delay
     4: 'ts-basic-service',  # pod fail
     5: 'ts-basic-service',  # http delay
-    6: 'ts-ticketinfo-service', # pod failure
+    6: 'ts-ticketinfo-service',  # pod failure
     8: 'ts-seat-service',   # pod failure
-    9: 'ts-config-service', # http delay
+    9: 'ts-config-service',  # http delay
     10: 'ts-travel-service',    # pod failure
     11: 'ts-order-other-service',   # http delay
     12: 'ts-order-other-service',   # pod failure
-    13: 'ts-consign-price-service', # http delay
-    14: 'ts-consign-price-service', # http delay
-    15: 'ts-verification-code-service', # pod failure
-    16: 'ts-order-service', # pod failure
+    13: 'ts-consign-price-service',  # http delay
+    14: 'ts-consign-price-service',  # http delay
+    15: 'ts-verification-code-service',  # pod failure
+    16: 'ts-order-service',  # pod failure
     17: 'ts-security-service',  # http delay
-    18: 'ts-verification-code-service', # http delay
+    18: 'ts-verification-code-service',  # http delay
     19: 'ts-user-service',  # http delay
     20: 'ts-station-service',   # pod fail
-    21: 'ts-route-service', # pod failure
+    21: 'ts-route-service',  # pod failure
     22: 'ts-travel2service',    # pod kill
-    23: 'ts-config-service' # pod failure
+    23: 'ts-config-service'  # pod failure
 }
 
 request_period_log = [
-    (['ts-route-service'], 1650110947285, 1650111022655), 
-    (['ts-travel-service'], 1650111443255, 1650111516641), 
-    (['ts-travel-service'], 1650111937224, 1650112009193), 
-    (['ts-travel-service'], 1650112429798, 1650112660081), 
-    (['ts-station-service'], 1650112920542, 1650112983912), 
-    (['ts-basic-service'], 1650113414514, 1650113717655), 
-    (['ts-ticketinfo-service'], 1650113908061, 1650113989462), 
-    (['ts-user-service'], 1650114400046, 1650114461963), 
-    (['ts-order-service'], 1650114892565, 1650114987733), 
-    (['ts-order-service'], 1650115388402, 1650115442406), 
-    (['ts-order-service'], 1650115883030, 1650115923986), 
-    (['ts-basic-service'], 1650116374616, 1650116429343), 
-    (['ts-route-service'], 1650116869960, 1650117080792), 
-    (['ts-user-service'], 1650117361254, 1650117408133), 
-    (['ts-station-service'], 1650117858740, 1650117903699), 
-    (['ts-ticketinfo-service'], 1650118354344, 1650118404123), 
-    (['ts-travel-plan-service'], 1650118854750, 1650118952633), 
-    (['ts-travel-plan-service'], 1650119353203, 1650119420244), 
-    (['ts-user-service'], 1650119850850, 1650119902530), 
-    (['ts-basic-service'], 1650120343133, 1650120413145), 
-    (['ts-ticketinfo-service'], 1650120833760, 1650121136454), 
-    (['ts-station-service'], 1650121326847, 1650121390708), 
-    (['ts-travel-plan-service'], 1650121821330, 1650121886301), 
-    (['ts-route-service'], 1650122316895, 1650122380688), 
-    (['ts-travel-service'], 1650122811324, 1650123158723), 
-    (['ts-route-service'], 1650123426438, 1650123487715), 
-    (['ts-basic-service'], 1650123918328, 1650124174477), 
-    (['ts-travel-service'], 1650124414927, 1650124512745), 
-    (['ts-user-service'], 1650124913317, 1650124979527), 
-    (['ts-ticketinfo-service'], 1650125410142, 1650125468870), 
-    (['ts-travel-service'], 1650125909496, 1650125962648), 
-    (['ts-order-service'], 1650126403277, 1650126476160), 
-    (['ts-station-service'], 1650126896736, 1650126928726), 
-    (['ts-user-service'], 1650127389357, 1650127445357), 
-    (['ts-order-service'], 1650127885960, 1650127937873), 
-    (['ts-travel-plan-service'], 1650128378504, 1650128458527), 
-    (['ts-order-service'], 1650128869114, 1650128924960), 
-    (['ts-basic-service'], 1650129365571, 1650129418909), 
-    (['ts-basic-service'], 1650129859518, 1650129973511), 
-    (['ts-route-service'], 1650130354074, 1650130510388), 
-    (['ts-station-service'], 1650130850916, 1650130943772), 
-    (['ts-ticketinfo-service'], 1650131344334, 1650131375970), 
-    (['ts-station-service'], 1650131836580, 1650131917762), 
-    (['ts-route-service'], 1650132328369, 1650132414588), 
-    (['ts-travel-plan-service'], 1650132825168, 1650132870912), 
-    (['ts-user-service'], 1650133321535, 1650133372570), 
-    (['ts-ticketinfo-service'], 1650133813202, 1650133873973), 
-    (['ts-travel-plan-service'], 1650134304574, 1650134335995), 
-    (['ts-order-service'], 1650134796598, 1650134877487), 
+    (['ts-route-service'], 1650110947285, 1650111022655),
+    (['ts-travel-service'], 1650111443255, 1650111516641),
+    (['ts-travel-service'], 1650111937224, 1650112009193),
+    (['ts-travel-service'], 1650112429798, 1650112660081),
+    (['ts-station-service'], 1650112920542, 1650112983912),
+    (['ts-basic-service'], 1650113414514, 1650113717655),
+    (['ts-ticketinfo-service'], 1650113908061, 1650113989462),
+    (['ts-user-service'], 1650114400046, 1650114461963),
+    (['ts-order-service'], 1650114892565, 1650114987733),
+    (['ts-order-service'], 1650115388402, 1650115442406),
+    (['ts-order-service'], 1650115883030, 1650115923986),
+    (['ts-basic-service'], 1650116374616, 1650116429343),
+    (['ts-route-service'], 1650116869960, 1650117080792),
+    (['ts-user-service'], 1650117361254, 1650117408133),
+    (['ts-station-service'], 1650117858740, 1650117903699),
+    (['ts-ticketinfo-service'], 1650118354344, 1650118404123),
+    (['ts-travel-plan-service'], 1650118854750, 1650118952633),
+    (['ts-travel-plan-service'], 1650119353203, 1650119420244),
+    (['ts-user-service'], 1650119850850, 1650119902530),
+    (['ts-basic-service'], 1650120343133, 1650120413145),
+    (['ts-ticketinfo-service'], 1650120833760, 1650121136454),
+    (['ts-station-service'], 1650121326847, 1650121390708),
+    (['ts-travel-plan-service'], 1650121821330, 1650121886301),
+    (['ts-route-service'], 1650122316895, 1650122380688),
+    (['ts-travel-service'], 1650122811324, 1650123158723),
+    (['ts-route-service'], 1650123426438, 1650123487715),
+    (['ts-basic-service'], 1650123918328, 1650124174477),
+    (['ts-travel-service'], 1650124414927, 1650124512745),
+    (['ts-user-service'], 1650124913317, 1650124979527),
+    (['ts-ticketinfo-service'], 1650125410142, 1650125468870),
+    (['ts-travel-service'], 1650125909496, 1650125962648),
+    (['ts-order-service'], 1650126403277, 1650126476160),
+    (['ts-station-service'], 1650126896736, 1650126928726),
+    (['ts-user-service'], 1650127389357, 1650127445357),
+    (['ts-order-service'], 1650127885960, 1650127937873),
+    (['ts-travel-plan-service'], 1650128378504, 1650128458527),
+    (['ts-order-service'], 1650128869114, 1650128924960),
+    (['ts-basic-service'], 1650129365571, 1650129418909),
+    (['ts-basic-service'], 1650129859518, 1650129973511),
+    (['ts-route-service'], 1650130354074, 1650130510388),
+    (['ts-station-service'], 1650130850916, 1650130943772),
+    (['ts-ticketinfo-service'], 1650131344334, 1650131375970),
+    (['ts-station-service'], 1650131836580, 1650131917762),
+    (['ts-route-service'], 1650132328369, 1650132414588),
+    (['ts-travel-plan-service'], 1650132825168, 1650132870912),
+    (['ts-user-service'], 1650133321535, 1650133372570),
+    (['ts-ticketinfo-service'], 1650133813202, 1650133873973),
+    (['ts-travel-plan-service'], 1650134304574, 1650134335995),
+    (['ts-order-service'], 1650134796598, 1650134877487),
     (['ts-travel-service'], 1650135288084, 1650135344221)
-] 
+]
 
 # 2022-4-22 22:00:00 8h change
 # request_period_log = [(['ts-ticketinfo-service'], 1650641167424, 1650641474258), (['ts-order-service'], 1650641574378, 1650641888464), (['ts-route-service'], 1650641988585, 1650642301332), (['ts-auth-service'], 1650642401453, 1650642734489), (['ts-auth-service'], 1650643240663, 1650643564678), (['ts-ticketinfo-service'], 1650644475959, 1650644780866), (['ts-order-service'], 1650644880993, 1650645186599), (['ts-route-service'], 1650645688256, 1650646003680), (['ts-user-service'], 1650646103797, 1650646403929), (['ts-order-service'], 1650646504048, 1650646810985), (['ts-route-service'], 1650646911106, 1650647229957), (['ts-order-service'], 1650647732560, 1650648038136), (['ts-route-service'], 1650648138255, 1650648476697), (['ts-order-service'], 1650649385278, 1650649690202), (['ts-route-service'], 1650649790322, 1650650108198), (['ts-user-service'], 1650650208317, 1650650510867), (['ts-order-service'], 1650650610988, 1650650915668), (['ts-route-service'], 1650651886870, 1650652192271), (['ts-ticketinfo-service'], 1650653494728, 1650653797611), (['ts-order-service'], 1650654300889, 1650654605778), (['ts-route-service'], 1650654705891, 1650655022755), (['ts-user-service'], 1650655122865, 1650655424565), (['ts-travel-service'], 1650655524681, 1650655828606), (['ts-ticketinfo-service'], 1650655928755, 1650656236254), (['ts-order-service'], 1650656336374, 1650656641766), (['ts-ticketinfo-service'], 1650656741888, 1650657044303), (['ts-order-service'], 1650657144418, 1650657448876), (['ts-order-service'], 1650657548999, 1650657854457), (['ts-order-service'], 1650658788037, 1650659091412), (['ts-route-service'], 1650659997502, 1650660373783), (['ts-order-service'], 1650660473901, 1650660775220)]
 
 # 2022-4-23 12:00:00 6h abnormal 2
-request_period_log = [(['ts-station-service', 'ts-travel-plan-service'], 1650687753658, 1650687906720), (['ts-travel-plan-service', 'ts-ticketinfo-service'], 1650688098301, 1650688294639), (['ts-travel-plan-service', 'ts-user-service'], 1650688485627, 1650688636800), (['ts-route-service', 'ts-user-service'], 1650688827899, 1650689004097), (['ts-order-service', 'ts-route-service'], 1650689195450, 1650689350931), (['ts-travel-service', 'ts-ticketinfo-service'], 1650689542372, 1650689697537), (['ts-travel-plan-service', 'ts-station-service'], 1650689888348, 1650690048924), (['ts-station-service', 'ts-route-service'], 1650690240436, 1650690420255), (['ts-user-service', 'ts-order-service'], 1650690611039, 1650690764608), (['ts-order-service', 'ts-basic-service'], 1650690956141, 1650691111807), (['ts-ticketinfo-service', 'ts-travel-plan-service'], 1650691302613, 1650691457276), (['ts-ticketinfo-service', 'ts-travel-service'], 1650691648309, 1650691850668), (['ts-travel-service', 'ts-basic-service'], 1650692041614, 1650692238153), (['ts-route-service', 'ts-order-service'], 1650692433937, 1650692587499), (['ts-route-service', 'ts-ticketinfo-service'], 1650692778373, 1650692934645), (['ts-basic-service', 'ts-route-service'], 1650693126039, 1650693322181), (['ts-ticketinfo-service', 'ts-travel-service'], 1650693522806, 1650693674863), (['ts-basic-service', 'ts-basic-service'], 1650693865686, 1650694023461), (['ts-travel-service', 'ts-order-service'], 1650694214495, 1650694369171), (['ts-user-service', 'ts-station-service'], 1650694560022, 1650694713690), (['ts-basic-service', 'ts-travel-service'], 1650694904478, 1650695067265), (['ts-station-service', 'ts-user-service'], 1650695258103, 1650695464759), (['ts-user-service', 'ts-station-service'], 1650695655639, 1650695852283), (['ts-order-service', 'ts-travel-plan-service'], 1650696047570, 1650696204446), (['ts-ticketinfo-service', 'ts-travel-service'], 1650696395268, 1650696558352), (['ts-user-service', 'ts-ticketinfo-service'], 1650696749718, 1650696909802), (['ts-station-service', 'ts-ticketinfo-service'], 1650697100588, 1650697252058), (['ts-ticketinfo-service', 'ts-travel-service'], 1650697443431, 1650697626945), (['ts-route-service', 'ts-order-service'], 1650697817740, 1650697969703), (['ts-route-service', 'ts-user-service'], 1650698160867, 1650698314035), (['ts-order-service', 'ts-station-service'], 1650698504819, 1650698680533), (['ts-ticketinfo-service', 'ts-basic-service'], 1650698871373, 1650699028853), (['ts-order-service', 'ts-route-service'], 1650699220213, 1650699380095), (['ts-basic-service', 'ts-ticketinfo-service'], 1650699571583, 1650699768035), (['ts-travel-service', 'ts-order-service'], 1650699968412, 1650700123183), (['ts-user-service', 'ts-travel-service'], 1650700314015, 1650700475596), (['ts-travel-plan-service', 'ts-travel-plan-service'], 1650700666678, 1650700818242), (['ts-travel-service', 'ts-basic-service'], 1650701009401, 1650701200846), (['ts-user-service', 'ts-user-service'], 1650701396724, 1650701548085), (['ts-travel-plan-service', 'ts-travel-plan-service'], 1650701739330, 1650701900711), (['ts-travel-service', 'ts-user-service'], 1650702091998, 1650702255883), (['ts-station-service', 'ts-station-service'], 1650702446705, 1650702603180), (['ts-basic-service', 'ts-station-service'], 1650702794222, 1650702956107), (['ts-station-service', 'ts-route-service'], 1650703146911, 1650703393556), (['ts-order-service', 'ts-route-service'], 1650703585349, 1650703741021), (['ts-travel-plan-service', 'ts-basic-service'], 1650703931818, 1650704090091), (['ts-basic-service', 'ts-order-service'], 1650704280910, 1650704460524), (['ts-route-service', 'ts-travel-plan-service'], 1650704651450, 1650704814137), (['ts-station-service', 'ts-user-service'], 1650705004917, 1650705210978), (['ts-travel-plan-service', 'ts-travel-plan-service'], 1650705406711, 1650705557870)]
+# request_period_log = [(['ts-station-service', 'ts-travel-plan-service'], 1650687753658, 1650687906720), (['ts-travel-plan-service', 'ts-ticketinfo-service'], 1650688098301, 1650688294639), (['ts-travel-plan-service', 'ts-user-service'], 1650688485627, 1650688636800), (['ts-route-service', 'ts-user-service'], 1650688827899, 1650689004097), (['ts-order-service', 'ts-route-service'], 1650689195450, 1650689350931), (['ts-travel-service', 'ts-ticketinfo-service'], 1650689542372, 1650689697537), (['ts-travel-plan-service', 'ts-station-service'], 1650689888348, 1650690048924), (['ts-station-service', 'ts-route-service'], 1650690240436, 1650690420255), (['ts-user-service', 'ts-order-service'], 1650690611039, 1650690764608), (['ts-order-service', 'ts-basic-service'], 1650690956141, 1650691111807), (['ts-ticketinfo-service', 'ts-travel-plan-service'], 1650691302613, 1650691457276), (['ts-ticketinfo-service', 'ts-travel-service'], 1650691648309, 1650691850668), (['ts-travel-service', 'ts-basic-service'], 1650692041614, 1650692238153), (['ts-route-service', 'ts-order-service'], 1650692433937, 1650692587499), (['ts-route-service', 'ts-ticketinfo-service'], 1650692778373, 1650692934645), (['ts-basic-service', 'ts-route-service'], 1650693126039, 1650693322181), (['ts-ticketinfo-service', 'ts-travel-service'], 1650693522806, 1650693674863), (['ts-basic-service', 'ts-basic-service'], 1650693865686, 1650694023461), (['ts-travel-service', 'ts-order-service'], 1650694214495, 1650694369171), (['ts-user-service', 'ts-station-service'], 1650694560022, 1650694713690), (['ts-basic-service', 'ts-travel-service'], 1650694904478, 1650695067265), (['ts-station-service', 'ts-user-service'], 1650695258103, 1650695464759), (['ts-user-service', 'ts-station-service'], 1650695655639, 1650695852283), (['ts-order-service', 'ts-travel-plan-service'], 1650696047570, 1650696204446), (['ts-ticketinfo-service', 'ts-travel-service'], 1650696395268, 1650696558352), (['ts-user-service', 'ts-ticketinfo-service'], 1650696749718, 1650696909802), (['ts-station-service', 'ts-ticketinfo-service'], 1650697100588, 1650697252058), (['ts-ticketinfo-service', 'ts-travel-service'], 1650697443431, 1650697626945), (['ts-route-service', 'ts-order-service'], 1650697817740, 1650697969703), (['ts-route-service', 'ts-user-service'], 1650698160867, 1650698314035), (['ts-order-service', 'ts-station-service'], 1650698504819, 1650698680533), (['ts-ticketinfo-service', 'ts-basic-service'], 1650698871373, 1650699028853), (['ts-order-service', 'ts-route-service'], 1650699220213, 1650699380095), (['ts-basic-service', 'ts-ticketinfo-service'], 1650699571583, 1650699768035), (['ts-travel-service', 'ts-order-service'], 1650699968412, 1650700123183), (['ts-user-service', 'ts-travel-service'], 1650700314015, 1650700475596), (['ts-travel-plan-service', 'ts-travel-plan-service'], 1650700666678, 1650700818242), (['ts-travel-service', 'ts-basic-service'], 1650701009401, 1650701200846), (['ts-user-service', 'ts-user-service'], 1650701396724, 1650701548085), (['ts-travel-plan-service', 'ts-travel-plan-service'], 1650701739330, 1650701900711), (['ts-travel-service', 'ts-user-service'], 1650702091998, 1650702255883), (['ts-station-service', 'ts-station-service'], 1650702446705, 1650702603180), (['ts-basic-service', 'ts-station-service'], 1650702794222, 1650702956107), (['ts-station-service', 'ts-route-service'], 1650703146911, 1650703393556), (['ts-order-service', 'ts-route-service'], 1650703585349, 1650703741021), (['ts-travel-plan-service', 'ts-basic-service'], 1650703931818, 1650704090091), (['ts-basic-service', 'ts-order-service'], 1650704280910, 1650704460524), (['ts-route-service', 'ts-travel-plan-service'], 1650704651450, 1650704814137), (['ts-station-service', 'ts-user-service'], 1650705004917, 1650705210978), (['ts-travel-plan-service', 'ts-travel-plan-service'], 1650705406711, 1650705557870)]
+
+# 2022-4-23 18:00:00 7h change
+request_period_log = [(['ts-ticketinfo-service'], 1650710012508, 1650710320120), (['ts-order-service'], 1650710420241, 1650710735201), (['ts-route-service'], 1650710835321, 1650711206687), (['ts-auth-service'], 1650711306808, 1650711620677), (['ts-auth-service'], 1650712127674, 1650712456940), (['ts-ticketinfo-service'], 1650713389813, 1650713692157), (['ts-order-service'], 1650713792274, 1650714097754), (['ts-route-service'], 1650714607999, 1650714990288), (['ts-user-service'], 1650715090406, 1650715397873), (['ts-order-service'], 1650715497994, 1650715816761), (['ts-route-service'], 1650715916879, 1650716360028), (['ts-order-service'], 1650716868372, 1650717177244), (['ts-route-service'], 1650717277364, 1650717590103), (['ts-order-service'], 1650718500471, 1650718811679), (['ts-route-service'], 1650718911801, 1650719237868), (['ts-user-service'],
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        1650719337991, 1650719639414), (['ts-order-service'], 1650719739536, 1650720040102), (['ts-route-service'], 1650720967641, 1650721277003), (['ts-ticketinfo-service'], 1650722650405, 1650722952906), (['ts-order-service'], 1650723462480, 1650723766534), (['ts-route-service'], 1650723866655, 1650724192182), (['ts-user-service'], 1650724292305, 1650724600780), (['ts-travel-service'], 1650724700901, 1650725013905), (['ts-ticketinfo-service'], 1650725114058, 1650725430028), (['ts-order-service'], 1650725530149, 1650725832053), (['ts-ticketinfo-service'], 1650725932173, 1650726237737), (['ts-order-service'], 1650726337858, 1650726641012), (['ts-order-service'], 1650726741132, 1650727041944), (['ts-order-service'], 1650727982183, 1650728310454), (['ts-route-service'], 1650729230489, 1650729602725), (['ts-order-service'], 1650729702848, 1650730010464)]

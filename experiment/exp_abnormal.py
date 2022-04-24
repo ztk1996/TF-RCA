@@ -176,8 +176,11 @@ def select_fault(idx: int, module: int = 1) -> list:
         'basic-network-delay', 'order-network-delay', 'route-network-delay', 'station-network-delay',
         'ticketinfo-network-delay', 'travel-network-delay', 'travel-plan-network-delay', 'user-network-delay',
         # 8-15
-        'basic-cpu-stress', 'order-cpu-stress', 'route-cpu-stress', 'station-cpu-stress', 'ticketinfo-cpu-stress',
-        'travel-cpu-stress', 'travel-plan-cpu-stress', 'user-cpu-stress', 'basic-http-outbound',
+        'basic-network-delay', 'order-network-delay', 'route-network-delay', 'station-network-delay',
+        'ticketinfo-network-delay', 'travel-network-delay', 'travel-plan-network-delay', 'user-network-delay',
+        # 'basic-cpu-stress', 'order-cpu-stress', 'route-cpu-stress', 'station-cpu-stress', 'ticketinfo-cpu-stress',
+        # 'travel-cpu-stress', 'travel-plan-cpu-stress', 'user-cpu-stress',
+        'basic-http-outbound',
         # 16-23
         'order-http-outbound', 'route-http-outbound', 'station-http-outbound', 'ticketinfo-http-outbound',
         'travel-http-outbound', 'travel-plan-http-outbound', 'user-http-outbound']
