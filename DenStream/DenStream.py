@@ -2,6 +2,7 @@ from doctest import testfile
 import random
 from statistics import mean
 import sys
+import time
 import numpy as np
 from sklearn import cluster
 from sklearn.utils import check_array
@@ -14,11 +15,15 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import hsv_to_rgb
 from sklearn.manifold import TSNE
 from .dist_method import *
+sys.path.append('..')
+from db_utils import *
 
-
+def ms2str(ms: int) -> str:
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ms/1000))
+    
 class DenStream:
 
-    def __init__(self, lambd=1, eps=1, beta=2, mu=2, k_std = 3):
+    def __init__(self, lambd=1, eps=1, beta=2, mu=2, use_manual=False, k_std=3):
         """
         DenStream - Density-Based Clustering over an Evolving Data Stream with
         Noise.
@@ -57,6 +62,7 @@ class DenStream:
         self.eps = eps
         self.beta = beta
         self.mu = mu
+        self.use_manual = use_manual
         self.k_std = k_std
         # improvement
         self.decay = 0.001
@@ -187,10 +193,14 @@ class DenStream:
     #         for cluster in self.p_micro_clusters:                
     #             if (cluster != micro_cluster):
     #                 cluster.noNewSamples()
+    #                 # if self.use_manual == True:
+    #                 #     db_update_weight(cluster_id=id(cluster), cluster_weight=cluster.weight()[0])
 
     #     for cluster in self.o_micro_clusters:
     #         if (cluster != micro_cluster):
     #             cluster.noNewSamples()
+    #             # if self.use_manual == True:
+    #             #     db_update_weight(cluster_id=id(cluster), cluster_weight=cluster.weight()[0])
 
     
     def get_sampleRates(self, STV_map, cluster_type):
@@ -226,26 +236,47 @@ class DenStream:
 
         return sampleRates
     
-    def update_cluster_labels(self, manual_labels_list):
-        """
-        Update cluster labels if manual_labels_list is different. New normal traces will appear.
+    # def update_cluster_labels(self, manual_labels_list):
+    #     """
+    #     Update cluster labels if manual_labels_list is different. New normal traces will appear.
 
-        Parameters
-        ----------
-        manual_labels_list : [trace_id1, trace_id2]    
+    #     Parameters
+    #     ----------
+    #     manual_labels_list : [trace_id1, trace_id2]    
 
-        Returns
-        ----------
-        manual_labels_list : delete labels which not used in any clusters    
-        """
-        new_manual_labels_list = list()
-        for manual_label in manual_labels_list:
-            for micro_cluster in self.p_micro_clusters + self.o_micro_clusters:
-                if manual_label in micro_cluster.members.keys():
-                    micro_cluster.label = 'normal'
-                    new_manual_labels_list.append(manual_label)
-                    break
-        return new_manual_labels_list
+    #     Returns
+    #     ----------
+    #     manual_labels_list : delete labels which not used in any clusters    
+    #     """
+    #     new_manual_labels_list = list()
+    #     for manual_label in manual_labels_list:
+    #         for micro_cluster in self.p_micro_clusters + self.o_micro_clusters:
+    #             if manual_label in micro_cluster.members.keys():
+    #                 micro_cluster.label = 'normal'
+    #                 new_manual_labels_list.append(manual_label)
+    #                 break
+    #     return new_manual_labels_list
+    
+    def update_cluster_and_trace_tables(self):
+        cluster_items = str()
+        trace_items = str()
+        # get ground truth cluster labels from db
+        labels_dict = db_find_cluster_labels()    # dict {cluster_id1: cluster_label1, cluster_id2: cluster_label2}
+        for micro_cluster in self.p_micro_clusters + self.o_micro_clusters:
+            if id(micro_cluster) in labels_dict.keys():
+                micro_cluster.label = labels_dict[str(id(micro_cluster))]
+            cluster_items += "({0}, '{1}', '{2}', {3}), ".format(id(micro_cluster), ms2str(micro_cluster.creation_time), micro_cluster.label, micro_cluster.weight()[0])
+            for trace_id in micro_cluster.members.keys():
+                trace_items += "({0}, '{1}', 0), ".format(id(micro_cluster), trace_id)
+        # clear cluster table
+        db_delete_cluster()
+        # insert to cluster table
+        db_insert_clusters(cluster_items=cluster_items[:-2])
+        # clear trace table
+        db_delete_trace()
+        # insert to trace table
+        db_insert_traces(trace_items=trace_items[:-2]) 
+          
         
     def get_labels_confidenceScores_sampleRates(self, STV_map, cluster_type):
         """
@@ -531,6 +562,9 @@ class DenStream:
             if micro_cluster_copy.radius() <= self.eps:
             # if micro_cluster_copy.radius() <= self.eps or (len(sample_info['service_seq'])>=50 and (sample_info['service_seq'] in [item[1]['service_seq'] for item in micro_cluster.members.values()]) and micro_cluster_copy.radius()/len(sample_info['service_seq'])<=11):    # self.eps 越大则簇的个数越少，更多的样本将被归为一簇 improvement 这里可以加上密度阈值判断，判断 count，参考 CEDAS
                 micro_cluster.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
+                # if self.use_manual == True:
+                #     db_insert_trace(cluster_id=id(micro_cluster), trace_id=sample_info['trace_id'])
+                #     db_update_weight(cluster_id=id(micro_cluster), cluster_weight=micro_cluster.weight()[0])
                 # improvement 
                 micro_cluster.energy = 1
                 micro_cluster.count += 1
@@ -560,7 +594,7 @@ class DenStream:
                 if nearest_o_micro_cluster.weight() > self.beta * self.mu:
                     del self.o_micro_clusters[index]
                     self.p_micro_clusters.append(nearest_o_micro_cluster)
-                if sample_info['trace_id'] in manual_labels_list:
+                if sample_info['trace_id'] in manual_labels_list:    # 这是为 recluster 准备的
                     nearest_o_micro_cluster.label = 'normal'
                 return nearest_o_micro_cluster.label, 'auto'
             else:
@@ -573,6 +607,9 @@ class DenStream:
                 # Create new o_micro_cluster
                 micro_cluster = MicroCluster(self.lambd, sample_info['time_stamp'], cluster_label)    # improvement
                 micro_cluster.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
+                # if self.use_manual == True:
+                #     db_insert_cluster(cluster_id=id(micro_cluster), create_time=ms2str(sample_info['time_stamp']), cluster_label=cluster_label, cluster_weight=micro_cluster.weight()[0])
+                #     db_insert_trace(cluster_id=id(micro_cluster), trace_id=sample_info['trace_id'])
                 # Add new member
                 micro_cluster.members[sample_info['trace_id']] = [sample, sample_info]
                 
@@ -619,19 +656,29 @@ class DenStream:
 
         # 每隔一段时间更新所有簇的状态，有的消失，有的保留
         if sample_info["time_stamp"] % self.tp == 0:    # self.tp 越大则销毁簇越慢，保留的簇个数越多；self.tp 越小则销毁簇越快，保留簇个数越少
+            # old_p_micro_clusters = self.p_micro_clusters
             self.p_micro_clusters = [p_micro_cluster for p_micro_cluster
                                      in self.p_micro_clusters if
                                      p_micro_cluster.weight() >= self.beta *
                                      self.mu]
                                      #self.mu and p_micro_cluster.energy > 0]    # improvement 这里加上对 energy 的判断
+            # delete_p_micro_clusters = list(set(old_p_micro_clusters)^set(self.p_micro_clusters))
+            # if len(delete_p_micro_clusters)!=0 and self.use_manual==True:
+            #     for micro_cluster in delete_p_micro_clusters:
+            #         db_delete_clusterid(id(micro_cluster))
             if stage == 'reCluster':
                 Xis = [self.beta * self.mu for o_micro_cluster in self.o_micro_clusters]
             else:
                 Xis = [((self._decay_function(sample_info["time_stamp"] - o_micro_cluster.creation_time + self.tp) - 1) /
                         (self._decay_function(self.tp) - 1)) for o_micro_cluster in self.o_micro_clusters]
+            # old_o_micro_clusters = self.o_micro_clusters
             self.o_micro_clusters = [o_micro_cluster for Xi, o_micro_cluster in
                                      zip(Xis, self.o_micro_clusters) if
                                      o_micro_cluster.weight() >= Xi and o_micro_cluster.energy > 0]    # improvement
+            # delete_o_micro_clusters = list(set(old_o_micro_clusters)^set(self.o_micro_clusters))
+            # if len(delete_o_micro_clusters)!=0 and self.use_manual==True:
+            #     for micro_cluster in delete_o_micro_clusters:
+            #         db_delete_clusterid(id(micro_cluster))
         # self.t += 1
         return sample_label, label_status
 
