@@ -418,22 +418,22 @@ def calculate_edge_features(current_span: Span, trace_duration: dict, spanChildr
     return features
 
 def check_abnormal_span(span: Span) -> bool:
-    changes = []
+    chaos = []
     for set in request_period_log:
         r_start = int(set[1])
         r_end = int(set[2])
         if r_start < span.startTime and span.startTime < r_end:
-            changes.extend(set[0])
+            chaos.extend(set[0])
             break
 
-    if len(changes) == 0:
+    if len(chaos) == 0:
         return False
 
     if span.duration < 5000 and not span.isError:
         return False
 
-    for change in changes:
-        if change == span.service:
+    for c in chaos:
+        if c == span.service or c == span.peer:
             return True
 
     return False
@@ -738,19 +738,14 @@ def divide_word(s: str, sep: str = "/") -> str:
 
 
 def trace_process(trace: List[Span], enable_word_division: bool) -> List[Span]:
-    operationMap = {}
+    peerMap = {}
     for span in trace:
-        if enable_word_division:
-            span.service = divide_word(span.service)
-            span.operation = divide_word(span.operation)
-        if span.spanType == "Entry":
-            operationMap[span.parentSpanId] = span.operation
+        if span.spanType == "Exit":
+            peerMap[span.parentSpanId] = span.peer
 
     for span in trace:
-        # 替换Exit span的URL
-        if span.spanType == "Exit" and span.spanId in operationMap.keys():
-            span.operation = operationMap[span.spanId]
-
+        if span.spanType == "Entry" and span.spanId in peerMap.keys():
+            span.peer = peerMap[span.spanId]
     return trace
 
 
