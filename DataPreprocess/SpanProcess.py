@@ -417,7 +417,7 @@ def calculate_edge_features(current_span: Span, trace_duration: dict, spanChildr
 
     return features
 
-def check_abnormal_span(span: Span) -> bool:
+def check_abnormal_span(span: Span) -> str:
     chaos = []
     for set in request_period_log:
         r_start = int(set[1])
@@ -427,16 +427,16 @@ def check_abnormal_span(span: Span) -> bool:
             break
 
     if len(chaos) == 0:
-        return False
+        return ''
 
     if span.duration < 5000 and not span.isError:
-        return False
+        return ''
 
     for c in chaos:
         if c == span.service or c == span.peer:
-            return True
+            return c
 
-    return False
+    return ''
 
 
 def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], operation_map: dict):
@@ -497,9 +497,10 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
             continue
 
         # if check_abnormal_span(span):
-        if check_abnormal_span(span):
+        root_chaos = check_abnormal_span(span)
+        if root_chaos != '':
             is_abnormal = 1
-            chaos_root.append(span.service)
+            chaos_root = [root_chaos]
 
         # get the parent server span id
         if span.parentSpanId == '-1':
