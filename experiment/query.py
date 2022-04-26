@@ -64,6 +64,7 @@ def query_route():
 
         q.query_route: 50,
         q.query_high_speed_ticket: 50,
+        q.query_high_speed_ticket_parallel: 20,
         preserve_scenario: 20,
     }
 
@@ -94,7 +95,9 @@ def query_order():
         q.query_normal_ticket: 10,
         q.query_route: 10,
 
-        q.query_orders: 50,
+        q.query_high_speed_ticket: 20,
+        q.query_high_speed_ticket_parallel: 10,
+        q.query_orders: 20,
         payment_scenario: 30,
         cancel_scenario: 20,
         collect_scenario: 20,
@@ -132,12 +135,12 @@ def query_ticketinfo():
         q.query_normal_ticket: 10,
         q.query_route: 10,
 
-        q.query_high_speed_ticket: 10,
+        q.query_high_speed_ticket: 20,
         q.query_high_speed_ticket_parallel: 10,
-        q.query_min_station: 10,
-        q.query_cheapest: 10,
-        q.query_quickest: 10,
-        preserve_scenario: 50,
+        q.query_min_station: 20,
+        q.query_cheapest: 20,
+        q.query_quickest: 20,
+        preserve_scenario: 20,
     }
 
     def task():
@@ -158,12 +161,12 @@ def query_travel():
         q.query_normal_ticket: 10,
         q.query_route: 10,
 
-        q.query_high_speed_ticket: 10,
+        q.query_high_speed_ticket: 20,
         q.query_high_speed_ticket_parallel: 10,
-        q.query_min_station: 10,
-        q.query_cheapest: 10,
-        q.query_quickest: 10,
-        preserve_scenario: 50,
+        q.query_min_station: 20,
+        q.query_cheapest: 20,
+        q.query_quickest: 20,
+        preserve_scenario: 20,
     }
 
     def task():
@@ -200,11 +203,16 @@ def query_user():
 def query_basic():
     q = Query(url)
 
+    def preserve_scenario():
+        query_and_preserve(q)
+
     query_weights = {
         q.query_high_speed_ticket: 10,
+        q.query_high_speed_ticket_parallel: 10,
         q.query_min_station: 10,
         q.query_cheapest: 10,
         q.query_quickest: 10,
+        preserve_scenario: 10,
     }
 
     def task():
@@ -237,8 +245,8 @@ def query_station():
         q.query_min_station: 10,
         q.query_cheapest: 10,
         q.query_quickest: 10,
-        q.query_orders: 20,
-        q.query_other_orders: 20,
+        q.query_orders: 10,
+        q.query_other_orders: 10,
     }
 
     def task():
