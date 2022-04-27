@@ -64,7 +64,6 @@ def query_route():
 
         q.query_route: 50,
         q.query_high_speed_ticket: 50,
-        q.query_high_speed_ticket_parallel: 20,
         preserve_scenario: 20,
     }
 
@@ -96,7 +95,6 @@ def query_order():
         q.query_route: 10,
 
         q.query_high_speed_ticket: 20,
-        q.query_high_speed_ticket_parallel: 10,
         q.query_orders: 20,
         payment_scenario: 30,
         cancel_scenario: 20,
@@ -136,7 +134,6 @@ def query_ticketinfo():
         q.query_route: 10,
 
         q.query_high_speed_ticket: 20,
-        q.query_high_speed_ticket_parallel: 10,
         q.query_min_station: 20,
         q.query_cheapest: 20,
         q.query_quickest: 20,
@@ -162,7 +159,6 @@ def query_travel():
         q.query_route: 10,
 
         q.query_high_speed_ticket: 20,
-        q.query_high_speed_ticket_parallel: 10,
         q.query_min_station: 20,
         q.query_cheapest: 20,
         q.query_quickest: 20,
@@ -208,7 +204,6 @@ def query_basic():
 
     query_weights = {
         q.query_high_speed_ticket: 10,
-        q.query_high_speed_ticket_parallel: 10,
         q.query_min_station: 10,
         q.query_cheapest: 10,
         q.query_quickest: 10,
@@ -241,7 +236,6 @@ def query_station():
 
     query_weights = {
         q.query_high_speed_ticket: 10,
-        q.query_high_speed_ticket_parallel: 10,
         q.query_min_station: 10,
         q.query_cheapest: 10,
         q.query_quickest: 10,

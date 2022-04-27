@@ -21,9 +21,10 @@ new_data_list = [
     # 'chaos/2022-04-22_22-00-00_8h_traces.csv',    # changes new
     # 'chaos/2022-04-19_09-00-00_9h_traces.csv',    # 2 abnormal
     # 'chaos/2022-04-23_12-00-00_6h_traces.csv', # 2 abnormal
-    # 'chaos/2022-04-23_18-00-00_7h_traces.csv' # 1 changes
-    # 'chaos/2022-04-24_11-00-00_8h_traces.csv' # 1 abnormal
-    'chaos/2022-04-24_19-00-00_8h_traces.csv'  # 2 abnormal
+    # 'chaos/2022-04-23_18-00-00_7h_traces.csv', # 1 changes
+    # 'chaos/2022-04-24_11-00-00_8h_traces.csv', # 1 abnormal
+    # 'chaos/2022-04-24_19-00-00_8h_traces.csv',  # 2 abnormal
+    'chaos/2022-04-26_21-00-00_8h_traces.csv', # 1 abnormal
 ]
 
 old_data_list = [
