@@ -177,7 +177,7 @@ def select_fault(idx: int, module: int = 1) -> list:
         'ticketinfo-network-delay', 'travel-network-delay', 'travel-plan-network-delay', 'user-network-delay',
         # 8-15
         'basic-network-delay', 'order-network-delay', 'route-network-delay', 'station-network-delay',
-        'ticketinfo-network-delay', 'travel-network-delay', 'travel-plan-network-delay', 'user-network-delay',
+        'ticketinfo-network-delay', 'travel-network-delay', 'route-network-delay', 'user-network-delay',
         # 'basic-cpu-stress', 'order-cpu-stress', 'route-cpu-stress', 'station-cpu-stress', 'ticketinfo-cpu-stress',
         # 'travel-cpu-stress', 'travel-plan-cpu-stress', 'user-cpu-stress',
         'basic-http-outbound',
@@ -195,7 +195,7 @@ def select_fault(idx: int, module: int = 1) -> list:
 
         [12, 13], [23, 4], [3, 12], [20, 5], [10, 9], [2, 23], [
             17, 3], [4, 8], [9, 2], [16, 20], [5, 1], [15, 21],
-        [6, 14], [13, 16], [7, 15], [14, 22], [21, 7], [11, 11], [
+        [6, 14], [13, 16], [7, 15], [14, 22], [21, 7], [12, 11], [
             0, 19], [19, 10], [1, 18], [22, 0], [8, 17], [18, 6],
 
         [19, 7], [14, 6]]
