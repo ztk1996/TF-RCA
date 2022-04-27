@@ -256,6 +256,18 @@ class DenStream:
     #                 new_manual_labels_list.append(manual_label)
     #                 break
     #     return new_manual_labels_list
+
+    def _find_centerest_edgest_members(self, micro_cluster):
+        candidate_list = list()    # candidate list 中包含 7 个元素，3个最近的+4个最远的
+        if micro_cluster.label == 'normal' or micro_cluster.count < 7:
+            return candidate_list
+        distance_dict = dict()
+        for trace_id, member_info in micro_cluster.members.items():
+            member_STV = np.append(member_info[0], [0]*(len(micro_cluster.center())-len(member_info[0])))
+            distance_dict[trace_id] = eculidDisSim(micro_cluster.center(), member_STV)
+        candidate_list = sorted(distance_dict.items(), key=lambda x: x[1])[:3] + sorted(distance_dict.items(), key=lambda x: x[1])[-4:]
+        candidate_list = [item[0] for item in candidate_list]
+        return candidate_list
     
     def update_cluster_and_trace_tables(self):
         cluster_items = str()
@@ -263,11 +275,12 @@ class DenStream:
         # get ground truth cluster labels from db
         labels_dict = db_find_cluster_labels()    # dict {cluster_id1: cluster_label1, cluster_id2: cluster_label2}
         for micro_cluster in self.p_micro_clusters + self.o_micro_clusters:
+            highlight_list = self._find_centerest_edgest_members(micro_cluster)
             if id(micro_cluster) in labels_dict.keys():
                 micro_cluster.label = labels_dict[str(id(micro_cluster))]
             cluster_items += "({0}, '{1}', '{2}', {3}), ".format(id(micro_cluster), ms2str(micro_cluster.creation_time), micro_cluster.label, micro_cluster.weight()[0])
             for trace_id in micro_cluster.members.keys():
-                trace_items += "({0}, '{1}', 0), ".format(id(micro_cluster), trace_id)
+                trace_items += "({0}, '{1}', 1), ".format(id(micro_cluster), trace_id) if trace_id in highlight_list else "({0}, '{1}', 0), ".format(id(micro_cluster), trace_id)
         # clear cluster table
         db_delete_cluster()
         # insert to cluster table

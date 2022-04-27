@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-Two_error = True
+Two_error = False
 K = [1, 3, 5] if Two_error==False else [2, 3, 5]
 all_path = dict()
 use_manual = False
@@ -39,7 +39,8 @@ first_tag = True
 # start_str = '2022-04-22 22:00:00'    # changes new
 # start_str = '2022-04-18 11:00:00'    # 1 abnormal
 # start_str = '2022-04-19 10:42:59'    # 2 abnormal
-start_str = '2022-04-24 19:00:00'    # 2 abnormal new
+# start_str = '2022-04-24 19:00:00'    # 2 abnormal new
+start_str = '2022-04-26 21:00:00'    # 1 abnormal new
 # init stage
 init_start_str = '2022-04-18 00:00:05'    # normal
 window_duration = 6 * 60 * 1000    # ms
@@ -315,7 +316,9 @@ def main():
         # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')    # 2 abnormal
         # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_11-34-58/data.json', 'r')    # change
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-23_13-34-27/data.json', 'r')    # change new
-        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-25_12-40-13/data.json', 'r')    # abnormal2 new
+        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-25_12-40-13/data.json', 'r')    # abnormal2 new
+        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_22-19-20/data.json', 'r')    # abnormal1 new new
+        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_12-58-19/data.json', 'r')    # abnormal1 new
         raw_data_total = json.load(file)
         print("Finish main data load !")
 
@@ -335,6 +338,8 @@ def main():
         timeWindow_count += 1
         abnormal_count = 0
         abnormal_map = {}
+        abnormal_seq_map = {}
+        normal_seq_map = {}
         STV_map_window = {}
         tid_list = []
         if dataLevel == 'span':
@@ -366,8 +371,8 @@ def main():
             a_true.append(data['trace_bool'])
 
             if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
-                # if use_manual == True:
-                #     denstream.update_cluster_and_trace_tables()
+                if use_manual == True:
+                    denstream.update_cluster_and_trace_tables()
                 sample_label, label_status = denstream.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data, data_status='main', manual_labels_list=manual_labels_list)
                 # if label_status == 'manual':
                 label_map_reCluster[data['trace_id']] = sample_label
@@ -400,8 +405,10 @@ def main():
                     a_pred.append(1)
                     abnormal_map[tid] = True
                     abnormal_count += 1
+                    abnormal_seq_map[tid] = data['service_seq']
                 else:
                     abnormal_map[tid] = False
+                    normal_seq_map[tid] = data['service_seq']
                     a_pred.append(0)
 
             # label_status
@@ -645,36 +652,45 @@ def main():
     print('--------------------------------')
     print("Top@{}:".format(K[0]))
     TP = r_pred_count_0
-    hit_rate = r_pred_count_0 / r_true_count
-    r_acc = (TP + TN)/(TP + FP + TN + FN)
-    r_recall = TP/(TP + FN)
-    r_prec = TP/(TP + FP)
-    print('RCA hit rate is %.5f' % hit_rate)
-    print('RCA accuracy score is %.5f' % r_acc)
-    print('RCA recall score is %.5f' % r_recall)
-    print('RCA precision score is %.5f' % r_prec)
+    if TP != 0:
+        hit_rate = r_pred_count_0 / r_true_count
+        r_acc = (TP + TN)/(TP + FP + TN + FN)
+        r_recall = TP/(TP + FN)
+        r_prec = TP/(TP + FP)
+        print('RCA hit rate is %.5f' % hit_rate)
+        print('RCA accuracy score is %.5f' % r_acc)
+        print('RCA recall score is %.5f' % r_recall)
+        print('RCA precision score is %.5f' % r_prec)
+    else:
+        print('RCA hit rate is 0')
     print('* * * * * * * *')
     print("Top@{}:".format(K[1]))
     TP = r_pred_count_1
-    hit_rate = r_pred_count_1 / r_true_count
-    r_acc = (TP + TN)/(TP + FP + TN + FN)
-    r_recall = TP/(TP + FN)
-    r_prec = TP/(TP + FP)
-    print('RCA hit rate is %.5f' % hit_rate)
-    print('RCA accuracy score is %.5f' % r_acc)
-    print('RCA recall score is %.5f' % r_recall)
-    print('RCA precision score is %.5f' % r_prec)
+    if TP != 0:
+        hit_rate = r_pred_count_1 / r_true_count
+        r_acc = (TP + TN)/(TP + FP + TN + FN)
+        r_recall = TP/(TP + FN)
+        r_prec = TP/(TP + FP)
+        print('RCA hit rate is %.5f' % hit_rate)
+        print('RCA accuracy score is %.5f' % r_acc)
+        print('RCA recall score is %.5f' % r_recall)
+        print('RCA precision score is %.5f' % r_prec)
+    else:
+        print('RCA hit rate is 0')
     print('* * * * * * * *')
     print("Top@{}:".format(K[2]))
     TP = r_pred_count_2
-    hit_rate = r_pred_count_2 / r_true_count
-    r_acc = (TP + TN)/(TP + FP + TN + FN)
-    r_recall = TP/(TP + FN)
-    r_prec = TP/(TP + FP)
-    print('RCA hit rate is %.5f' % hit_rate)
-    print('RCA accuracy score is %.5f' % r_acc)
-    print('RCA recall score is %.5f' % r_recall)
-    print('RCA precision score is %.5f' % r_prec)
+    if TP != 0:
+        hit_rate = r_pred_count_2 / r_true_count
+        r_acc = (TP + TN)/(TP + FP + TN + FN)
+        r_recall = TP/(TP + FN)
+        r_prec = TP/(TP + FP)
+        print('RCA hit rate is %.5f' % hit_rate)
+        print('RCA accuracy score is %.5f' % r_acc)
+        print('RCA recall score is %.5f' % r_recall)
+        print('RCA precision score is %.5f' % r_prec)
+    else:
+        print('RCA hit rate is 0')
     print('--------------------------------')
 
     print("Done !")

@@ -18,7 +18,9 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import requests
 import wordninja
 from transformers import AutoTokenizer, AutoModel
-from .params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list, span_chaos_dict, request_period_log
+
+from .params import request_period_log
+from .params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list
 
 data_root = '/data/TraceCluster/raw'
 
@@ -34,6 +36,7 @@ embedding_name = ''
 operation_select_keys = ['childrenSpanNum', 'requestDuration', 'responseDuration',        
                         'requestAndResponseDuration', 'workDuration', 'subspanNum',
                         'duration', 'rawDuration', 'timeScale']
+
 
 def normalize(x: float) -> float: return x
 
@@ -400,7 +403,8 @@ def calculate_edge_features(current_span: Span, trace_duration: dict, spanChildr
                 trace_duration["end"] = grandChild.startTime + \
                     grandChild.duration
 
-    subspan_duration, subspan_num, is_parallel = subspan_info(current_span, children_span)
+    subspan_duration, subspan_num, is_parallel = subspan_info(
+        current_span, children_span)
 
     # udpate features
     features["isParallel"] = is_parallel
@@ -413,48 +417,26 @@ def calculate_edge_features(current_span: Span, trace_duration: dict, spanChildr
 
     return features
 
-def check_changed_span(span: Span) -> bool:
-    changes = []
+def check_abnormal_span(span: Span) -> str:
+    chaos = []
     for set in request_period_log:
         r_start = int(set[1])
         r_end = int(set[2])
         if r_start < span.startTime and span.startTime < r_end:
-            changes.extend(set[0])
+            chaos.extend(set[0])
             break
 
-    if len(changes) == 0:
-        return False
+    if len(chaos) == 0:
+        return ''
 
-    if span.duration < 1000 and not span.isError:
-        return False
+    if span.duration < 5000 and not span.isError:
+        return ''
 
-    for change in changes:
-        if change == span.service:
-            return True
+    for c in chaos:
+        if c == span.service or c == span.peer:
+            return c
 
-    return False
-
-# def check_abnormal_span(span: Span) -> bool:
-#     # start_hour = time.localtime(span.startTime//1000).tm_hour
-#     # chaos_service = span_chaos_dict.get(start_hour)
-
-#     # if start_hour not in span_chaos_dict.keys() or not span.service.startswith(chaos_service):
-#     #     return False
-
-#     chaos_service = ''
-#     for root_cause_item in request_period_log:
-#         if span.startTime>=root_cause_item[1] and span.startTime<=root_cause_item[2]:
-#                 chaos_service = root_cause_item[0][0]
-#                 break
-
-#     if chaos_service == '' or not span.service.startswith(chaos_service):
-#         return False
-
-#     # 故障请求延时为5s，所以小于5000ms的不是根因
-#     if span.duration < 5000 and not span.isError:
-#         return False
-
-#     return True
+    return ''
 
 
 def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], operation_map: dict):
@@ -501,7 +483,6 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
                 spanChildrenMap[local_span_parent.spanId].append(child)
 
     is_abnormal = 0
-    # chaos_root = ''
     chaos_root = []
     # process other span
     for span in trace:
@@ -516,21 +497,14 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
             continue
 
         # if check_abnormal_span(span):
-        if check_changed_span(span):
+        root_chaos = check_abnormal_span(span)
+        if root_chaos != '':
             is_abnormal = 1
-            # chaos_root = span_chaos_dict.get(time.localtime(span.startTime).tm_hour)
-            # for root_cause_item in request_period_log:
-            #     if span.startTime>=root_cause_item[1] and span.startTime<=root_cause_item[2]:
-            #             chaos_root = root_cause_item[0][0]
-            #             break
-            chaos_root.append(span.service)
+            chaos_root = [root_chaos]
 
         # get the parent server span id
         if span.parentSpanId == '-1':
             rootSpan = span
-            trace_duration["start"] = span.startTime
-            trace_duration["end"] = span.startTime + \
-                span.duration + 1 if span.duration <= 0 else 0
             parentSpanId = '-1'
         else:
             if spanMap.get(span.parentSpanId) is None:
@@ -574,6 +548,28 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     if rootSpan == None:
         return None, str_set
 
+    if is_abnormal == 1:
+        has = False
+        for v in vertexs.values():
+            if v[0] == chaos_root[0]:
+                has = True
+                break
+        if not has:
+            for span in trace:
+                if span.spanType == 'Exit' and span.peer == chaos_root[0]:
+                    opname = '/'.join([span.peer, span.operation])
+                    vertexs[spanIdCounter] = [span.peer, opname]
+                    feats = calculate_edge_features(span, trace_duration, spanChildrenMap)
+                    feats['vertexId'] = spanIdCounter
+                    feats['duration'] = time_normolize(span.duration)
+                    pvid = spanIdMap[span.parentSpanId]
+                    if pvid not in edges.keys():
+                        edges[str(pvid)] = [feats]
+                    else:
+                        edges[str(pvid)].append(feats)
+                    break
+
+
     graph = {
         'abnormal': is_abnormal,
         'rc': chaos_root,
@@ -606,7 +602,6 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     root_cmdid = mm_root_map[traceId]['cmdid']
     root_span_id = root_nodeid + root_ossid + root_cmdid
     root_code = mm_root_map[traceId]['code']
-    # root_start_time = int(time.mktime(time.strptime(mm_root_map[traceId]['start_time'], "%Y-%m-%d %H:%M:%S")))
     root_start_time = int(time.mktime(time.strptime(
         mm_root_map[traceId]['start_time'], "%Y-%m-%d %H:%M:%S")))
     root_service_name = get_service_name(root_ossid)
@@ -766,19 +761,14 @@ def divide_word(s: str, sep: str = "/") -> str:
 
 
 def trace_process(trace: List[Span], enable_word_division: bool) -> List[Span]:
-    operationMap = {}
+    peerMap = {}
     for span in trace:
-        if enable_word_division:
-            span.service = divide_word(span.service)
-            span.operation = divide_word(span.operation)
-        if span.spanType == "Entry":
-            operationMap[span.parentSpanId] = span.operation
+        if span.spanType == "Exit":
+            peerMap[span.parentSpanId] = span.peer
 
     for span in trace:
-        # 替换Exit span的URL
-        if span.spanType == "Exit" and span.spanId in operationMap.keys():
-            span.operation = operationMap[span.spanId]
-
+        if span.spanType == "Entry" and span.spanId in peerMap.keys():
+            span.peer = peerMap[span.spanId]
     return trace
 
 
@@ -936,7 +926,9 @@ def task(ns, idx, divide_word: bool = True):
 
 # use for data cache
 dataset = []
+
 def preprocess_span(start: int, end: int, stage: str) -> dict:
+
     """
     获取毫秒时间戳start~end之间的span, 保存为data.json
     返回一个data dict
@@ -1058,38 +1050,38 @@ def main():
     if len(result_map) > 0:
         save_data(result_map, str(file_idx))
 
-    print('start generate embedding file')
-    name_dict = {}
-    for name in tqdm(name_set):
-        name_dict[name] = embedding(name)
+    # print('start generate embedding file')
+    # name_dict = {}
+    # for name in tqdm(name_set):
+    #     name_dict[name] = embedding(name)
 
-    embd_filepath = utils.generate_save_filepath(
-        'embeddings.json', time_now_str, is_wechat)
-    with open(embd_filepath, 'w', encoding='utf-8') as fd:
-        json.dump(name_dict, fd, ensure_ascii=False)
-    print(f'embedding data saved in {embd_filepath}')
+    # embd_filepath = utils.generate_save_filepath(
+    #     'embeddings.json', time_now_str, is_wechat)
+    # with open(embd_filepath, 'w', encoding='utf-8') as fd:
+    #     json.dump(name_dict, fd, ensure_ascii=False)
+    # print(f'embedding data saved in {embd_filepath}')
 
-    operation_filepath = utils.generate_save_filepath(
-        'operations.json', time_now_str, is_wechat)
-    with open(operation_filepath, 'w', encoding='utf-8') as fo:
-        json.dump(operation_map, fo, ensure_ascii=False)
-    print(f'operations data saved in {operation_filepath}')
+    # operation_filepath = utils.generate_save_filepath(
+    #     'operations.json', time_now_str, is_wechat)
+    # with open(operation_filepath, 'w', encoding='utf-8') as fo:
+    #     json.dump(operation_map, fo, ensure_ascii=False)
+    # print(f'operations data saved in {operation_filepath}')
 
-    print('preprocess finished :)')
+    # print('preprocess finished :)')
 
 
 if __name__ == '__main__':
-    # main()
-    def timestamp(datetime) -> int:
-        timeArray = time.strptime(datetime, "%Y-%m-%d %H:%M:%S")
-        ts = int(time.mktime(timeArray)) * 1000
-        # print(ts)
-        return ts
+    main()
+    # def timestamp(datetime) -> int:
+    #     timeArray = time.strptime(datetime, "%Y-%m-%d %H:%M:%S")
+    #     ts = int(time.mktime(timeArray)) * 1000
+    #     # print(ts)
+    #     return ts
 
-    start = '2022-02-27 01:00:00'
-    end = '2022-02-27 01:30:00'
+    # start = '2022-02-27 01:00:00'
+    # end = '2022-02-27 01:30:00'
 
-    res = preprocess_span(start=timestamp(start), end=timestamp(end))
-    print(res)
+    # res = preprocess_span(start=timestamp(start), end=timestamp(end))
+    # print(res)
 
     print('preprocess finished :)')
