@@ -548,6 +548,28 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     if rootSpan == None:
         return None, str_set
 
+    if is_abnormal == 1:
+        has = False
+        for v in vertexs.values():
+            if v[0] == chaos_root[0]:
+                has = True
+                break
+        if not has:
+            for span in trace:
+                if span.spanType == 'Exit' and span.peer == chaos_root[0]:
+                    opname = '/'.join([span.peer, span.operation])
+                    vertexs[spanIdCounter] = [span.peer, opname]
+                    feats = calculate_edge_features(span, trace_duration, spanChildrenMap)
+                    feats['vertexId'] = spanIdCounter
+                    feats['duration'] = time_normolize(span.duration)
+                    pvid = spanIdMap[span.parentSpanId]
+                    if pvid not in edges.keys():
+                        edges[str(pvid)] = [feats]
+                    else:
+                        edges[str(pvid)].append(feats)
+                    break
+
+
     graph = {
         'abnormal': is_abnormal,
         'rc': chaos_root,
@@ -1028,24 +1050,24 @@ def main():
     if len(result_map) > 0:
         save_data(result_map, str(file_idx))
 
-    print('start generate embedding file')
-    name_dict = {}
-    for name in tqdm(name_set):
-        name_dict[name] = embedding(name)
+    # print('start generate embedding file')
+    # name_dict = {}
+    # for name in tqdm(name_set):
+    #     name_dict[name] = embedding(name)
 
-    embd_filepath = utils.generate_save_filepath(
-        'embeddings.json', time_now_str, is_wechat)
-    with open(embd_filepath, 'w', encoding='utf-8') as fd:
-        json.dump(name_dict, fd, ensure_ascii=False)
-    print(f'embedding data saved in {embd_filepath}')
+    # embd_filepath = utils.generate_save_filepath(
+    #     'embeddings.json', time_now_str, is_wechat)
+    # with open(embd_filepath, 'w', encoding='utf-8') as fd:
+    #     json.dump(name_dict, fd, ensure_ascii=False)
+    # print(f'embedding data saved in {embd_filepath}')
 
-    operation_filepath = utils.generate_save_filepath(
-        'operations.json', time_now_str, is_wechat)
-    with open(operation_filepath, 'w', encoding='utf-8') as fo:
-        json.dump(operation_map, fo, ensure_ascii=False)
-    print(f'operations data saved in {operation_filepath}')
+    # operation_filepath = utils.generate_save_filepath(
+    #     'operations.json', time_now_str, is_wechat)
+    # with open(operation_filepath, 'w', encoding='utf-8') as fo:
+    #     json.dump(operation_map, fo, ensure_ascii=False)
+    # print(f'operations data saved in {operation_filepath}')
 
-    print('preprocess finished :)')
+    # print('preprocess finished :)')
 
 
 if __name__ == '__main__':

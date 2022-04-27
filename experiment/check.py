@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-chaos = [['ts-travel-service'], 1650978635707, 1650978961865]
+chaos = [['ts-route-service'], 1650978142584, 1650978445305]
 filepath = '/data/TraceCluster/raw/trainticket/chaos/2022-04-26_21-00-00_8h_traces.csv'
 
 data_type = {'StartTime': np.uint64, 'EndTime': np.uint64}
