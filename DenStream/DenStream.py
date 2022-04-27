@@ -581,6 +581,18 @@ class DenStream:
                 # improvement 
                 micro_cluster.energy = 1
                 micro_cluster.count += 1
+                # update latest time
+                micro_cluster.latest_time = sample_info['time_stamp']
+                # update max / min svc count
+                if len(sample_info['service_seq'])>micro_cluster.svc_count_max:
+                    micro_cluster.svc_count_max = len(sample_info['service_seq'])
+                if len(sample_info['service_seq'])<micro_cluster.svc_count_min:
+                    micro_cluster.svc_count_min = len(sample_info['service_seq'])
+                # update max / min rt
+                if max(sample_info['time_seq'])>micro_cluster.rt_max:
+                    micro_cluster.rt_max = max(sample_info['time_seq'])
+                if max(sample_info['time_seq'])<micro_cluster.rt_min:
+                    micro_cluster.rt_min = max(sample_info['time_seq'])
                 # Add new member
                 micro_cluster.members[sample_info['trace_id']] = [sample, sample_info]
                 # self.updateAll(micro_cluster)
@@ -625,6 +637,12 @@ class DenStream:
                 #     db_insert_trace(cluster_id=id(micro_cluster), trace_id=sample_info['trace_id'])
                 # Add new member
                 micro_cluster.members[sample_info['trace_id']] = [sample, sample_info]
+                # Update max / min svc count
+                micro_cluster.svc_count_max = len(sample_info['service_seq'])
+                micro_cluster.svc_count_min = len(sample_info['service_seq'])
+                # Update max / min rt
+                micro_cluster.rt_max = max(sample_info['time_seq'])
+                micro_cluster.rt_min = max(sample_info['time_seq'])
                 
                 # temp
                 # for clusterTest in [cluster for cluster in self.p_micro_clusters+self.o_micro_clusters if cluster.label=='normal']:
