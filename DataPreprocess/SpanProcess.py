@@ -247,6 +247,13 @@ def load_sw_span(data_path_list: List[str]) -> List[DataFrame]:
     return raw_spans
 
 
+def load_aiops_span(data_path_list: List[str]) -> List[DataFrame]:
+    raw_spans = []
+
+
+    return raw_spans
+
+
 def load_span(is_wechat: bool, stage: str = 'main') -> List[DataFrame]:
     """
     load raw sapn data from pathList
