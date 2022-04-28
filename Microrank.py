@@ -29,9 +29,11 @@ Two_error = False
 K = [1, 3, 5] if Two_error==False else [2, 3, 5]
 # format stage
 # start_str = '2022-04-18 21:08:00'    # changes    # '2022-01-13 00:00:00' ---> '2022-04-17 02:56:08'   '2022-04-18 21:00:00'
-start_str = '2022-04-22 22:00:00'    # changes new
+# start_str = '2022-04-22 22:00:00'    # changes new
 # start_str = '2022-04-18 11:00:00'    # 1 abnormal
 # start_str = '2022-04-19 10:42:59'    # 2 abnormal
+# start_str = '2022-04-24 19:00:00'    # 2 abnormal new
+start_str = '2022-04-26 21:00:00'    # 1 abnormal new
 window_duration = 6 * 60 * 1000 # ms
 # init stage
 init_start_str = '2022-04-20 00:00:05'    # normal
@@ -179,17 +181,17 @@ def main():
                     # if ((root_cause_item[1]>end and root_cause_item[1]<root_cause_item[2]) or (start<end and root_cause_item[1]>root_cause_item[2]) or (start>end and start<root_cause_item[2])):
                     # if start>=root_cause_item[1] and start<=root_cause_item[2]:
                     if intersect_or_not(start1=start, end1=end, start2=root_cause_item[1], end2=root_cause_item[2]):
-                        chaos_service_list.append(root_cause_item[0][0])
-                        print(f'ground truth root cause is', root_cause_item[0][0])
+                        chaos_service_list.append(root_cause_item[0][0] if len(root_cause_item[0])==1 else root_cause_item[0])
+                        print(f'ground truth root cause is', str(root_cause_item[0]))
                 if len(chaos_service_list) == 0:
                     FP += 1
                     print("Ground truth root cause is empty !")
                     start = end
                     end = start + window_duration
                     continue
-                elif len(chaos_service_list) > 1 and Two_error == True:
-                    new_chaos_service_list = [[chaos_service_list[0], chaos_service_list[1]]]
-                    chaos_service_list = new_chaos_service_list
+                # elif len(chaos_service_list) > 1 and Two_error == True:
+                #     new_chaos_service_list = [[chaos_service_list[0], chaos_service_list[1]]]
+                #     chaos_service_list = new_chaos_service_list
 
                 in_topK_0 = False
                 in_topK_1 = False
@@ -278,36 +280,45 @@ def main():
     print('--------------------------------')
     print("Top@{}:".format(K[0]))
     TP = r_pred_count_0
-    hit_rate = r_pred_count_0 / r_true_count
-    r_acc = (TP + TN)/(TP + FP + TN + FN)
-    r_recall = TP/(TP + FN)
-    r_prec = TP/(TP + FP)
-    print('RCA hit rate is %.5f' % hit_rate)
-    print('RCA accuracy score is %.5f' % r_acc)
-    print('RCA recall score is %.5f' % r_recall)
-    print('RCA precision score is %.5f' % r_prec)
+    if TP != 0:
+        hit_rate = r_pred_count_0 / r_true_count
+        r_acc = (TP + TN)/(TP + FP + TN + FN)
+        r_recall = TP/(TP + FN)
+        r_prec = TP/(TP + FP)
+        print('RCA hit rate is %.5f' % hit_rate)
+        print('RCA accuracy score is %.5f' % r_acc)
+        print('RCA recall score is %.5f' % r_recall)
+        print('RCA precision score is %.5f' % r_prec)
+    else:
+        print('RCA hit rate is 0')
     print('* * * * * * * *')
     print("Top@{}:".format(K[1]))
     TP = r_pred_count_1
-    hit_rate = r_pred_count_1 / r_true_count
-    r_acc = (TP + TN)/(TP + FP + TN + FN)
-    r_recall = TP/(TP + FN)
-    r_prec = TP/(TP + FP)
-    print('RCA hit rate is %.5f' % hit_rate)
-    print('RCA accuracy score is %.5f' % r_acc)
-    print('RCA recall score is %.5f' % r_recall)
-    print('RCA precision score is %.5f' % r_prec)
+    if TP != 0:
+        hit_rate = r_pred_count_1 / r_true_count
+        r_acc = (TP + TN)/(TP + FP + TN + FN)
+        r_recall = TP/(TP + FN)
+        r_prec = TP/(TP + FP)
+        print('RCA hit rate is %.5f' % hit_rate)
+        print('RCA accuracy score is %.5f' % r_acc)
+        print('RCA recall score is %.5f' % r_recall)
+        print('RCA precision score is %.5f' % r_prec)
+    else:
+        print('RCA hit rate is 0')
     print('* * * * * * * *')
     print("Top@{}:".format(K[2]))
     TP = r_pred_count_2
-    hit_rate = r_pred_count_2 / r_true_count
-    r_acc = (TP + TN)/(TP + FP + TN + FN)
-    r_recall = TP/(TP + FN)
-    r_prec = TP/(TP + FP)
-    print('RCA hit rate is %.5f' % hit_rate)
-    print('RCA accuracy score is %.5f' % r_acc)
-    print('RCA recall score is %.5f' % r_recall)
-    print('RCA precision score is %.5f' % r_prec)
+    if TP != 0:
+        hit_rate = r_pred_count_2 / r_true_count
+        r_acc = (TP + TN)/(TP + FP + TN + FN)
+        r_recall = TP/(TP + FN)
+        r_prec = TP/(TP + FP)
+        print('RCA hit rate is %.5f' % hit_rate)
+        print('RCA accuracy score is %.5f' % r_acc)
+        print('RCA recall score is %.5f' % r_recall)
+        print('RCA precision score is %.5f' % r_prec)
+    else:
+        print('RCA hit rate is 0')
     print('--------------------------------')
 
     print("Done !")

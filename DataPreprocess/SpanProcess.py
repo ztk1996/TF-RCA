@@ -19,8 +19,8 @@ import requests
 import wordninja
 from transformers import AutoTokenizer, AutoModel
 
-from params import request_period_log
-from params import data_path_list, init_data_path_list, mm_data_path_list, mm_trace_root_list
+from .params import request_period_log
+from .params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list
 
 data_root = '/data/TraceCluster/raw'
 
@@ -36,6 +36,7 @@ embedding_name = ''
 operation_select_keys = ['childrenSpanNum', 'requestDuration', 'responseDuration',
                          'requestAndResponseDuration', 'workDuration', 'subspanNum',
                          'duration', 'rawDuration', 'timeScale']
+
 
 
 def normalize(x: float) -> float: return x

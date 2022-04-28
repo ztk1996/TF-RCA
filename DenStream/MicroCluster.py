@@ -9,6 +9,11 @@ class MicroCluster:
         self.variance = 0
         self.sum_of_weights = 0
         self.creation_time = creation_time
+        self.latest_time = creation_time
+        self.svc_count_max = 0
+        self.svc_count_min = 0
+        self.rt_max = 0
+        self.rt_min = 0
         
         # improvement
         self.label = micro_cluster_label
@@ -112,6 +117,11 @@ class MicroCluster:
         new_micro_cluster.sum_of_weights = self.sum_of_weights
         new_micro_cluster.variance = self.variance
         new_micro_cluster.mean = self.mean
+        new_micro_cluster.latest_time = self.latest_time
+        new_micro_cluster.svc_count_max = self.svc_count_max
+        new_micro_cluster.svc_count_min = self.svc_count_min
+        new_micro_cluster.rt_max = self.rt_max
+        new_micro_cluster.rt_min = self.rt_min
         # improvement
         new_micro_cluster.energy = self.energy    # float
         new_micro_cluster.count = self.count    # int

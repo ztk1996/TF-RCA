@@ -1,4 +1,5 @@
 from importlib.resources import path
+from multiprocessing import connection
 from re import T
 import torch
 import json
@@ -19,6 +20,7 @@ from CEDAS.CEDAS import CEDAS
 from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo
 from MicroRank.online_rca import rca
 from DataPreprocess.params import span_chaos_dict, trace_chaos_dict, request_period_log
+from db_utils import *
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -27,19 +29,22 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 Two_error = False
 K = [1, 3, 5] if Two_error==False else [2, 3, 5]
 all_path = dict()
+use_manual = False
 manual_labels_list = []
 # manual_labels_list = ['617d5c02352849119c2e5df8b70fa007.36.16503361793140001', 'dda6af5c49d546068432825e17b981aa.38.16503361824380001', '27a94f3afad745c69963997831868eb1.38.16503362398950001', '15480e1347c147a086b68221ca743874.38.16503369859250001', '262b9727d1584947a02905150a089faa.38.16503382599320123', 'ab212da6fff042febb91b313658a0005.46.16503384128150203', '0b225e568e304836a7901e0cff56205a.39.16503393835170053', '262b9727d1584947a02905150a089faa.39.16503397746270231']    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
 first_tag = True
 # start_str = '2022-04-19 10:42:59'    # '2022-04-18 21:08:00' # '2022-04-19 10:42:59'    # trace: '2022-02-25 00:00:00', '2022-04-16 20:08:03', '2022-04-18 11:00:00', '2022-04-18 21:00:00'; span: '2022-01-13 00:00:00'
 # format stage
 # start_str = '2022-04-18 21:08:00'    # changes
-start_str = '2022-04-22 22:00:00'    # changes new
+# start_str = '2022-04-22 22:00:00'    # changes new
 # start_str = '2022-04-18 11:00:00'    # 1 abnormal
 # start_str = '2022-04-19 10:42:59'    # 2 abnormal
+# start_str = '2022-04-24 19:00:00'    # 2 abnormal new
+start_str = '2022-04-26 21:00:00'    # 1 abnormal new
 # init stage
 init_start_str = '2022-04-18 00:00:05'    # normal
 window_duration = 6 * 60 * 1000    # ms
-AD_method = 'DenStream_withoutscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
+AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'none'    # 'none', 'micro', 'macro', 'rate'
 dataLevel = 'trace'    # 'trace', 'span'
 path_decay = 0.001
@@ -77,6 +82,8 @@ def simplify_cluster(cluster_obj, dataset, cluster_status, data_status):    # da
             STVector = data[0]
 
         if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
+            # if use_manual == True and cluster_status == 'init':
+            #     cluster_obj.update_cluster_and_trace_tables()
             sample_label, label_status = cluster_obj.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data if cluster_status=='init' else data[1], data_status=data_status, manual_labels_list=manual_labels_list, stage=cluster_status)
         elif AD_method in ['CEDAS_withoutscore', 'CEDAS_withscore']:
             if first_tag:
@@ -149,6 +156,10 @@ def init_Cluster(cluster_obj, init_start_str):
         delete_index_candidate = [status[1] for status in all_path.values() if status[0]<path_thres]
         if len(delete_index_candidate) / len(all_path) >= reCluster_thres:
             do_reCluster(cluster_obj=cluster_obj, data_status='init')
+    
+    # update cluster table when finish init
+    if use_manual == True:
+        cluster_obj.update_cluster_and_trace_tables()
     print('Init finish !')
 
         
@@ -184,6 +195,8 @@ def do_reCluster(cluster_obj, data_status, label_map_reCluster=dict()):
     if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
         cluster_obj.p_micro_clusters.clear()
         cluster_obj.o_micro_clusters.clear()
+        # if use_manual == True:
+        #     db_delete_all()
     elif AD_method in ['CEDAS_withoutscore', 'CEDAS_withscore']:
         first_tag = True
         cluster_obj.micro_clusters.clear()
@@ -209,8 +222,12 @@ def do_reCluster(cluster_obj, data_status, label_map_reCluster=dict()):
                         abnormal_count += 1
             if normal_count >= abnormal_count:
                 cluster.label = 'normal'
+                # if use_manual == True:
+                #     db_update_label(cluster_id=id(cluster), cluster_label=cluster.label)
             else:
                 cluster.label = 'abnormal'
+                # if use_manual == True:
+                #     db_update_label(cluster_id=id(cluster), cluster_label=cluster.label)
         label_map_reCluster = new_label_map_reCluster
 
     print("reCluster Finish !")
@@ -230,12 +247,29 @@ def main():
     label_map_reCluster = dict()
 
     # ========================================
+    # Create db table
+    # ========================================
+    # cluster_sql = '''
+    #         create table clusters(
+    #             id int AUTO_INCREMENT  primary key not null,
+    #             cluster_id varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci  not null,
+    #             creation_time varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci  not null,
+    #             cluster_label varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci  not null,
+    #             member_count int  not null,
+    #             member_ids varchar(100) CHARACTER SET utf8 COLLATE utf8_general_ci  not null,
+    #             cluster_weight float  not null,
+    #         )
+    # '''
+    # cur.execute(cluster_sql)
+    # db_connect.commit()
+
+    # ========================================
     # Create cluster object
     # Init clusters
     # ========================================
     if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
         # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
-        denstream = DenStream(eps=80, lambd=0.1, beta=0.2, mu=6)    # eps=80    beta=0.2   mu=6
+        denstream = DenStream(eps=80, lambd=0.1, beta=0.2, mu=6, use_manual=use_manual)    # eps=80    beta=0.2   mu=6
         init_Cluster(denstream, init_start_str)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=100, decay=0.001, threshold=5)
@@ -281,7 +315,10 @@ def main():
         # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_10-05-14/data.json', 'r')    # 1 abnormal
         # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')    # 2 abnormal
         # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_11-34-58/data.json', 'r')    # change
-        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-23_13-34-27/data.json', 'r')    # change new
+        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-23_13-34-27/data.json', 'r')    # change new
+        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-25_12-40-13/data.json', 'r')    # abnormal2 new
+        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_22-19-20/data.json', 'r')    # abnormal1 new new
+        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_12-58-19/data.json', 'r')    # abnormal1 new
         raw_data_total = json.load(file)
         print("Finish main data load !")
 
@@ -301,6 +338,8 @@ def main():
         timeWindow_count += 1
         abnormal_count = 0
         abnormal_map = {}
+        abnormal_seq_map = {}
+        normal_seq_map = {}
         STV_map_window = {}
         tid_list = []
         if dataLevel == 'span':
@@ -332,6 +371,8 @@ def main():
             a_true.append(data['trace_bool'])
 
             if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
+                if use_manual == True:
+                    denstream.update_cluster_and_trace_tables()
                 sample_label, label_status = denstream.Cluster_AnomalyDetector(sample=np.array(STVector), sample_info=data, data_status='main', manual_labels_list=manual_labels_list)
                 # if label_status == 'manual':
                 label_map_reCluster[data['trace_id']] = sample_label
@@ -364,8 +405,10 @@ def main():
                     a_pred.append(1)
                     abnormal_map[tid] = True
                     abnormal_count += 1
+                    abnormal_seq_map[tid] = data['service_seq']
                 else:
                     abnormal_map[tid] = False
+                    normal_seq_map[tid] = data['service_seq']
                     a_pred.append(0)
 
             # label_status
@@ -373,7 +416,10 @@ def main():
                 manual_count += 1
 
         if AD_method == 'DenStream_withscore':
-            manual_labels_list = denstream.update_cluster_labels(manual_labels_list)
+            # manual_labels_list = denstream.update_cluster_and_trace_tables(manual_labels_list)
+            # update cluster table when time window finish
+            if use_manual == True:
+                denstream.update_cluster_and_trace_tables()
             labels, confidenceScores, sampleRates = denstream.get_labels_confidenceScores_sampleRates(STV_map=STV_map_window, cluster_type=Sample_method)
             # sample_label
             for tid, sample_label in labels.items():
@@ -387,7 +433,7 @@ def main():
                     a_pred.append(0)
             AD_pattern = [micro_cluster for micro_cluster in denstream.p_micro_clusters+denstream.o_micro_clusters if micro_cluster.AD_selected==True]
         elif AD_method == 'CEDAS_withscore':
-            manual_labels_list = cedas.update_cluster_labels(manual_labels_list)
+            manual_labels_list = cedas.update_cluster_and_trace_tables(manual_labels_list)
             labels, confidenceScores, sampleRates = cedas.get_labels_confidenceScores_sampleRates(STV_map=STV_map_window, cluster_type=Sample_method)
             # sample_label
             for tid, sample_label in labels.items():
@@ -461,17 +507,17 @@ def main():
                     # if ((root_cause_item[1]>end and root_cause_item[1]<root_cause_item[2]) or (start<end and root_cause_item[1]>root_cause_item[2]) or (start>end and start<root_cause_item[2])):
                     # if start>=root_cause_item[1] and start<=root_cause_item[2]:
                     if intersect_or_not(start1=start, end1=end, start2=root_cause_item[1], end2=root_cause_item[2]):
-                        chaos_service_list.append(root_cause_item[0][0])
-                        print(f'ground truth root cause is', root_cause_item[0][0])
+                        chaos_service_list.append(root_cause_item[0][0] if len(root_cause_item[0])==1 else root_cause_item[0])
+                        print(f'ground truth root cause is', str(root_cause_item[0]))
                 if len(chaos_service_list) == 0:
                     FP += 1
                     print("Ground truth root cause is empty !")
                     start = end
                     end = start + window_duration
                     continue
-                elif len(chaos_service_list) > 1 and Two_error == True:
-                    new_chaos_service_list = [[chaos_service_list[0], chaos_service_list[1]]]
-                    chaos_service_list = new_chaos_service_list
+                # elif len(chaos_service_list) > 1 and Two_error == True:
+                #     new_chaos_service_list = [[chaos_service_list[0], chaos_service_list[1]]]
+                #     chaos_service_list = new_chaos_service_list
 
                 in_topK_0 = False
                 in_topK_1 = False
@@ -567,6 +613,9 @@ def main():
                 # if data_status is 'main', all new cluster labels are 'abnormal' and label_status is 'auto'
                 # if data_status is 'init', all new cluster labels are 'normal' and label_status is 'auto'
                 do_reCluster(cluster_obj=denstream, data_status='main', label_map_reCluster=label_map_reCluster)
+                # update cluster table when recluster finish
+                if use_manual == True:
+                    denstream.update_cluster_and_trace_tables()
             else:
                 do_reCluster(cluster_obj=cedas, data_status='main', label_map_reCluster=label_map_reCluster)
         
@@ -603,36 +652,45 @@ def main():
     print('--------------------------------')
     print("Top@{}:".format(K[0]))
     TP = r_pred_count_0
-    hit_rate = r_pred_count_0 / r_true_count
-    r_acc = (TP + TN)/(TP + FP + TN + FN)
-    r_recall = TP/(TP + FN)
-    r_prec = TP/(TP + FP)
-    print('RCA hit rate is %.5f' % hit_rate)
-    print('RCA accuracy score is %.5f' % r_acc)
-    print('RCA recall score is %.5f' % r_recall)
-    print('RCA precision score is %.5f' % r_prec)
+    if TP != 0:
+        hit_rate = r_pred_count_0 / r_true_count
+        r_acc = (TP + TN)/(TP + FP + TN + FN)
+        r_recall = TP/(TP + FN)
+        r_prec = TP/(TP + FP)
+        print('RCA hit rate is %.5f' % hit_rate)
+        print('RCA accuracy score is %.5f' % r_acc)
+        print('RCA recall score is %.5f' % r_recall)
+        print('RCA precision score is %.5f' % r_prec)
+    else:
+        print('RCA hit rate is 0')
     print('* * * * * * * *')
     print("Top@{}:".format(K[1]))
     TP = r_pred_count_1
-    hit_rate = r_pred_count_1 / r_true_count
-    r_acc = (TP + TN)/(TP + FP + TN + FN)
-    r_recall = TP/(TP + FN)
-    r_prec = TP/(TP + FP)
-    print('RCA hit rate is %.5f' % hit_rate)
-    print('RCA accuracy score is %.5f' % r_acc)
-    print('RCA recall score is %.5f' % r_recall)
-    print('RCA precision score is %.5f' % r_prec)
+    if TP != 0:
+        hit_rate = r_pred_count_1 / r_true_count
+        r_acc = (TP + TN)/(TP + FP + TN + FN)
+        r_recall = TP/(TP + FN)
+        r_prec = TP/(TP + FP)
+        print('RCA hit rate is %.5f' % hit_rate)
+        print('RCA accuracy score is %.5f' % r_acc)
+        print('RCA recall score is %.5f' % r_recall)
+        print('RCA precision score is %.5f' % r_prec)
+    else:
+        print('RCA hit rate is 0')
     print('* * * * * * * *')
     print("Top@{}:".format(K[2]))
     TP = r_pred_count_2
-    hit_rate = r_pred_count_2 / r_true_count
-    r_acc = (TP + TN)/(TP + FP + TN + FN)
-    r_recall = TP/(TP + FN)
-    r_prec = TP/(TP + FP)
-    print('RCA hit rate is %.5f' % hit_rate)
-    print('RCA accuracy score is %.5f' % r_acc)
-    print('RCA recall score is %.5f' % r_recall)
-    print('RCA precision score is %.5f' % r_prec)
+    if TP != 0:
+        hit_rate = r_pred_count_2 / r_true_count
+        r_acc = (TP + TN)/(TP + FP + TN + FN)
+        r_recall = TP/(TP + FN)
+        r_prec = TP/(TP + FP)
+        print('RCA hit rate is %.5f' % hit_rate)
+        print('RCA accuracy score is %.5f' % r_acc)
+        print('RCA recall score is %.5f' % r_recall)
+        print('RCA precision score is %.5f' % r_prec)
+    else:
+        print('RCA hit rate is 0')
     print('--------------------------------')
 
     print("Done !")
