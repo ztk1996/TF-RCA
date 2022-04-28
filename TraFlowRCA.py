@@ -40,7 +40,7 @@ first_tag = True
 # start_str = '2022-04-18 11:00:00'    # 1 abnormal
 # start_str = '2022-04-19 10:42:59'    # 2 abnormal
 # start_str = '2022-04-24 19:00:00'    # 2 abnormal new
-start_str = '2022-04-26 21:00:00'    # 1 abnormal new
+start_str = '2022-04-26 21:00:00'    # 1 abnormal new 2022-04-26 21:02:22
 # init stage
 init_start_str = '2022-04-18 00:00:05'    # normal
 window_duration = 6 * 60 * 1000    # ms
@@ -240,7 +240,7 @@ def main():
     # all_path = {path1: [energy1, index1], path2: [energy2, index2]}
     # label_map_reCluster = {trace_id1: label1, trace_id2: label2}
     # ========================================
-    # differences_count, ab_count, ad_count_list = check_match()
+    differences_count, ab_count, ad_count_list, root_cause_check_dict = check_match()
     global all_path
     global first_tag
     global manual_labels_list
