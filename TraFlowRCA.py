@@ -317,8 +317,9 @@ def main():
         # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_11-34-58/data.json', 'r')    # change
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-23_13-34-27/data.json', 'r')    # change new
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-25_12-40-13/data.json', 'r')    # abnormal2 new
-        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_22-19-20/data.json', 'r')    # abnormal1 new new
+        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_22-19-20/data.json', 'r')    # abnormal1 new new
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_12-58-19/data.json', 'r')    # abnormal1 new
+        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-28_21-01-41/data.json', 'r')
         raw_data_total = json.load(file)
         print("Finish main data load !")
 

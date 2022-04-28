@@ -380,7 +380,7 @@ import sys
 
 import numpy as np
 from tqdm import tqdm
-from SpanProcess import preprocess_span
+from .SpanProcess import preprocess_span
 
 same_seq_test_list = list()
 

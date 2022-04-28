@@ -11,7 +11,7 @@ from pandas.core.frame import DataFrame
 import numpy as np
 import argparse
 from tqdm import tqdm
-import utils
+from . import utils
 from typing import List, Callable, Dict, Tuple
 from multiprocessing import cpu_count, Manager, current_process
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -565,6 +565,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         if not has:
             for span in trace:
                 if span.spanType == 'Exit' and span.peer == chaos_root[0]:
+                    span.service = span.peer
                     opname = '/'.join([span.peer, span.operation])
                     vertexs[spanIdCounter] = [span.peer, opname]
                     feats = calculate_edge_features(span, trace_duration, spanChildrenMap)
