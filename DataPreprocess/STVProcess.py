@@ -488,7 +488,7 @@ def check_match():
     # print('getting trace data (api and time seq) ... 1')
     ab_count = 0
     raw_data = dict()
-    root_cause_idx = 6
+    root_cause_idx = 0
     root_cause_check_dict = dict()
     root_cause_check_dict[request_period_log[root_cause_idx][0][0]] = []
     for trace_id, trace in sorted(raw_data_format.items(), key = lambda i: i[1]['edges']['0'][0]['startTime']):
@@ -520,7 +520,11 @@ def check_match():
         time_seq = [span['rawDuration'] for span in spans]
         time_stamp = trace['edges']['0'][0]['startTime']
         if trace['abnormal']==1:
-            root_cause_check_dict[request_period_log[root_cause_idx][0][0]].append({'trace_id': trace_id, 'service_seq': service_seq, 'time_stamp': time_stamp})
+            if request_period_log[root_cause_idx][0][0] in service_seq:
+                in_label = 'in'
+            else:
+                in_label = 'out'
+            root_cause_check_dict[request_period_log[root_cause_idx][0][0]].append({'in_or_out': in_label, 'service_seq': service_seq, 'trace_id': trace_id, 'time_stamp': time_stamp})
     
     
     # differences = service_seq_set_format.difference(service_seq_set_init)    # 只在正式处理阶段出现的 trace 结构
