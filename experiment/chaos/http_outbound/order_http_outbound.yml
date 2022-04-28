@@ -1,0 +1,17 @@
+kind: HTTPChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  namespace: train-ticket
+  name: order-http-outbound
+spec:
+  selector:
+    namespaces:
+      - train-ticket
+    labelSelectors:
+      app: ts-order-service
+  mode: one
+  target: Response
+  delay: 5s
+  port: 12031
+  path: "*"
+  duration: 5m

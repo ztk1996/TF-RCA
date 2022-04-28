@@ -1,0 +1,17 @@
+kind: NetworkChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  namespace: train-ticket
+  name: route-network-delay
+spec:
+  selector:
+    namespaces:
+      - train-ticket
+    labelSelectors:
+      app: ts-route-service
+  mode: one
+  action: delay
+  duration: 5m
+  direction: to
+  delay:
+    latency: 5s

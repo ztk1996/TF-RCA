@@ -1,0 +1,17 @@
+kind: StressChaos
+apiVersion: chaos-mesh.org/v1alpha1
+metadata:
+  namespace: train-ticket
+  name: ticketinfo-stress-cpu
+spec:
+  selector:
+    namespaces:
+      - train-ticket
+    labelSelectors:
+      app: ts-ticketinfo-service
+  mode: one
+  stressors:
+    cpu:
+      workers: 4
+      load: 100
+  duration: 5m

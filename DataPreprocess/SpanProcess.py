@@ -33,9 +33,10 @@ cache_file = '/home/kagaya/work/TraceCluster/secrets/cache.json'
 embedding_name = ''
 
 # get features of the edge directed to current span
-operation_select_keys = ['childrenSpanNum', 'requestDuration', 'responseDuration',        
-                        'requestAndResponseDuration', 'workDuration', 'subspanNum',
-                        'duration', 'rawDuration', 'timeScale']
+operation_select_keys = ['childrenSpanNum', 'requestDuration', 'responseDuration',
+                         'requestAndResponseDuration', 'workDuration', 'subspanNum',
+                         'duration', 'rawDuration', 'timeScale']
+
 
 
 def normalize(x: float) -> float: return x
@@ -243,11 +244,18 @@ def load_sw_span(data_path_list: List[str]) -> List[DataFrame]:
         spans[ITEM.SERVICE] = spans[ITEM.SERVICE].map(
             lambda x: remove_tail_id(x))
         raw_spans.extend(data_partition(spans, 10000))
-    
+
     return raw_spans
 
 
-def load_span(is_wechat: bool, stage: str) -> List[DataFrame]:
+def load_aiops_span(data_path_list: List[str]) -> List[DataFrame]:
+    raw_spans = []
+
+
+    return raw_spans
+
+
+def load_span(is_wechat: bool, stage: str = 'main') -> List[DataFrame]:
     """
     load raw sapn data from pathList
     """
@@ -255,8 +263,8 @@ def load_span(is_wechat: bool, stage: str) -> List[DataFrame]:
 
     if is_wechat:
         global mm_root_map
-        mm_root_map, raw_spans = load_mm_span(mm_trace_root_list, mm_data_path_list if stage=='main' else init_mm_data_path_list)
-
+        mm_root_map, raw_spans = load_mm_span(
+            mm_trace_root_list, mm_data_path_list)
     else:
         raw_spans = load_sw_span(data_path_list if stage=='main' else init_data_path_list)
 
@@ -466,7 +474,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
 
     if not has_root:
         return None, str_set
-        
+
     # remove local span
     for span in trace:
         if span.spanType != 'Local':
@@ -557,6 +565,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         if not has:
             for span in trace:
                 if span.spanType == 'Exit' and span.peer == chaos_root[0]:
+                    span.service = span.peer
                     opname = '/'.join([span.peer, span.operation])
                     vertexs[spanIdCounter] = [span.peer, opname]
                     feats = calculate_edge_features(span, trace_duration, spanChildrenMap)
@@ -632,7 +641,7 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         if span.parentSpanId not in spanChildrenMap.keys():
             spanChildrenMap[span.parentSpanId] = []
         spanChildrenMap[span.parentSpanId].append(span)
-    
+
     # process other span
     for span in trace:
         """
@@ -941,7 +950,7 @@ def preprocess_span(start: int, end: int, stage: str) -> dict:
         ss = df.loc[(df.StartTime > start) & (df.StartTime < end)]
         if len(ss) > 0:
             win_spans.append(ss)
-    
+
     if len(win_spans) <= 0:
         return {}
 
