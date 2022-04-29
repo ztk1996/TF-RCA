@@ -583,7 +583,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
             str_set.add(span.service)
             str_set.add(opname)
 
-        if pvid not in edges.keys():
+        if str(pvid) not in edges.keys():
             edges[str(pvid)] = []
 
         feats = calculate_edge_features(
@@ -595,8 +595,8 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
             operation_map[span.operation] = {}
             for key in operation_select_keys:
                 operation_map[span.operation][key] = []
-        for key in operation_select_keys:
-            operation_map[span.operation][key].append(feats[key])
+        # for key in operation_select_keys:
+        #     operation_map[span.operation][key].append(feats[key])
 
         edges[str(pvid)].append(feats)
 
@@ -623,8 +623,10 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
                         edges[str(pvid)] = [feats]
                     else:
                         edges[str(pvid)].append(feats)
+                    has = True
                     break
-
+        if not has:
+            return None, str_set
 
     graph = {
         'abnormal': is_abnormal,
