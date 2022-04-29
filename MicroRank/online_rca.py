@@ -265,10 +265,10 @@ def rca(start, end, tid_list, trace_labels, traces_dict, confidenceScores=None, 
                                                                     top_max=5,
                                                                     anomaly_num_list=anomaly_num_list,
                                                                     normal_num_list=normal_num_list,
-                                                                    spectrum_method="tarantula") # "dstar2", "ochiai", "jaccard", "sorensendice", "m1", "m2", "goodman", "tarantula", "russellrao", "hamann","dice", "simplematcing","rogers"
+                                                                    spectrum_method="dstar2") # "dstar2", "ochiai", "jaccard", "sorensendice", "m1", "m2", "goodman", "tarantula", "russellrao", "hamann","dice", "simplematcing","rogers"
     # print('top_list:', top_list)
     # print('score_list:', score_list)
-    return top_list
+    return top_list, score_list
 
 
 def timestamp(datetime):

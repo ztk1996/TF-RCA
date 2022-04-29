@@ -487,45 +487,51 @@ def check_match():
 
     # print('getting trace data (api and time seq) ... 1')
     ab_count = 0
-    raw_data = dict()
-    root_cause_idx = 0
-    root_cause_check_dict = dict()
-    root_cause_check_dict[request_period_log[root_cause_idx][0][0]] = []
-    for trace_id, trace in sorted(raw_data_format.items(), key = lambda i: i[1]['edges']['0'][0]['startTime']):
+    in_rate = dict()
+    for root_cause_idx in range(len(request_period_log)):
+        raw_data = dict()
+        root_cause_check_dict = dict()
+        # in_rate[str(root_cause_idx)]
+        root_cause_check_dict[request_period_log[root_cause_idx][0][0]] = []
+        for trace_id, trace in sorted(raw_data_format.items(), key = lambda i: i[1]['edges']['0'][0]['startTime']):
+            
+            if trace['edges']['0'][0]['startTime']>=request_period_log[root_cause_idx][1] and trace['edges']['0'][0]['startTime']<=request_period_log[root_cause_idx][2]:
+                raw_data[trace_id] = trace
+
+            service_seq = ['start']
+            spans = []
+            for span in trace['edges'].values():
+                spans.extend(span)
+            spans = sorted(spans, key=lambda span: span['startTime'])
+            service_seq.extend([span['service'] for span in spans])
+            ab_count = ab_count + (1 if trace['abnormal'] else 0)
+            if trace['abnormal'] == 1:
+                for idx, root_cause_item in enumerate(request_period_log):
+                    if trace['edges']['0'][0]['startTime'] >= root_cause_item[1] and trace['edges']['0'][0]['startTime'] < root_cause_item[2]:
+                        ad_count_list[idx] += 1
+            if service_seq not in service_seq_set_format:
+                service_seq_set_format.append(service_seq)
         
-        if trace['edges']['0'][0]['startTime']>=request_period_log[root_cause_idx][1] and trace['edges']['0'][0]['startTime']<=request_period_log[root_cause_idx][2]:
-            raw_data[trace_id] = trace
-
-        service_seq = ['start']
-        spans = []
-        for span in trace['edges'].values():
-            spans.extend(span)
-        spans = sorted(spans, key=lambda span: span['startTime'])
-        service_seq.extend([span['service'] for span in spans])
-        ab_count = ab_count + (1 if trace['abnormal'] else 0)
-        if trace['abnormal'] == 1:
-            for idx, root_cause_item in enumerate(request_period_log):
-                if trace['edges']['0'][0]['startTime'] >= root_cause_item[1] and trace['edges']['0'][0]['startTime'] < root_cause_item[2]:
-                    ad_count_list[idx] += 1
-        if service_seq not in service_seq_set_format:
-            service_seq_set_format.append(service_seq)
-
-    for trace_id, trace in sorted(raw_data.items(), key = lambda i: i[1]['edges']['0'][0]['startTime']):
-        service_seq = ['start']
-        spans = []
-        for span in trace['edges'].values():
-            spans.extend(span)
-        spans = sorted(spans, key=lambda span: span['startTime'])
-        service_seq.extend([span['service'] for span in spans])
-        time_seq = [span['rawDuration'] for span in spans]
-        time_stamp = trace['edges']['0'][0]['startTime']
-        if trace['abnormal']==1:
-            if request_period_log[root_cause_idx][0][0] in service_seq:
-                in_label = 'in'
-            else:
-                in_label = 'out'
-            root_cause_check_dict[request_period_log[root_cause_idx][0][0]].append({'in_or_out': in_label, 'service_seq': service_seq, 'trace_id': trace_id, 'time_stamp': time_stamp})
-    
+        in_count = 0
+        abnormal_count = 0
+        for trace_id, trace in sorted(raw_data.items(), key = lambda i: i[1]['edges']['0'][0]['startTime']):
+            service_seq = ['start']
+            spans = []
+            for span in trace['edges'].values():
+                spans.extend(span)
+            spans = sorted(spans, key=lambda span: span['startTime'])
+            service_seq.extend([span['service'] for span in spans])
+            time_seq = [span['rawDuration'] for span in spans]
+            time_stamp = trace['edges']['0'][0]['startTime']
+            if trace['abnormal']==1:
+                abnormal_count += 1
+                if request_period_log[root_cause_idx][0][0] in service_seq:
+                    in_label = 'in'
+                    in_count += 1
+                else:
+                    in_label = 'out'
+                root_cause_check_dict[request_period_log[root_cause_idx][0][0]].append({'in_or_out': in_label, 'service_seq': service_seq, 'trace_id': trace_id, 'time_stamp': time_stamp})
+        in_rate[str(root_cause_idx)] = float(in_count/abnormal_count) if abnormal_count!=0 else 0
     
     # differences = service_seq_set_format.difference(service_seq_set_init)    # 只在正式处理阶段出现的 trace 结构
     differences = list()
@@ -533,7 +539,7 @@ def check_match():
         if item not in service_seq_set_init:
             differences.append(item)
     
-    return len(differences), ab_count, ad_count_list, root_cause_check_dict
+    return len(differences), ab_count, ad_count_list, root_cause_check_dict, in_rate
 
 if __name__ == '__main__':
     diff_count = check_match()

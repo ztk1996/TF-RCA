@@ -327,6 +327,8 @@ def get_pagerank_graph_traceLevel(traces_dict):
     pr_trace = {}
 
     for trace_id, trace in traces_dict.items():
+        if trace_id == '377a16115c164f23babfeb3c1964c52a.43.16509977091060513':
+            print("find it !")
         # operation_operation 存储子节点 Call graph
         # operation_operation[operation_name] = [operation_name1, operation_name1]
         for parent, children in trace['edges'].items():
@@ -359,7 +361,7 @@ def get_pagerank_graph_traceLevel(traces_dict):
                 continue
             elif operation[1] not in trace_operation.keys():
                 trace_operation[operation[1]] = [trace_id]
-            elif operation[1] in trace_operation.keys():
+            elif (operation[1] in trace_operation.keys()) and (trace_id not in trace_operation[operation[1]]):
                 trace_operation[operation[1]].append(trace_id)
 
         # pr_trace: 存储trace id 经过了哪些operation, 不去重
