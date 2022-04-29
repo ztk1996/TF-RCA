@@ -125,16 +125,13 @@ def getNewDir(datapath: str) -> str:
     return ""
 
 
-def generate_save_filepath(name: str, dirname: str = "", is_wechat: bool = False) -> str:
+def generate_save_filepath(name: str, dirname: str = "", dir: str = 'trainticket') -> str:
     """
     生成预处理文件的存储路径
     """
-    if is_wechat:
-        filepath = os.path.join(os.getcwd(), 'data',
-                                'preprocessed', 'wechat', dirname, name)
-    else:
-        filepath = os.path.join(os.getcwd(), 'data',
-                                'preprocessed', 'trainticket', dirname, name)
+
+    filepath = os.path.join(os.getcwd(), 'data',
+                                'preprocessed', dir, dirname, name)
 
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     return filepath

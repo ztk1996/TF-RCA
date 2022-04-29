@@ -11,19 +11,27 @@ from pandas.core.frame import DataFrame
 import numpy as np
 import argparse
 from tqdm import tqdm
-from . import utils
+import utils
 from typing import List, Callable, Dict, Tuple
 from multiprocessing import cpu_count, Manager, current_process
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import requests
 import wordninja
 from transformers import AutoTokenizer, AutoModel
+from enum import Enum
 
-from .params import request_period_log
-from .params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list
+from params import request_period_log
+from params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list
+
+
+class DataType(Enum):
+    TrainTicket = 1
+    Wechat = 2
+    AIops = 3
+
 
 data_root = '/data/TraceCluster/raw'
-
+dtype = DataType.TrainTicket
 time_now_str = str(time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime()))
 
 # wecath data flag
@@ -36,7 +44,6 @@ embedding_name = ''
 operation_select_keys = ['childrenSpanNum', 'requestDuration', 'responseDuration',
                          'requestAndResponseDuration', 'workDuration', 'subspanNum',
                          'duration', 'rawDuration', 'timeScale']
-
 
 
 def normalize(x: float) -> float: return x
@@ -251,22 +258,61 @@ def load_sw_span(data_path_list: List[str]) -> List[DataFrame]:
 def load_aiops_span(data_path_list: List[str]) -> List[DataFrame]:
     raw_spans = []
 
+    # load trace info
+    for filepath in data_path_list:
+        filepath = os.path.join(data_root, 'aiops', filepath)
+        print(f"loading aiops span data from {filepath}")
+        data_type = {'startTime': np.uint64, 'elapsedTime': np.uint64}
+        raw_data = pd.read_csv(filepath, dtype=data_type).drop_duplicates()
+
+        spans = {
+            ITEM.SPAN_ID: [],
+            ITEM.PARENT_SPAN_ID: [],
+            ITEM.TRACE_ID: [],
+            ITEM.SPAN_TYPE: [],
+            ITEM.START_TIME: [],
+            ITEM.DURATION: [],
+            ITEM.SERVICE: [],
+            ITEM.PEER: [],
+            ITEM.OPERATION: [],
+            ITEM.IS_ERROR: [],
+            ITEM.CODE: [],
+        }
+
+        # convert to dataframe
+        for _, s in tqdm(raw_data.iterrows()):
+            spans[ITEM.SPAN_ID].append(str(s['id']))
+            spans[ITEM.PARENT_SPAN_ID].append(str(s['pid']))
+            spans[ITEM.TRACE_ID].append(s['traceId'])
+            spans[ITEM.SPAN_TYPE].append('Entry')
+            spans[ITEM.START_TIME].append(int(s['startTime']))
+            spans[ITEM.DURATION].append(int(s['elapsedTime']))
+            spans[ITEM.SERVICE].append(s['serviceName'] if 'serviceName' in s.keys() else s['dsName'] )
+            spans[ITEM.OPERATION].append('')
+            spans[ITEM.PEER].append('')
+            spans[ITEM.IS_ERROR].append(utils.any2bool(s['success']))
+            spans[ITEM.CODE].append('')
+
+        df = DataFrame(spans)
+        raw_spans.extend(data_partition(df, 10000))
 
     return raw_spans
 
 
-def load_span(is_wechat: bool, stage: str = 'main') -> List[DataFrame]:
+def load_span(dtype: DataType, stage: str = 'main') -> List[DataFrame]:
     """
     load raw sapn data from pathList
     """
     raw_spans = []
 
-    if is_wechat:
+    if dtype == DataType.Wechat:
         global mm_root_map
         mm_root_map, raw_spans = load_mm_span(
             mm_trace_root_list, mm_data_path_list)
-    else:
-        raw_spans = load_sw_span(data_path_list if stage=='main' else init_data_path_list)
+    elif dtype == DataType.TrainTicket:
+        raw_spans = load_sw_span(data_path_list if stage == 'main' else init_data_path_list)
+    elif dtype == DataType.AIops:
+        raw_spans = load_aiops_span(data_path_list if stage == 'main' else init_data_path_list)
 
     return raw_spans
 
@@ -299,10 +345,11 @@ def build_graph(trace: List[Span], time_normolize: Callable[[float], float], ope
 
     trace.sort(key=lambda s: s.startTime)
 
-    if is_wechat:
+    if dtype == DataType.Wechat:
         graph, str_set = build_mm_graph(trace, time_normolize, operation_map)
     else:
         graph, str_set = build_sw_graph(trace, time_normolize, operation_map)
+
 
     str_set.add('start')
     str_set.add('start/start')
@@ -735,8 +782,13 @@ def save_data(graphs: Dict, idx: str = ''):
     """
     save graph data to json file
     """
-    filepath = utils.generate_save_filepath(
-        'data.json', time_now_str, is_wechat)
+    dir = 'trainticket'
+    if dtype == DataType.Wechat:
+        dir = 'wechat'
+    elif dtype == DataType.AIops:
+        dir = 'aiops'
+
+    filepath = utils.generate_save_filepath('data.json', time_now_str, dir)
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
     print("saving data..., map size: {}".format(sys.getsizeof(graphs)))
@@ -747,7 +799,7 @@ def save_data(graphs: Dict, idx: str = ''):
 
 
 def divide_word(s: str, sep: str = "/") -> str:
-    if is_wechat:
+    if dtype == DataType.Wechat:
         return sep.join(wordninja.split(s))
 
     words = ['ticket', 'order', 'name', 'security',
@@ -944,7 +996,7 @@ def preprocess_span(start: int, end: int, stage: str) -> dict:
     """
     global dataset
     if len(dataset) == 0:
-        dataset = load_span(is_wechat, stage)
+        dataset = load_span(stage)
     win_spans = []
     for df in dataset:
         ss = df.loc[(df.StartTime > start) & (df.StartTime < end)]
@@ -986,17 +1038,18 @@ def preprocess_span(start: int, end: int, stage: str) -> dict:
 
 def main():
     args = arguments()
-    global is_wechat, use_request, embedding_name
-    is_wechat = args.wechat
+    global dtype, use_request, embedding_name
+    if args.wechat:
+        dtype = DataType.Wechat
     use_request = args.use_request
     embedding_name = args.embedding
 
     print(f"parallel processing number: {args.cores}")
 
     # load all span
-    raw_spans = load_span(is_wechat)
-    if is_wechat and use_request:
-        save_name_cache(cache)
+    raw_spans = load_span(dtype)
+    # if is_wechat and use_request:
+    #     save_name_cache(cache)
 
     # concat all span data in one list
     # span_data = pd.concat(raw_spans, axis=0, ignore_index=True)
