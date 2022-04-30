@@ -112,7 +112,11 @@ def query_order():
 def query_auth():
     q = Query(url)
     query_weights = {
-        q.login: 100
+        q.query_food: 10,
+        q.query_normal_ticket: 10,
+        q.query_route: 10,
+        q.query_high_speed_ticket: 10,
+        q.login: 20
     }
 
     def task():

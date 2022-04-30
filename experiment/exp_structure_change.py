@@ -53,16 +53,16 @@ change_order1 = [
 ]
 
 change_order2 = [
-    [3, 4], [10, 12], [12, 7], [3, 10], [10, 11],
-    [9, 9], [5, 10], [2, 1], [9, 3], [6, 11],
-    [8, 13], [13, 7], [8, 11], [11, 7], [2, 0],
-    [0, 1], [10, 8], [2, 0], [13, 8], [1, 0],
-    [2, 0], [0, 2], [8, 4], [13, 6], [2, 1],
+    [3, 4], [10, 0], [12, 2], [3, 10], [0, 11],
+    [9, 2], [5, 10], [2, 6], [9, 1], [6, 2],
+    [8, 13], [13, 7], [8, 11], [11, 7], [2, 13],
+    [0, 1], [10, 8], [2, 0], [0, 8], [1, 6],
+    [12, 0], [0, 2], [8, 1], [1, 6], [2, 3],
     [0, 1], [10, 8], [12, 5], [3, 11], [2, 0],
-    [1, 2], [5, 12], [6, 4], [6, 10], [0, 1],
-    [11, 13], [1, 0], [7, 6], [1, 1], [2, 1],
-    [2, 0], [1, 2], [6, 10], [12, 5], [1, 2],
-    [4, 5], [8, 12], [0, 1], [13, 9], [0, 2],
+    [1, 9], [2, 12], [6, 4], [0, 10], [0, 13],
+    [11, 2], [1, 12], [7, 1], [1, 4], [13, 1],
+    [2, 10], [1, 11], [6, 10], [2, 5], [1, 5],
+    [4, 5], [8, 12], [0, 1], [13, 9], [0, 7],
 ]
 
 change_order = change_order2
@@ -84,7 +84,7 @@ def wait_for_deployment_complete(api: client.AppsV1Api, name, timeout=300):
             print(f'[INFO] [updated_replicas:{s.updated_replicas},replicas:{s.replicas}'
                   f',available_replicas:{s.available_replicas},observed_generation:{s.observed_generation}] waiting...')
 
-    raise True
+    return True
 
 
 def update_deployment_image(api: client.AppsV1Api, name, image) -> str:
@@ -127,6 +127,7 @@ def main():
     # k8s_client = client.ApiClient()
     api = client.AppsV1Api()
     request_period_log = []
+    normal_change_log = []
     p = Pool(4)
     contact_image = update_deployment_image(
         api, 'ts-contacts-service', 'cqqcqq/contacts_sleep:latest')
@@ -143,7 +144,7 @@ def main():
             # update deployment
             deploy_name = change[0]
             deploy_names.append(deploy_name)
-            if order_id < 8 or order_id > 10:
+            if order_id in [0, 1, 2, 5, 6, 7, 11, 12, 13]:
                 # not port error service
                 wait_names.append(deploy_name)
             new_image = change[1]
@@ -164,9 +165,14 @@ def main():
         end = int(round(time.time() * 1000))
 
         root_services = []
+        normal_services = []
         for i in order:
-            if i >= 3:
+            if i < 3:
+                normal_services.append(service_changes[i][0])
+            else:
                 root_services.append(service_changes[i][0])
+        if len(normal_services) > 0:
+            normal_change_log.append((normal_services, start, end))
         if len(root_services) > 0:
             request_period_log.append((root_services, start, end))
         # recover deployment
@@ -183,6 +189,8 @@ def main():
                             contact_image)
     print('request period log:')
     print(request_period_log)
+    print('normal change log:')
+    print(normal_change_log)
     print('End')
 
 
