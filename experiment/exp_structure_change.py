@@ -88,16 +88,23 @@ def wait_for_deployment_complete(api: client.AppsV1Api, name, timeout=300):
 
 
 def update_deployment_image(api: client.AppsV1Api, name, image) -> str:
-    deployment = api.read_namespaced_deployment(
-        name=name, namespace=ts_namespace)
-    old = deployment.spec.template.spec.containers[0].image
-    # Update container image
-    deployment.spec.template.spec.containers[0].image = image
+    while True:
+        deployment = api.read_namespaced_deployment(
+            name=name, namespace=ts_namespace)
+        old = deployment.spec.template.spec.containers[0].image
+        # Update container image
+        deployment.spec.template.spec.containers[0].image = image
 
-    # patch the deployment
-    resp = api.patch_namespaced_deployment(
-        name=deployment.metadata.name, namespace=ts_namespace, body=deployment
-    )
+        # patch the deployment
+        try:
+            resp = api.patch_namespaced_deployment(
+                name=deployment.metadata.name, namespace=ts_namespace, body=deployment
+            )
+        except Exception:
+            continue
+
+        break
+
 
     print("[INFO] deployment's container image updated.\n")
     print("%s\t\t%s\t\t\t%s\t%s" %

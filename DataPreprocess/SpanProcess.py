@@ -626,7 +626,6 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
                     if ops[0] == '':
                         ops[0] = 'GET:'
 
-                    ops.insert(0, span.service)
                     opname = '/'.join(ops)
                     vertexs[spanIdCounter] = [span.service, opname]
                     span.operation = opname
