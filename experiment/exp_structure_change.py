@@ -143,7 +143,7 @@ def main():
             # update deployment
             deploy_name = change[0]
             deploy_names.append(deploy_name)
-            if order_id < 8 and order_id > 10:
+            if order_id < 8 or order_id > 10:
                 # not port error service
                 wait_names.append(deploy_name)
             new_image = change[1]
@@ -174,9 +174,9 @@ def main():
             print(f"[INFO] recover deployment image to {image}")
             update_deployment_image(api, deploy_name, image)
 
-        # wait 5 minutes
+        # wait 3 minutes
         print(f"[INFO] waitting...")
-        sleep(100)
+        sleep(180)
 
     print('-----------------------------------------')
     update_deployment_image(api, 'ts-contacts-service',
