@@ -19,9 +19,10 @@ import requests
 import wordninja
 from transformers import AutoTokenizer, AutoModel
 from enum import Enum
+import re
 
 from params import request_period_log
-from params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list
+from params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list, aiops_data_list
 
 
 class DataType(Enum):
@@ -35,7 +36,6 @@ dtype = DataType.TrainTicket
 time_now_str = str(time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime()))
 
 # wecath data flag
-is_wechat = False
 use_request = False
 cache_file = '/home/kagaya/work/TraceCluster/secrets/cache.json'
 embedding_name = ''
@@ -312,7 +312,7 @@ def load_span(dtype: DataType, stage: str = 'main') -> List[DataFrame]:
     elif dtype == DataType.TrainTicket:
         raw_spans = load_sw_span(data_path_list if stage == 'main' else init_data_path_list)
     elif dtype == DataType.AIops:
-        raw_spans = load_aiops_span(data_path_list if stage == 'main' else init_data_path_list)
+        raw_spans = load_aiops_span(aiops_data_list)
 
     return raw_spans
 
@@ -578,8 +578,13 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
 
         # span id should be unique
         if vid not in vertexs.keys():
-            opname = '/'.join([span.service, span.operation])
+            ops = span.operation.split('/')
+            for i in range(len(ops)):
+                if re.match('\{.*\}', ops[i]) != None:
+                    ops[i] = '{}'
+            opname = '/'.join(ops)
             vertexs[vid] = [span.service, opname]
+            span.operation = opname
             str_set.add(span.service)
             str_set.add(opname)
 
@@ -613,8 +618,18 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
             for span in trace:
                 if span.spanType == 'Exit' and span.peer == chaos_root[0]:
                     span.service = span.peer
-                    opname = '/'.join([span.peer, span.operation])
-                    vertexs[spanIdCounter] = [span.peer, opname]
+                    ops = span.operation.split('/')
+
+                    if span.service == 'ts-order-service' and ops[4] == 'order':
+                        ops[5] = '{}'
+                    ops[-1] = '{}'
+                    if ops[0] == '':
+                        ops[0] = 'GET:'
+
+                    ops.insert(0, span.service)
+                    opname = '/'.join(ops)
+                    vertexs[spanIdCounter] = [span.service, opname]
+                    span.operation = opname
                     feats = calculate_edge_features(span, trace_duration, spanChildrenMap)
                     feats['vertexId'] = spanIdCounter
                     feats['duration'] = time_normolize(span.duration)
