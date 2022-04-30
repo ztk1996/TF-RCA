@@ -1,6 +1,7 @@
 # Kagaya kagaya85@outlook.com
 import json
 from re import T
+from tkinter.messagebox import NO
 from xmlrpc.client import Boolean
 import yaml
 import os
@@ -32,7 +33,8 @@ class DataType(Enum):
 
 
 data_root = '/data/TraceCluster/raw'
-dtype = DataType.TrainTicket
+# dtype = DataType.TrainTicket
+dtype = DataType.AIops
 time_now_str = str(time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime()))
 
 # wecath data flag
@@ -120,6 +122,8 @@ def arguments():
     parser.add_argument('--cores', dest='cores',
                         help='parallel processing core numberes', default=cpu_count())
     parser.add_argument('--wechat', help='use wechat data',
+                        action='store_true')
+    parser.add_argument('--aiops', help='use aiops data',
                         action='store_true')
     parser.add_argument('--use-request', dest='use_request', help='use http request when replace id to name',
                         action='store_true')
@@ -288,7 +292,7 @@ def load_aiops_span(data_path_list: List[str]) -> List[DataFrame]:
             spans[ITEM.START_TIME].append(int(s['startTime']))
             spans[ITEM.DURATION].append(int(s['elapsedTime']))
             spans[ITEM.SERVICE].append(s['serviceName'] if 'serviceName' in s.keys() else s['dsName'] )
-            spans[ITEM.OPERATION].append('')
+            spans[ITEM.OPERATION].append(s['cmdb_id'])
             spans[ITEM.PEER].append('')
             spans[ITEM.IS_ERROR].append(utils.any2bool(s['success']))
             spans[ITEM.CODE].append('')
@@ -346,14 +350,11 @@ def build_graph(trace: List[Span], time_normolize: Callable[[float], float], ope
     trace.sort(key=lambda s: s.startTime)
 
     if dtype == DataType.Wechat:
-        graph, str_set = build_mm_graph(trace, time_normolize, operation_map)
-    else:
-        graph, str_set = build_sw_graph(trace, time_normolize, operation_map)
-
-
-    str_set.add('start')
-    str_set.add('start/start')
-    return graph, str_set
+        return build_mm_graph(trace, time_normolize, operation_map)
+    elif dtype == DataType.TrainTicket:
+        return build_sw_graph(trace, time_normolize, operation_map)
+    elif dtype == DataType.AIops:
+        return build_aiops_graph(trace, time_normolize, operation_map)
 
 
 def subspan_info(span: Span, child_spans: List[Span]):
@@ -497,7 +498,6 @@ def check_abnormal_span(span: Span) -> str:
 def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], operation_map: dict):
     vertexs = {0: ['start', 'start']}
     edges = {}
-    str_set = set()
     trace_duration = {}
 
     spanIdMap = {'-1': 0}
@@ -520,7 +520,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         spanChildrenMap[span.parentSpanId].append(span)
 
     if not has_root:
-        return None, str_set
+        return None
 
     # remove local span
     for span in trace:
@@ -528,7 +528,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
             continue
 
         if spanMap.get(span.parentSpanId) is None:
-            return None, str_set
+            return None
         else:
             local_span_children = spanChildrenMap[span.spanId]
             local_span_parent = spanMap[span.parentSpanId]
@@ -542,7 +542,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     # process other span
     for span in trace:
         """
-        (raph object contains Vertexs and Edges
+        (graph object contains Vertexs and Edges
         Edge: [(from, to, duration), ...]
         Vertex: [(id, nodestr), ...]
         """
@@ -563,7 +563,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
             parentSpanId = '-1'
         else:
             if spanMap.get(span.parentSpanId) is None:
-                return None, str_set
+                return None
             parentSpanId = spanMap[span.parentSpanId].parentSpanId
 
         if parentSpanId not in spanIdMap.keys():
@@ -585,8 +585,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
             opname = '/'.join(ops)
             vertexs[vid] = [span.service, opname]
             span.operation = opname
-            str_set.add(span.service)
-            str_set.add(opname)
+
 
         if str(pvid) not in edges.keys():
             edges[str(pvid)] = []
@@ -596,17 +595,10 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         feats['vertexId'] = vid
         feats['duration'] = time_normolize(span.duration)
 
-        if span.operation not in operation_map.keys():
-            operation_map[span.operation] = {}
-            for key in operation_select_keys:
-                operation_map[span.operation][key] = []
-        # for key in operation_select_keys:
-        #     operation_map[span.operation][key].append(feats[key])
-
         edges[str(pvid)].append(feats)
 
     if rootSpan == None:
-        return None, str_set
+        return None
 
     if is_abnormal == 1:
         has = False
@@ -640,7 +632,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
                     has = True
                     break
         if not has:
-            return None, str_set
+            return None
 
     graph = {
         'abnormal': is_abnormal,
@@ -649,13 +641,86 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         'edges': edges,
     }
 
-    return graph, str_set
+    return graph
+
+
+def build_aiops_graph(trace: List[Span], time_normolize: Callable[[float], float], operation_map: dict):
+    vertexs = {0: ['start', 'start']}
+    edges = {}
+    trace_duration = {}
+    spanIdMap = {'-1': 0}
+    spanIdCounter = 1
+    rootSpan = None
+    spanMap = {}
+    spanChildrenMap = {}
+
+    # generate span dict
+    for span in trace:
+        if span.parentSpanId == 'None':
+            span.parentSpanId = '-1'
+        spanMap[span.spanId] = span
+        if span.parentSpanId not in spanChildrenMap.keys():
+            spanChildrenMap[span.parentSpanId] = []
+        spanChildrenMap[span.parentSpanId].append(span)
+
+    is_abnormal = 0
+    chaos_root = []
+    # process other span
+    for span in trace:
+        """
+        (graph object contains Vertexs and Edges
+        Edge: [(from, to, duration), ...]
+        Vertex: [(id, nodestr), ...]
+        """
+
+        # get the parent server span id
+        if span.parentSpanId == '-1':
+            trace_duration["start"] = span.startTime
+            trace_duration["end"] = span.startTime + \
+                span.duration + 1 if span.duration <= 0 else 0
+            parentSpanId = '-1'
+        else:
+            parentSpanId = spanMap[span.spanId].parentSpanId
+
+        if parentSpanId not in spanIdMap.keys():
+            spanIdMap[parentSpanId] = spanIdCounter
+            spanIdCounter += 1
+
+        if span.spanId not in spanIdMap.keys():
+            spanIdMap[span.spanId] = spanIdCounter
+            spanIdCounter += 1
+
+        vid, pvid = spanIdMap[span.spanId], spanIdMap[parentSpanId]
+
+        # span id should be unique
+        if vid not in vertexs.keys():
+            vertexs[vid] = [span.service, span.operation]
+
+
+        if str(pvid) not in edges.keys():
+            edges[str(pvid)] = []
+
+        feats = calculate_edge_features(
+            span, trace_duration, spanChildrenMap)
+        feats['vertexId'] = vid
+        feats['duration'] = time_normolize(span.duration)
+
+        edges[str(pvid)].append(feats)
+
+
+    graph = {
+        'abnormal': is_abnormal,
+        'rc': chaos_root,
+        'vertexs': vertexs,
+        'edges': edges,
+    }
+
+    return graph
 
 
 def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], operation_map: dict):
     traceId = trace[0].traceId
 
-    str_set = set()
     spanIdMap = {'-1': 0}
     spanIdCounter = 1
     vertexs = {0: ['start', 'start']}
@@ -665,7 +730,7 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     spanChildrenMap = {}
 
     if traceId not in mm_root_map.keys():
-        return None, str_set
+        return None
 
     # add root node
     root_pspan_id = "-1"
@@ -740,8 +805,7 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         if vid not in vertexs.keys():
             opname = '/'.join([span.service, span.operation])
             vertexs[vid] = [span.service, opname]
-            str_set.add(span.service)
-            str_set.add(opname)
+
 
         if pvid not in edges.keys():
             edges[str(pvid)] = []
@@ -761,10 +825,10 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         edges[str(pvid)].append(feats)
 
     if rootSpan == None:
-        return None, str_set
+        return None
 
     if len(edges) > 1000 or len(vertexs) < 2:
-        return None, str_set
+        return None
 
     graph = {
         'abnormal': 0,
@@ -773,7 +837,7 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         'edges': edges,
     }
 
-    return graph, str_set
+    return graph
 
 
 def get_mmapi() -> dict:
@@ -986,19 +1050,16 @@ def task(ns, idx, divide_word: bool = True):
     current = current_process()
     pos = current._identity[0] - 1
     graph_map = {}
-    str_set = set()
     operation_map = {}
     for trace_id, trace_data in tqdm(span_data.groupby([ITEM.TRACE_ID]), desc="processing #{:0>2d}".format(idx),
                                      position=pos):
-        trace = [Span(raw_span) for idx, raw_span in trace_data.iterrows()]
-        graph, sset = build_graph(trace_process(
-            trace, divide_word), normalize, operation_map)
+        trace = [Span(raw_span) for _, raw_span in trace_data.iterrows()]
+        graph = build_graph(trace_process(trace, divide_word), normalize, operation_map)
         if graph == None:
             continue
         graph_map[trace_id] = graph
-        str_set = set.union(str_set, sset)
 
-    return (graph_map, str_set, operation_map)
+    return graph_map
 
 
 # use for data cache
@@ -1023,8 +1084,6 @@ def preprocess_span(start: int, end: int, stage: str) -> dict:
         return {}
 
     result_map = {}
-    operation_map = {}
-    name_set = set()
 
     # With shared memory
     with Manager() as m:
@@ -1035,16 +1094,8 @@ def preprocess_span(start: int, end: int, stage: str) -> dict:
             fs = [exe.submit(task, ns, idx, False)
                   for idx in range(data_size)]
             for fu in as_completed(fs):
-                (graphs, sset, temp_operation_map) = fu.result()
+                graphs = fu.result()
                 result_map = utils.mergeDict(result_map, graphs)
-                operation_map = utils.mergeOperation(
-                    temp_operation_map, operation_map)
-                name_set = set.union(name_set, sset)
-                # control the data size
-                # if len(result_map) > args.max_num:
-                #     save_data(result_map, str(file_idx))
-                #     file_idx = file_idx + 1
-                #     result_map = {}
 
     if len(result_map) > 0:
         return result_map
@@ -1057,6 +1108,8 @@ def main():
     global dtype, use_request, embedding_name
     if args.wechat:
         dtype = DataType.Wechat
+    if args.aiops:
+        dtype = DataType.AIops
     use_request = args.use_request
     embedding_name = args.embedding
 
@@ -1089,20 +1142,18 @@ def main():
 
     # del span_data
 
-    global embedding
-    if embedding_name == 'glove':
-        embedding = glove_embedding()
-        enable_word_division = True
-    elif embedding_name == 'bert':
-        embedding = bert_embedding()
-        enable_word_division = False
-    else:
-        print(f"invalid embedding method name: {embedding_name}")
-        exit()
+    # global embedding
+    # if embedding_name == 'glove':
+    #     embedding = glove_embedding()
+    #     enable_word_division = True
+    # elif embedding_name == 'bert':
+    #     embedding = bert_embedding()
+    #     enable_word_division = False
+    # else:
+    #     print(f"invalid embedding method name: {embedding_name}")
+    #     exit()
 
     result_map = {}
-    operation_map = {}
-    name_set = set()
     file_idx = 0
 
     # With shared memory
@@ -1111,22 +1162,20 @@ def main():
         ns.sl = raw_spans
         with ProcessPoolExecutor(args.cores) as exe:
             data_size = len(raw_spans)
-            fs = [exe.submit(task, ns, idx, enable_word_division)
+            fs = [exe.submit(task, ns, idx)
                   for idx in range(data_size)]
             for fu in as_completed(fs):
-                (graphs, sset, temp_operation_map) = fu.result()
+                graphs = fu.result()
                 result_map = utils.mergeDict(result_map, graphs)
-                operation_map = utils.mergeOperation(
-                    temp_operation_map, operation_map)
-                name_set = set.union(name_set, sset)
+
                 # control the data size
-                if len(result_map) > args.max_num:
-                    save_data(result_map, str(file_idx))
-                    file_idx = file_idx + 1
-                    result_map = {}
+                # if len(result_map) > args.max_num:
+                #     save_data(result_map, str(file_idx))
+                #     file_idx = file_idx + 1
+                #     result_map = {}
 
     if len(result_map) > 0:
-        save_data(result_map, str(file_idx))
+        save_data(result_map)
 
     # print('start generate embedding file')
     # name_dict = {}

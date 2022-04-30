@@ -146,11 +146,11 @@ old_data_list = [
 
 aiops_data_list = [
     '2020_05_31/trace/trace_csf.csv',
-    # '2020_05_31/trace/trace_jdbc.csv',
-    # '2020_05_31/trace/trace_osb.csv',
-    # '2020_05_31/trace/trace_fly_remote.csv',
-    # '2020_05_31/trace/trace_local.csv',
-    # '2020_05_31/trace/trace_remote_process.csv',
+    '2020_05_31/trace/trace_jdbc.csv',
+    '2020_05_31/trace/trace_osb.csv',
+    '2020_05_31/trace/trace_fly_remote.csv',
+    '2020_05_31/trace/trace_local.csv',
+    '2020_05_31/trace/trace_remote_process.csv',
 ]
 
 # data list
