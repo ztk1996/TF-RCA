@@ -1,6 +1,5 @@
 # Kagaya kagaya85@outlook.com
 import json
-from re import T
 from tkinter.messagebox import NO
 from xmlrpc.client import Boolean
 import yaml
@@ -33,8 +32,8 @@ class DataType(Enum):
 
 
 data_root = '/data/TraceCluster/raw'
-# dtype = DataType.TrainTicket
-dtype = DataType.AIops
+dtype = DataType.TrainTicket
+# dtype = DataType.AIops
 time_now_str = str(time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime()))
 
 # wecath data flag
@@ -298,9 +297,11 @@ def load_aiops_span(data_path_list: List[str]) -> List[DataFrame]:
             spans[ITEM.CODE].append('')
 
         df = DataFrame(spans)
-        raw_spans.extend(data_partition(df, 10000))
+        raw_spans.extend(df)
 
-    return raw_spans
+    span_data = pd.concat(raw_spans, axis=0, ignore_index=True)
+    return data_partition(span_data, 10000)
+
 
 
 def load_span(dtype: DataType, stage: str = 'main') -> List[DataFrame]:
@@ -1154,7 +1155,6 @@ def main():
     #     exit()
 
     result_map = {}
-    file_idx = 0
 
     # With shared memory
     with Manager() as m:
