@@ -189,14 +189,28 @@ def do_reCluster(cluster_obj, data_status, label_map_reCluster=dict()):
     global first_tag
     delete_index = [status[1] for status in all_path.values() if status[0]<path_thres]
     
+    # # adjust all STVectors
+    # reCluster_dataset = list()    # [[STVector1, sample_info1], [STVector2, sample_info2]]
+    # for cluster in cluster_obj.p_micro_clusters+cluster_obj.o_micro_clusters if AD_method in ['DenStream_withoutscore', 'DenStream_withscore'] else cluster_obj.micro_clusters:
+    #     for data_item in cluster.members.values():    # data_item: [STVector, sample_info]
+    #         new_STVector = []
+    #         for idx, value in enumerate(data_item[0]):
+    #             if idx not in delete_index:
+    #                 new_STVector.append(value)
+    #         # 若一个 STVector 被删成空或者全0，则丢弃这个 STVector
+    #         if len(new_STVector)!=0 and new_STVector.count(0)!=len(new_STVector):
+    #             reCluster_dataset.append([np.array(new_STVector), data_item[1]])
+    # reCluster_dataset.sort(key=lambda i: i[1]['time_stamp'])
+    # print("reCluster dataset length: ", len(reCluster_dataset))
+
     # adjust all STVectors
     reCluster_dataset = list()    # [[STVector1, sample_info1], [STVector2, sample_info2]]
     for cluster in cluster_obj.p_micro_clusters+cluster_obj.o_micro_clusters if AD_method in ['DenStream_withoutscore', 'DenStream_withscore'] else cluster_obj.micro_clusters:
         for data_item in cluster.members.values():    # data_item: [STVector, sample_info]
             new_STVector = []
             for idx, value in enumerate(data_item[0]):
-                if idx not in delete_index:
-                    new_STVector.append(value)
+                if int(idx/2) not in delete_index:
+                    new_STVector.append(value)    # rt dimension & isError dimension
             # 若一个 STVector 被删成空或者全0，则丢弃这个 STVector
             if len(new_STVector)!=0 and new_STVector.count(0)!=len(new_STVector):
                 reCluster_dataset.append([np.array(new_STVector), data_item[1]])

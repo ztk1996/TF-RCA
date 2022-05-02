@@ -8,6 +8,7 @@ import csv
 import click
 from enum import Enum
 from tqdm import tqdm
+from tkinter import _flatten
 
 
 class NodeType(Enum):
@@ -383,14 +384,41 @@ from tqdm import tqdm
 from .SpanProcess import preprocess_span
 
 same_seq_test_list = list()
+service_rt_dict = dict()    # {service1: [rt1, rt2, ...], service2: [rt1, rt2, ...]}
+service_rt_normalize_dict = dict()    # {service1: [mean, std, max, min], service2: [mean, std, max, min]}
 
-def load_dataset(start, end, dataLevel, stage, raw_data_total=None):
+def z_score(x: float, mean: float, std: float) -> float:
+    """
+    z-score normalize funciton
+    """
+    return (float(x) - float(mean)) / float(std)
+
+
+def min_max(x: float, min: float, max: float) -> float:
+    """
+    min-max normalize funciton
+    """
+    return (float(x) - float(min)) / (float(max) - float(min))
+
+def load_dataset(start, end, dataLevel, stage, raw_data_total=None):    # stage: 'main', 'init' 对'init'计算所有operation的均值方差再求归一化后结果 对'main'的每个operation求归一化后结果
     trace_list = list()
     raw_data = dict()
 
     if dataLevel == 'span':
         raw_data = preprocess_span(start, end, stage)
     elif dataLevel == 'trace':
+        # get normalize dict
+        if stage=='init' and len(service_rt_dict)==0:
+            for trace_id, trace in raw_data_total.items():
+                for spans in trace['edges'].values():
+                    for span in spans:
+                        if span['service'] not in service_rt_dict.keys():
+                            service_rt_dict[span['service']] = [span['rawDuration']]
+                        else:
+                            service_rt_dict[span['service']].append(span['rawDuration'])
+            for service, rt_list in service_rt_dict.items():
+                service_rt_normalize_dict[service] = [np.mean(rt_list), np.std(rt_list), np.max(rt_list), np.min(rt_list)]            
+
         for trace_id, trace in sorted(raw_data_total.items(), key = lambda item: item[1]['edges']['0'][0]['startTime']):
             if trace['edges']['0'][0]['startTime']>=end:
                 break
@@ -405,9 +433,15 @@ def load_dataset(start, end, dataLevel, stage, raw_data_total=None):
             spans.extend(span)
         spans = sorted(spans, key=lambda span: span['startTime'])
         service_seq.extend([span['service'] for span in spans])
-        time_seq = [span['rawDuration'] for span in spans]
+        # normalize1 (z-score)
+        time_seq = [z_score(x=float(span['rawDuration']), mean=service_rt_normalize_dict[span['service']][0], std=service_rt_normalize_dict[span['service']][1]) for span in spans]    
+        # normalize2 (min-max)
+        # time_seq = [min_max(x=float(span['rawDuration']), min=service_rt_normalize_dict[span['service']][3], max=service_rt_normalize_dict[span['service']][2]) for span in spans]    
+        # original
+        # time_seq = [span['rawDuration'] for span in spans]
+        isError_seq = [span['isError'] for span in spans]
         time_stamp = trace['edges']['0'][0]['startTime']
-        trace_list.append({'trace_id': trace_id, 'service_seq': service_seq, 'time_seq': time_seq, 'time_stamp': time_stamp, 'trace_bool': trace['abnormal']})
+        trace_list.append({'trace_id': trace_id, 'service_seq': service_seq, 'time_seq': time_seq, 'isError_seq': isError_seq, 'time_stamp': time_stamp, 'trace_bool': trace['abnormal']})
         
         # test
         # if service_seq==['start', 'ts-order-service']: 
@@ -441,11 +475,18 @@ def process_one_trace(trace, unique_path):
 
 def embedding_to_vector(trace, unique_path):
     length = len(unique_path)
-    vector_list = [0 for i in range(length)]
+    # vector_list = [0 for i in range(length)]
+    vector_list = [[0, 0] for i in range(length)]    # vector_list: [[rt1, isError1], [rt2, isError2]]
     for i in range(1, len(trace['service_seq'])):
-        vector_list[unique_path['->'.join(trace['service_seq'][:i + 1])][1]] = trace['time_seq'][i-1] 
-        # vector_list[unique_path.index('->'.join(trace['service_seq'][:i + 1]))] = trace['time_seq'][i-1]    
-    return vector_list
+        # vector_list[unique_path['->'.join(trace['service_seq'][:i + 1])][1]] = trace['time_seq'][i-1] 
+
+        vector_list[unique_path['->'.join(trace['service_seq'][:i + 1])][1]] = [trace['time_seq'][i-1], 0] 
+        # vector_list[unique_path.index('->'.join(trace['service_seq'][:i + 1]))] = trace['time_seq'][i-1]
+        for isError_item in trace['isError_seq'][:i]:
+            if isError_item == True:
+                vector_list[unique_path['->'.join(trace['service_seq'][:i + 1])][1]][1] = 1
+                break
+    return list(_flatten(vector_list))
 
 
 def check_match():
@@ -464,15 +505,15 @@ def check_match():
 
 
     # 2 ab
-    request_period_log = [(['ts-station-service', 'ts-route-service'], 1651118425739, 1651118758799), (['ts-travel-plan-service', 'ts-ticketinfo-service'], 1651118949487, 1651119269011), (['ts-travel-plan-service', 'ts-user-service'], 1651119459694, 1651119767415), (['ts-route-service', 'ts-user-service'], 1651119958119, 1651120264839), (['ts-order-service', 'ts-route-service'], 1651120455528, 1651120757346), (['ts-travel-service', 'ts-ticketinfo-service'], 1651120948033, 1651121254747), (['ts-route-service', 'ts-station-service'], 1651121445461, 1651121750077), (['ts-station-service', 'ts-route-service'], 1651121940771, 1651122246990), (['ts-user-service', 'ts-order-service'], 1651122437709, 1651122745710), (['ts-order-service', 'ts-basic-service'], 1651122936404, 1651123240019), (['ts-ticketinfo-service', 'ts-travel-plan-service'], 1651123430717, 1651123739127), (['ts-ticketinfo-service', 'ts-travel-service'], 1651123929854, 1651124235665), (['ts-travel-service', 'ts-basic-service'], 1651124426365, 1651124734072), (['ts-route-service', 'ts-order-service'], 1651124924754, 1651125230573), (['ts-route-service', 'ts-ticketinfo-service'], 1651125421286, 1651125732309), (['ts-basic-service', 'ts-route-service'], 1651125923003, 1651126223696), (['ts-ticketinfo-service', 'ts-travel-service'], 1651126414387, 1651126721790), (['ts-basic-service', 'ts-basic-service'], 1651126912475, 1651127218490), (['ts-travel-service', 'ts-order-service'], 1651127409181, 1651127714488), (['ts-user-service', 'ts-station-service'], 1651127905188, 1651128207091), (['ts-basic-service', 'ts-travel-service'], 1651128397794, 1651128703402), (['ts-station-service', 'ts-user-service'], 1651128894116, 1651129201121), (['ts-user-service', 'ts-station-service'], 1651129391849, 1651129693049), (['ts-order-service', 'ts-travel-plan-service'], 1651129883749, 1651130192165), (['ts-ticketinfo-service', 'ts-travel-service'], 1651130382913, 1651130687516), (['ts-user-service', 'ts-ticketinfo-service'], 1651130878213, 1651131182441), (['ts-station-service', 'ts-ticketinfo-service'], 1651131373128, 1651131677745), (['ts-ticketinfo-service', 'ts-travel-service'], 1651131868441, 1651132175552), (['ts-route-service', 'ts-order-service'], 1651132366228, 1651132668044), (['ts-route-service', 'ts-user-service'], 1651132858771, 1651133164786), (['ts-order-service', 'ts-station-service'], 1651133355475, 1651133666996), (['ts-ticketinfo-service', 'ts-basic-service'], 1651133857719, 1651134161416), (['ts-order-service', 'ts-route-service'], 1651134352120, 1651134658331), (['ts-basic-service', 'ts-ticketinfo-service'], 1651134849028, 1651135160751), (['ts-travel-service', 'ts-order-service'], 1651135351446, 1651135655550), (['ts-user-service', 'ts-travel-service'], 1651135846241, 1651136196021), (['ts-travel-plan-service', 'ts-route-service'], 1651136459710, 1651136766511), (['ts-travel-service', 'ts-basic-service'], 1651136957194, 1651137260613), (['ts-user-service', 'ts-user-service'], 1651137451297, 1651137753398), (['ts-route-service', 'ts-travel-plan-service'], 1651137944080, 1651138250610), (['ts-travel-service', 'ts-user-service'], 1651138441339, 1651138771912), (['ts-ticketinfo-service', 'ts-station-service'], 1651138962602, 1651139270496), (['ts-basic-service', 'ts-station-service'], 1651139461183, 1651139764278), (['ts-station-service', 'ts-route-service'], 1651139954978, 1651140259892), (['ts-order-service', 'ts-route-service'], 1651140450578, 1651140756479), (['ts-travel-plan-service', 'ts-basic-service'], 1651140947170, 1651141253892), (['ts-basic-service', 'ts-order-service'], 1651141444581, 1651141749686), (['ts-route-service', 'ts-travel-plan-service'], 1651141940390, 1651142245395), (['ts-station-service', 'ts-user-service'], 1651142436079, 1651142741087), (['ts-route-service', 'ts-travel-plan-service'], 1651142931794, 1651143239102)]    
+    # request_period_log = [(['ts-station-service', 'ts-route-service'], 1651118425739, 1651118758799), (['ts-travel-plan-service', 'ts-ticketinfo-service'], 1651118949487, 1651119269011), (['ts-travel-plan-service', 'ts-user-service'], 1651119459694, 1651119767415), (['ts-route-service', 'ts-user-service'], 1651119958119, 1651120264839), (['ts-order-service', 'ts-route-service'], 1651120455528, 1651120757346), (['ts-travel-service', 'ts-ticketinfo-service'], 1651120948033, 1651121254747), (['ts-route-service', 'ts-station-service'], 1651121445461, 1651121750077), (['ts-station-service', 'ts-route-service'], 1651121940771, 1651122246990), (['ts-user-service', 'ts-order-service'], 1651122437709, 1651122745710), (['ts-order-service', 'ts-basic-service'], 1651122936404, 1651123240019), (['ts-ticketinfo-service', 'ts-travel-plan-service'], 1651123430717, 1651123739127), (['ts-ticketinfo-service', 'ts-travel-service'], 1651123929854, 1651124235665), (['ts-travel-service', 'ts-basic-service'], 1651124426365, 1651124734072), (['ts-route-service', 'ts-order-service'], 1651124924754, 1651125230573), (['ts-route-service', 'ts-ticketinfo-service'], 1651125421286, 1651125732309), (['ts-basic-service', 'ts-route-service'], 1651125923003, 1651126223696), (['ts-ticketinfo-service', 'ts-travel-service'], 1651126414387, 1651126721790), (['ts-basic-service', 'ts-basic-service'], 1651126912475, 1651127218490), (['ts-travel-service', 'ts-order-service'], 1651127409181, 1651127714488), (['ts-user-service', 'ts-station-service'], 1651127905188, 1651128207091), (['ts-basic-service', 'ts-travel-service'], 1651128397794, 1651128703402), (['ts-station-service', 'ts-user-service'], 1651128894116, 1651129201121), (['ts-user-service', 'ts-station-service'], 1651129391849, 1651129693049), (['ts-order-service', 'ts-travel-plan-service'], 1651129883749, 1651130192165), (['ts-ticketinfo-service', 'ts-travel-service'], 1651130382913, 1651130687516), (['ts-user-service', 'ts-ticketinfo-service'], 1651130878213, 1651131182441), (['ts-station-service', 'ts-ticketinfo-service'], 1651131373128, 1651131677745), (['ts-ticketinfo-service', 'ts-travel-service'], 1651131868441, 1651132175552), (['ts-route-service', 'ts-order-service'], 1651132366228, 1651132668044), (['ts-route-service', 'ts-user-service'], 1651132858771, 1651133164786), (['ts-order-service', 'ts-station-service'], 1651133355475, 1651133666996), (['ts-ticketinfo-service', 'ts-basic-service'], 1651133857719, 1651134161416), (['ts-order-service', 'ts-route-service'], 1651134352120, 1651134658331), (['ts-basic-service', 'ts-ticketinfo-service'], 1651134849028, 1651135160751), (['ts-travel-service', 'ts-order-service'], 1651135351446, 1651135655550), (['ts-user-service', 'ts-travel-service'], 1651135846241, 1651136196021), (['ts-travel-plan-service', 'ts-route-service'], 1651136459710, 1651136766511), (['ts-travel-service', 'ts-basic-service'], 1651136957194, 1651137260613), (['ts-user-service', 'ts-user-service'], 1651137451297, 1651137753398), (['ts-route-service', 'ts-travel-plan-service'], 1651137944080, 1651138250610), (['ts-travel-service', 'ts-user-service'], 1651138441339, 1651138771912), (['ts-ticketinfo-service', 'ts-station-service'], 1651138962602, 1651139270496), (['ts-basic-service', 'ts-station-service'], 1651139461183, 1651139764278), (['ts-station-service', 'ts-route-service'], 1651139954978, 1651140259892), (['ts-order-service', 'ts-route-service'], 1651140450578, 1651140756479), (['ts-travel-plan-service', 'ts-basic-service'], 1651140947170, 1651141253892), (['ts-basic-service', 'ts-order-service'], 1651141444581, 1651141749686), (['ts-route-service', 'ts-travel-plan-service'], 1651141940390, 1651142245395), (['ts-station-service', 'ts-user-service'], 1651142436079, 1651142741087), (['ts-route-service', 'ts-travel-plan-service'], 1651142931794, 1651143239102)]    
     
     # 1 ab avail
-    # request_period_log = [(['ts-route-service'], 1651046006930, 1651046345686), (['ts-travel-service'], 1651046536088, 1651046850818), (['ts-travel-service'], 1651047041209, 1651047358139), (['ts-travel-service'], 1651047548538, 1651047851939), (['ts-station-service'], 1651048042339, 1651048350651), (['ts-basic-service'], 1651048541045, 1651048845560), (['ts-ticketinfo-service'], 1651049035962, 1651049344175), (['ts-user-service'], 1651049534567, 1651049840578), (['ts-order-service'], 1651050030993, 1651050344433), (['ts-order-service'], 1651050534833, 1651050835951), (['ts-order-service'], 1651051026344, 1651051330754), (['ts-basic-service'], 1651051521158, 1651051823554), (['ts-route-service'], 1651052013944, 1651052327763), (['ts-user-service'], 1651052518160, 1651052831373), (['ts-station-service'], 1651053021780, 1651053323273), (['ts-ticketinfo-service'], 1651053513670, 1651053822084), (['ts-travel-plan-service'], 1651054012489, 1651054320797), (['ts-travel-plan-service'], 1651054511205, 1651054811390), (['ts-user-service'], 1651055001769, 1651055315300), (['ts-basic-service'], 1651055505680, 1651055807276), (['ts-ticketinfo-service'], 1651055997683, 1651056300188), (['ts-station-service'], 1651056490588, 1651056792483), (['ts-route-service'], 1651056982884, 1651057293103), (['ts-route-service'], 1651057483499, 1651057794422), (['ts-travel-service'], 1651057984815, 1651058299444), (['ts-route-service'], 1651058489844, 1651058794346), (['ts-basic-service'], 1651058984767, 1651059291785), (['ts-travel-service'], 1651059482197, 1651059794618), (['ts-user-service'], 1651059985046, 1651060286761), (['ts-ticketinfo-service'], 1651060477172, 1651060785597), (['ts-travel-service'], 1651060976006, 1651061279210), (['ts-order-service'], 1651061469606, 1651061775714), (['ts-station-service'], 1651061966116, 1651062273040), (['ts-user-service'], 1651062463443, 1651062766453), (['ts-order-service'], 1651062956853, 1651063269576), (['ts-travel-plan-service'], 1651063459994, 1651063765512), (['ts-order-service'], 1651063955923, 1651064257235), (['ts-basic-service'], 1651064447629, 1651064747737), (['ts-basic-service'], 1651064938128, 1651065239123), (['ts-route-service'], 1651065429530, 1651065739847), (['ts-station-service'], 1651065930265, 1651066234771), (['ts-ticketinfo-service'], 1651066425168, 1651066734296), (['ts-station-service'], 1651066924702, 1651067232717), (['ts-route-service'], 1651067423108, 1651067726422), (['ts-travel-plan-service'], 1651067916830, 1651068230154), (['ts-user-service'], 1651068420557, 1651068729165), (['ts-ticketinfo-service'], 1651068919563, 1651069233102), (['ts-route-service'], 1651069423503, 1651069724297), (['ts-order-service'], 1651069914705, 1651070219820), (['ts-travel-service'], 1651070410223, 1651070723238)]
+    request_period_log = [(['ts-route-service'], 1651046006930, 1651046345686), (['ts-travel-service'], 1651046536088, 1651046850818), (['ts-travel-service'], 1651047041209, 1651047358139), (['ts-travel-service'], 1651047548538, 1651047851939), (['ts-station-service'], 1651048042339, 1651048350651), (['ts-basic-service'], 1651048541045, 1651048845560), (['ts-ticketinfo-service'], 1651049035962, 1651049344175), (['ts-user-service'], 1651049534567, 1651049840578), (['ts-order-service'], 1651050030993, 1651050344433), (['ts-order-service'], 1651050534833, 1651050835951), (['ts-order-service'], 1651051026344, 1651051330754), (['ts-basic-service'], 1651051521158, 1651051823554), (['ts-route-service'], 1651052013944, 1651052327763), (['ts-user-service'], 1651052518160, 1651052831373), (['ts-station-service'], 1651053021780, 1651053323273), (['ts-ticketinfo-service'], 1651053513670, 1651053822084), (['ts-travel-plan-service'], 1651054012489, 1651054320797), (['ts-travel-plan-service'], 1651054511205, 1651054811390), (['ts-user-service'], 1651055001769, 1651055315300), (['ts-basic-service'], 1651055505680, 1651055807276), (['ts-ticketinfo-service'], 1651055997683, 1651056300188), (['ts-station-service'], 1651056490588, 1651056792483), (['ts-route-service'], 1651056982884, 1651057293103), (['ts-route-service'], 1651057483499, 1651057794422), (['ts-travel-service'], 1651057984815, 1651058299444), (['ts-route-service'], 1651058489844, 1651058794346), (['ts-basic-service'], 1651058984767, 1651059291785), (['ts-travel-service'], 1651059482197, 1651059794618), (['ts-user-service'], 1651059985046, 1651060286761), (['ts-ticketinfo-service'], 1651060477172, 1651060785597), (['ts-travel-service'], 1651060976006, 1651061279210), (['ts-order-service'], 1651061469606, 1651061775714), (['ts-station-service'], 1651061966116, 1651062273040), (['ts-user-service'], 1651062463443, 1651062766453), (['ts-order-service'], 1651062956853, 1651063269576), (['ts-travel-plan-service'], 1651063459994, 1651063765512), (['ts-order-service'], 1651063955923, 1651064257235), (['ts-basic-service'], 1651064447629, 1651064747737), (['ts-basic-service'], 1651064938128, 1651065239123), (['ts-route-service'], 1651065429530, 1651065739847), (['ts-station-service'], 1651065930265, 1651066234771), (['ts-ticketinfo-service'], 1651066425168, 1651066734296), (['ts-station-service'], 1651066924702, 1651067232717), (['ts-route-service'], 1651067423108, 1651067726422), (['ts-travel-plan-service'], 1651067916830, 1651068230154), (['ts-user-service'], 1651068420557, 1651068729165), (['ts-ticketinfo-service'], 1651068919563, 1651069233102), (['ts-route-service'], 1651069423503, 1651069724297), (['ts-order-service'], 1651069914705, 1651070219820), (['ts-travel-service'], 1651070410223, 1651070723238)]
 
     # 1 change
     # request_period_log = [(['ts-ticketinfo-service'], 1651336771407, 1651337073614), (['ts-order-service'], 1651337353866, 1651337670661), (['ts-route-service'], 1651337960924, 1651338266292), (['ts-auth-service'], 1651338536520, 1651338838417), (['ts-auth-service'], 1651339717903, 1651340040094), (['ts-ticketinfo-service'], 1651341459289, 1651341763230), (['ts-order-service'], 1651342053491, 1651342353625), (['ts-route-service'], 1651343209699, 1651343632293), (['ts-user-service'], 1651343812415, 1651344118791), (['ts-order-service'], 1651344298911, 1651344626959), (['ts-route-service'], 1651344907217, 1651345313611), (['ts-order-service'], 1651346178704, 1651346488340), (['ts-route-service'], 1651346778607, 1651347108999), (['ts-order-service'], 1651348469297, 1651348774978), (['ts-route-service'], 1651348955096, 1651349267750), (['ts-user-service'], 1651349537977, 1651349841042), (['ts-order-service'], 1651350121292, 1651350425878), (['ts-route-service'], 1651351961208, 1651352265932), (['ts-ticketinfo-service'], 1651354237561, 1651354541431), (['ts-order-service'], 1651355432537, 1651355755860), (['ts-route-service'], 1651355935978, 1651356256056), (['ts-user-service'], 1651356436174, 1651356741150), (['ts-travel-service'], 1651356921268, 1651357224798), (['ts-ticketinfo-service'], 1651357404915, 1651357711162), (['ts-order-service'], 1651357891281, 1651358211460), (['ts-ticketinfo-service'], 1651358391580, 1651358697509), (['ts-order-service'], 1651358977766, 1651359283251), (['ts-order-service'], 1651359463374, 1651359765050), (['ts-order-service'], 1651361188062, 1651361511611), (['ts-route-service'], 1651363000061, 1651363346388), (['ts-order-service'], 1651363636661, 1651363945310)]
     
-    Two_error = True
+    Two_error = False
 
     ad_count_list = list()
     for root_cause_item in request_period_log:
@@ -480,6 +521,7 @@ def check_match():
 
 
     service_seq_set_init = list()
+    service_set_init = list()
     file_init = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_17-34-08/data.json', 'r')
     raw_data_init = json.load(file_init)
 
@@ -489,6 +531,9 @@ def check_match():
         spans = []
         for span in trace['edges'].values():
             spans.extend(span)
+            for item in span:
+                if item['service'] not in service_set_init:
+                    service_set_init.append(item['service'])
         spans = sorted(spans, key=lambda span: span['startTime'])
         service_seq.extend([span['service'] for span in spans])
         if service_seq not in service_seq_set_init:
@@ -496,17 +541,18 @@ def check_match():
     
 
     service_seq_set_format = list()
+    service_set_format = list()
     # file_format = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')
     # file_format = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_10-42-02/data.json', 'r')
     
     # 1 ab avail
-    # file_format = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')
+    file_format = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')
 
     # 1 change
     # file_format = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')
 
     # 2 ab
-    file_format = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')
+    # file_format = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')
 
     raw_data_format = json.load(file_format)
 
@@ -517,6 +563,9 @@ def check_match():
         spans = []
         for span in trace['edges'].values():
             spans.extend(span)
+            for item in span:
+                if item['service'] not in service_set_format:
+                    service_set_format.append(item['service'])
         spans = sorted(spans, key=lambda span: span['startTime'])
         service_seq.extend([span['service'] for span in spans])
         ab_count = ab_count + (1 if trace['abnormal'] else 0)
@@ -583,12 +632,17 @@ def check_match():
         case_pattern[str(root_cause_idx)] = [len(pattern[0]), len(pattern[1])]
     
     # differences = service_seq_set_format.difference(service_seq_set_init)    # 只在正式处理阶段出现的 trace 结构
-    differences = list()
+    differences_seq = list()
     for item in service_seq_set_format:
         if item not in service_seq_set_init:
-            differences.append(item)
+            differences_seq.append(item)
     
-    return len(differences), ab_count, ad_count_list, root_cause_check_dict, in_rate, in_count_normal_dict, case_data_num, case_pattern
+    differences_svc = list()
+    for item in service_set_format:
+        if item not in service_set_init:
+            differences_svc.append(item)
+    
+    return len(differences_seq), len(differences_svc), ab_count, ad_count_list, root_cause_check_dict, in_rate, in_count_normal_dict, case_data_num, case_pattern
 
 if __name__ == '__main__':
     diff_count = check_match()

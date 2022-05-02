@@ -42,15 +42,15 @@ first_tag = True
 # start_str = '2022-04-24 19:00:00'    # 2 abnormal new
 # start_str = '2022-04-26 21:00:00'    # 1 abnormal new 2022-04-26 21:02:22
 # start_str = '2022-04-28 12:00:00'
-# start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
+start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
 # start_str = '2022-05-01 00:00:00'    # 1 change
-start_str = '2022-04-28 12:00:00'    # 2 abnormal
+# start_str = '2022-04-28 12:00:00'    # 2 abnormal
 
 # init stage
 init_start_str = '2022-04-18 00:00:05'    # normal
 window_duration = 6 * 60 * 1000    # ms
 check_window = 5 * 60 * 1000    # ms
-AD_method = 'DenStream_withoutscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
+AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'none'    # 'none', 'micro', 'macro', 'rate'
 dataLevel = 'trace'    # 'trace', 'span'
 path_decay = 0.001
@@ -182,8 +182,8 @@ def do_reCluster(cluster_obj, data_status, label_map_reCluster=dict()):
         for data_item in cluster.members.values():    # data_item: [STVector, sample_info]
             new_STVector = []
             for idx, value in enumerate(data_item[0]):
-                if idx not in delete_index:
-                    new_STVector.append(value)
+                if int(idx/2) not in delete_index:
+                    new_STVector.append(value)    # rt dimension & isError dimension
             # 若一个 STVector 被删成空或者全0，则丢弃这个 STVector
             if len(new_STVector)!=0 and new_STVector.count(0)!=len(new_STVector):
                 reCluster_dataset.append([np.array(new_STVector), data_item[1]])
@@ -332,9 +332,9 @@ def main():
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-28_21-01-41/data.json', 'r')
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-28_22-55-23/data.json', 'r')
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-29_21-45-19/data.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')    # abnormal 1 avail
+        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')    # abnormal 1 avail
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')    # change 1
-        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')    # abnormal 2
+        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')    # abnormal 2
         raw_data_total = json.load(file)
         print("Finish main data load !")
 
