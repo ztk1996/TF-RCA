@@ -258,14 +258,14 @@ class DenStream:
     #     return new_manual_labels_list
 
     def _find_centerest_edgest_members(self, micro_cluster):
-        candidate_list = list()    # candidate list 中包含 7 个元素，3个最近的+4个最远的
-        if micro_cluster.label == 'normal' or micro_cluster.count < 7:
+        candidate_list = list()    # candidate list 中包含 7% 的元素，3% 最近的 + 4% 最远的
+        if micro_cluster.label == 'normal' or micro_cluster in self.o_micro_clusters:
             return candidate_list
         distance_dict = dict()
         for trace_id, member_info in micro_cluster.members.items():
             member_STV = np.append(member_info[0], [0]*(len(micro_cluster.center())-len(member_info[0])))
             distance_dict[trace_id] = eculidDisSim(micro_cluster.center(), member_STV)
-        candidate_list = sorted(distance_dict.items(), key=lambda x: x[1])[:3] + sorted(distance_dict.items(), key=lambda x: x[1])[-4:]
+        candidate_list = sorted(distance_dict.items(), key=lambda x: x[1])[:ceil(0.03*micro_cluster.count)] + sorted(distance_dict.items(), key=lambda x: x[1])[-1*ceil(0.04*micro_cluster.count):]
         candidate_list = [item[0] for item in candidate_list]
         return candidate_list
     
@@ -278,7 +278,7 @@ class DenStream:
             highlight_list = self._find_centerest_edgest_members(micro_cluster)
             if id(micro_cluster) in labels_dict.keys():
                 micro_cluster.label = labels_dict[str(id(micro_cluster))]
-            cluster_items += "({0}, '{1}', '{2}', {3}), ".format(id(micro_cluster), ms2str(micro_cluster.creation_time), micro_cluster.label, micro_cluster.weight()[0])
+            cluster_items += "({0}, '{1}', '{2}', '{3}', {4}, {5}, {6}, {7}, {8}, {9}), ".format(id(micro_cluster), ms2str(micro_cluster.creation_time), ms2str(micro_cluster.latest_time), micro_cluster.label, micro_cluster.weight()[0], micro_cluster.svc_count_max, micro_cluster.svc_count_min, micro_cluster.rt_max, micro_cluster.rt_min, micro_cluster.avg_step)
             for trace_id in micro_cluster.members.keys():
                 trace_items += "({0}, '{1}', 1), ".format(id(micro_cluster), trace_id) if trace_id in highlight_list else "({0}, '{1}', 0), ".format(id(micro_cluster), trace_id)
         # clear cluster table
@@ -593,6 +593,8 @@ class DenStream:
                     micro_cluster.rt_max = max(sample_info['time_seq'])
                 if max(sample_info['time_seq'])<micro_cluster.rt_min:
                     micro_cluster.rt_min = max(sample_info['time_seq'])
+                # update avg time stamp
+                micro_cluster.avg_step = (micro_cluster.latest_time - micro_cluster.creation_time)/micro_cluster.count    # ms
                 # Add new member
                 micro_cluster.members[sample_info['trace_id']] = [sample, sample_info]
                 # self.updateAll(micro_cluster)

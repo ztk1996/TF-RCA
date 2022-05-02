@@ -29,7 +29,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 Two_error = False
 K = [1, 3, 5] if Two_error==False else [2, 3, 5]
 all_path = dict()
-use_manual = False
+use_manual = True
 manual_labels_list = []
 # manual_labels_list = ['617d5c02352849119c2e5df8b70fa007.36.16503361793140001', 'dda6af5c49d546068432825e17b981aa.38.16503361824380001', '27a94f3afad745c69963997831868eb1.38.16503362398950001', '15480e1347c147a086b68221ca743874.38.16503369859250001', '262b9727d1584947a02905150a089faa.38.16503382599320123', 'ab212da6fff042febb91b313658a0005.46.16503384128150203', '0b225e568e304836a7901e0cff56205a.39.16503393835170053', '262b9727d1584947a02905150a089faa.39.16503397746270231']    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
 first_tag = True

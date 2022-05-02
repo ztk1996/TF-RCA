@@ -14,6 +14,7 @@ class MicroCluster:
         self.svc_count_min = 0
         self.rt_max = 0
         self.rt_min = 0
+        self.avg_step = 0
         
         # improvement
         self.label = micro_cluster_label
@@ -122,6 +123,7 @@ class MicroCluster:
         new_micro_cluster.svc_count_min = self.svc_count_min
         new_micro_cluster.rt_max = self.rt_max
         new_micro_cluster.rt_min = self.rt_min
+        new_micro_cluster.avg_step = self.avg_step
         # improvement
         new_micro_cluster.energy = self.energy    # float
         new_micro_cluster.count = self.count    # int
