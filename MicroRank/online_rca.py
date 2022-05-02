@@ -165,7 +165,7 @@ def rca_MicroRank(start, end, tid_list, trace_labels, operation_list, slo, confi
                                                                         anomaly_list),
                                                                     normal_list_len=len(
                                                                         normal_list),
-                                                                    top_max=5,
+                                                                    top_max=50,
                                                                     anomaly_num_list=anomaly_num_list,
                                                                     normal_num_list=normal_num_list,
                                                                     spectrum_method="dstar2")
@@ -262,7 +262,7 @@ def rca(start, end, tid_list, trace_labels, traces_dict, confidenceScores=None, 
                                                                         anomaly_list),
                                                                     normal_list_len=len(
                                                                         normal_list),
-                                                                    top_max=5,
+                                                                    top_max=50,
                                                                     anomaly_num_list=anomaly_num_list,
                                                                     normal_num_list=normal_num_list,
                                                                     spectrum_method="dstar2") # "dstar2", "ochiai", "jaccard", "sorensendice", "m1", "m2", "goodman", "tarantula", "russellrao", "hamann","dice", "simplematcing","rogers"

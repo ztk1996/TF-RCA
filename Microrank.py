@@ -33,7 +33,10 @@ K = [1, 3, 5] if Two_error==False else [2, 3, 5]
 # start_str = '2022-04-18 11:00:00'    # 1 abnormal
 # start_str = '2022-04-19 10:42:59'    # 2 abnormal
 # start_str = '2022-04-24 19:00:00'    # 2 abnormal new
-start_str = '2022-04-26 21:00:00'    # 1 abnormal new
+# start_str = '2022-04-26 21:00:00'    # 1 abnormal new
+# start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
+start_str = '2022-05-01 00:00:00'    # 1 change
+
 window_duration = 6 * 60 * 1000 # ms
 # init stage
 init_start_str = '2022-04-20 00:00:05'    # normal
@@ -82,7 +85,8 @@ def main():
 
     # ========================================
     # Init evaluation for RCA
-    # ========================================    
+    # ========================================   
+    trigger_count = 0 
     r_true_count = len(request_period_log)
     r_pred_count_0 = 0
     r_pred_count_1 = 0
@@ -158,6 +162,8 @@ def main():
 
         if abnormal_count > 8:
             print('********* RCA start *********')
+
+            trigger_count += 1
 
             top_list = rca_MicroRank(start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map, operation_list=operation_list, slo=slo)
             
@@ -281,7 +287,8 @@ def main():
     print("Top@{}:".format(K[0]))
     TP = r_pred_count_0
     if TP != 0:
-        hit_rate = r_pred_count_0 / r_true_count
+        # hit_rate = r_pred_count_0 / r_true_count
+        hit_rate = r_pred_count_0 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
@@ -295,7 +302,8 @@ def main():
     print("Top@{}:".format(K[1]))
     TP = r_pred_count_1
     if TP != 0:
-        hit_rate = r_pred_count_1 / r_true_count
+        # hit_rate = r_pred_count_1 / r_true_count
+        hit_rate = r_pred_count_1 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
@@ -309,7 +317,8 @@ def main():
     print("Top@{}:".format(K[2]))
     TP = r_pred_count_2
     if TP != 0:
-        hit_rate = r_pred_count_2 / r_true_count
+        # hit_rate = r_pred_count_2 / r_true_count
+        hit_rate = r_pred_count_2 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
