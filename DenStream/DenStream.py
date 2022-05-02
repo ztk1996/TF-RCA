@@ -546,13 +546,13 @@ class DenStream:
             micro_cluster_copy = copy(micro_cluster)
             micro_cluster_copy.insert_sample(sample=sample, sample_info=sample_info, weight=weight)
             
-            all_seq = []
-            for cluster in self.p_micro_clusters+self.o_micro_clusters:
-                for item in cluster.members.values():
-                    if item[1]['service_seq'] not in all_seq:
-                        all_seq.append(item[1]['service_seq'])
+            # all_seq = []
+            # for cluster in self.p_micro_clusters+self.o_micro_clusters:
+            #     for item in cluster.members.values():
+            #         if item[1]['service_seq'] not in all_seq:
+            #             all_seq.append(item[1]['service_seq'])
             
-            test_seq = ['start', 'ts-travel-service']
+            # test_seq = ['start', 'ts-travel-service']
             # ['start', 'ts-travel-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-route-service', 'ts-route-service', 'ts-route-service', 'ts-route-service', 'ts-route-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-station-service', 'ts-train-service', 'ts-route-service', 'ts-price-service', 'ts-station-service', 'ts-station-service', 'ts-order-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-seat-service', 'ts-travel-service', 'ts-route-service', 'ts-order-service', 'ts-travel-service', 'ts-train-service', 'ts-config-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-ticketinfo-service', 'ts-basic-service', 'ts-station-service', 'ts-seat-service', 'ts-travel-service', 'ts-route-service', 'ts-order-service', 'ts-travel-service', 'ts-train-service', 'ts-config-service', 'ts-train-service']
             # ['start', 'ts-verification-code-service']
             # ['start', 'ts-order-other-service', 'ts-station-service'], 'time_seq': [950, 9]
@@ -564,14 +564,14 @@ class DenStream:
             # if sample_info['service_seq'] == test_seq:
             #     print("find if !")
 
-            if sample_info['trace_bool'] == 1 and micro_cluster.label == "normal": # 越远越好 找最小 10095
-                print("check it !")
-            elif sample_info['trace_bool'] == 1 and micro_cluster.label == "abnormal": # 越近越好 找最大 20186
-                print("check it !")
-            elif sample_info['trace_bool'] == 0 and micro_cluster.label == 'normal': # 越近越好 找最大 1660 2197 10744
-                print("check it !")
-            elif sample_info['trace_bool'] == 0 and micro_cluster.label == 'abnormal': # 越远越好 找最小 870  27.48 494 71.55
-                print("check it !")
+            # if sample_info['trace_bool'] == 1 and micro_cluster.label == "normal": # 越远越好 找最小 10095
+            #     print("check it !")
+            # elif sample_info['trace_bool'] == 1 and micro_cluster.label == "abnormal": # 越近越好 找最大 20186
+            #     print("check it !")
+            # elif sample_info['trace_bool'] == 0 and micro_cluster.label == 'normal': # 越近越好 找最大 1660 2197 10744
+            #     print("check it !")
+            # elif sample_info['trace_bool'] == 0 and micro_cluster.label == 'abnormal': # 越远越好 找最小 870  27.48 494 71.55
+            #     print("check it !")
             if micro_cluster_copy.radius() <= self.eps:
             # if micro_cluster_copy.radius() <= self.eps or (len(sample_info['service_seq'])>=50 and (sample_info['service_seq'] in [item[1]['service_seq'] for item in micro_cluster.members.values()]) and micro_cluster_copy.radius()/len(sample_info['service_seq'])<=11):    # self.eps 越大则簇的个数越少，更多的样本将被归为一簇 improvement 这里可以加上密度阈值判断，判断 count，参考 CEDAS
                 micro_cluster.insert_sample(sample=sample, sample_info=sample_info, weight=weight)

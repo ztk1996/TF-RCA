@@ -26,7 +26,7 @@ warnings.filterwarnings("ignore")
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-Two_error = True
+Two_error = False
 K = [1, 3, 5] if Two_error==False else [2, 3, 5]
 all_path = dict()
 use_manual = False
@@ -246,7 +246,7 @@ def main():
     # all_path = {path1: [energy1, index1], path2: [energy2, index2]}
     # label_map_reCluster = {trace_id1: label1, trace_id2: label2}
     # ========================================
-    differences_count, ab_count, ad_count_list, root_cause_check_dict, in_rate, in_count_normal_dict, case_data_num, case_pattern = check_match()
+    # differences_count, ab_count, ad_count_list, root_cause_check_dict, in_rate, in_count_normal_dict, case_data_num, case_pattern = check_match()
     global all_path
     global first_tag
     global manual_labels_list

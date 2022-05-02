@@ -44,9 +44,9 @@ first_tag = True
 # start_str = '2022-04-19 10:42:59'    # 2 abnormal
 # start_str = '2022-04-24 19:00:00'    # 2 abnormal new
 # start_str = '2022-04-26 21:00:00'    # 1 abnormal new 2022-04-26 21:02:22
-# start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
+start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
 # start_str = '2022-05-01 00:00:00'    # 1 change
-start_str = '2022-04-28 12:00:00'    # 2 abnormal
+# start_str = '2022-04-28 12:00:00'    # 2 abnormal
 # init stage
 init_start_str = '2022-04-18 00:00:05'    # normal
 window_duration = 6 * 60 * 1000    # ms
@@ -525,9 +525,9 @@ def main():
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-25_12-40-13/data.json', 'r')    # abnormal2 new
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_22-19-20/data.json', 'r')    # abnormal1 new new
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_12-58-19/data.json', 'r')    # abnormal1 new
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')    # abnormal1 avail
+        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')    # abnormal1 avail
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')    # change 1
-        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')    # abnormal 2
+        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')    # abnormal 2
         raw_data_total = json.load(file)
         print("Finish main data load !")
 
