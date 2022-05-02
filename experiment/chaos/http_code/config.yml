@@ -1,17 +1,18 @@
-kind: NetworkChaos
+kind: HTTPChaos
 apiVersion: chaos-mesh.org/v1alpha1
 metadata:
   namespace: train-ticket
-  name: travel-plan-network-delay
+  name: config-http-code
 spec:
   selector:
     namespaces:
       - train-ticket
     labelSelectors:
-      app: ts-travel-plan-service
+      app: ts-config-service
   mode: one
-  action: delay
+  target: Response
+  replace:
+    code: 404
+  port: 15679
+  path: "*"
   duration: 5m
-  direction: from
-  delay:
-    latency: 5s

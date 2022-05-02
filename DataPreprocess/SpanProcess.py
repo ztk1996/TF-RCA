@@ -35,6 +35,7 @@ data_root = '/data/TraceCluster/raw'
 dtype = DataType.TrainTicket
 # dtype = DataType.AIops
 time_now_str = str(time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime()))
+rm_non_rc_abnormal = False
 
 # wecath data flag
 use_request = False
@@ -122,16 +123,13 @@ def arguments():
                         help='parallel processing core numberes', default=cpu_count())
     parser.add_argument('--wechat', help='use wechat data',
                         action='store_true')
-    parser.add_argument('--aiops', help='use aiops data',
-                        action='store_true')
+    parser.add_argument('--aiops', help='use aiops data', action='store_true')
     parser.add_argument('--use-request', dest='use_request', help='use http request when replace id to name',
                         action='store_true')
-    parser.add_argument('--normalize', dest='normalize',
-                        help='normarlize method [zscore/minmax]', default='minmax')
-    parser.add_argument('--embedding', dest='embedding',
-                        help='word embedding method [bert/glove]', default='bert')
     parser.add_argument('--max-num', dest='max_num',
                         default=100000, help='max trace number in saved file')
+    parser.add_argument('--rm-non-rc-abnormal',
+                        dest='rm_non_rc_abnormal', action='store_true')
     return parser.parse_args()
 
 
@@ -604,7 +602,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     if rootSpan == None:
         return None
 
-    if is_abnormal == 1:
+    if is_abnormal == 1 and len(chaos_root) > 0:
         has = False
         for v in vertexs.values():
             if v[0] == chaos_root[0]:
@@ -639,7 +637,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         if not has:
             return None
 
-    if is_abnormal == 1 and len(chaos_root) == 0:
+    if rm_non_rc_abnormal and is_abnormal == 1 and len(chaos_root) == 0:
         return None
 
     graph = {
@@ -1111,11 +1109,12 @@ def preprocess_span(start: int, end: int, stage: str) -> dict:
 
 def main():
     args = arguments()
-    global dtype, use_request, embedding_name
+    global dtype, use_request, embedding_name, rm_non_rc_abnormal
     if args.wechat:
         dtype = DataType.Wechat
     if args.aiops:
         dtype = DataType.AIops
+    rm_non_rc_abnormal = args.rm_non_rc_abnormal
     use_request = args.use_request
     embedding_name = args.embedding
 

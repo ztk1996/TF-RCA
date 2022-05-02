@@ -11,7 +11,7 @@ spec:
       app: ts-travel-plan-service
   mode: one
   target: Response
-  delay: 5s
+  abort: true
   port: 14322
   path: "*"
   duration: 5m

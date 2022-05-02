@@ -251,3 +251,153 @@ def query_station():
         random_query(q, query_weights)
 
     return run(task, timeout)
+
+
+def query_config():
+    q = Query(url)
+
+    def preserve_scenario():
+        query_and_preserve(q)
+
+    query_weights = {
+        q.query_normal_ticket: 10,
+        q.query_route: 10,
+
+        q.query_admin_basic_config: 20,
+
+        q.query_min_station: 10,
+        q.query_quickest: 10,
+        q.query_cheapest: 10,
+
+        preserve_scenario: 10,
+    }
+
+    def task():
+        random_query(q, query_weights)
+
+    return run(task, timeout)
+
+
+def query_consign():
+    q = Query(url)
+
+    def preserve_scenario():
+        query_and_preserve(q)
+
+    query_weights = {
+        q.query_normal_ticket: 10,
+        q.query_route: 10,
+
+        q.put_consign: 15,
+        preserve_scenario: 20
+    }
+
+    def task():
+        random_query(q, query_weights)
+
+    return run(task, timeout)
+
+
+def query_order_other():
+    q = Query(url)
+
+    def preserve_scenario():
+        query_and_preserve(q)
+
+    query_weights = {
+        q.query_normal_ticket: 10,
+        q.query_advanced_ticket: 10,
+        q.query_route: 10,
+
+        q.query_high_speed_ticket: 10,
+        q.query_other_orders: 20,
+
+        preserve_scenario: 20
+    }
+
+    def task():
+        random_query(q, query_weights)
+
+    return run(task, timeout)
+
+
+def query_price():
+    q = Query(url)
+
+    def preserve_scenario():
+        query_and_preserve(q)
+
+    query_weights = {
+        q.query_advanced_ticket: 10,
+
+        q.query_admin_basic_price: 10,
+        q.query_normal_ticket: 10,
+        q.query_high_speed_ticket: 10,
+        preserve_scenario: 10,
+    }
+
+    def task():
+        random_query(q, query_weights)
+
+    return run(task, timeout)
+
+
+def query_rebook():
+    q = Query(url)
+
+    query_weights = {
+        q.query_normal_ticket: 10,
+        q.query_advanced_ticket: 10,
+        q.query_high_speed_ticket: 10,
+
+        q.rebook_ticket: 20,
+    }
+
+    def task():
+        random_query(q, query_weights)
+
+    return run(task, timeout)
+
+
+def query_seat():
+    q = Query(url)
+
+    def preserve_scenario():
+        query_and_preserve(q)
+
+    query_weights = {
+        q.query_orders: 10,
+        q.query_route: 10,
+
+        q.query_min_station: 10,
+        q.query_cheapest: 10,
+        q.query_quickest: 10,
+
+        preserve_scenario: 10,
+    }
+
+    def task():
+        random_query(q, query_weights)
+
+    return run(task, timeout)
+
+
+def query_train():
+    q = Query(url)
+
+    query_weights = {
+        q.query_route: 10,
+        q.query_other_orders: 10,
+
+        q.query_normal_ticket: 10,
+        q.query_high_speed_ticket: 10,
+
+        q.query_min_station: 10,
+        q.query_quickest: 10,
+        q.query_cheapest: 10,
+    }
+
+    def task():
+        random_query(q, query_weights)
+
+    return run(task, timeout)
