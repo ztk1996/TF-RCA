@@ -290,7 +290,8 @@ def load_aiops_span(data_path_list: List[str]) -> List[DataFrame]:
             spans[ITEM.SPAN_TYPE].append('Entry')
             spans[ITEM.START_TIME].append(int(s['startTime']))
             spans[ITEM.DURATION].append(int(s['elapsedTime']))
-            spans[ITEM.SERVICE].append(s['serviceName'] if 'serviceName' in s.keys() else s['dsName'] )
+            spans[ITEM.SERVICE].append(
+                s['serviceName'] if 'serviceName' in s.keys() else s['dsName'])
             spans[ITEM.OPERATION].append(s['cmdb_id'])
             spans[ITEM.PEER].append('')
             spans[ITEM.IS_ERROR].append(utils.any2bool(s['success']))
@@ -301,7 +302,6 @@ def load_aiops_span(data_path_list: List[str]) -> List[DataFrame]:
 
     span_data = pd.concat(raw_spans, axis=0, ignore_index=True)
     return data_partition(span_data, 10000)
-
 
 
 def load_span(dtype: DataType, stage: str = 'main') -> List[DataFrame]:
@@ -315,7 +315,8 @@ def load_span(dtype: DataType, stage: str = 'main') -> List[DataFrame]:
         mm_root_map, raw_spans = load_mm_span(
             mm_trace_root_list, mm_data_path_list)
     elif dtype == DataType.TrainTicket:
-        raw_spans = load_sw_span(data_path_list if stage == 'main' else init_data_path_list)
+        raw_spans = load_sw_span(
+            data_path_list if stage == 'main' else init_data_path_list)
     elif dtype == DataType.AIops:
         raw_spans = load_aiops_span(aiops_data_list)
 
@@ -474,6 +475,7 @@ def calculate_edge_features(current_span: Span, trace_duration: dict, spanChildr
 
     return features
 
+
 def check_abnormal_span(span: Span) -> str:
     chaos = []
     for set in request_period_log:
@@ -552,10 +554,12 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         if span.spanType in ['Exit', 'Producer', 'Local']:
             continue
 
+        if span.isError:
+            is_abnormal = 1
+
         # if check_abnormal_span(span):
         root_chaos = check_abnormal_span(span)
         if root_chaos != '':
-            is_abnormal = 1
             chaos_root = [root_chaos]
 
         # get the parent server span id
@@ -586,7 +590,6 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
             opname = '/'.join(ops)
             vertexs[vid] = [span.service, opname]
             span.operation = opname
-
 
         if str(pvid) not in edges.keys():
             edges[str(pvid)] = []
@@ -622,7 +625,8 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
                     opname = '/'.join(ops)
                     vertexs[spanIdCounter] = [span.service, opname]
                     span.operation = opname
-                    feats = calculate_edge_features(span, trace_duration, spanChildrenMap)
+                    feats = calculate_edge_features(
+                        span, trace_duration, spanChildrenMap)
                     feats['vertexId'] = spanIdCounter
                     feats['duration'] = time_normolize(span.duration)
                     pvid = spanIdMap[span.parentSpanId]
@@ -634,6 +638,9 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
                     break
         if not has:
             return None
+
+    if is_abnormal == 1 and len(chaos_root) == 0:
+        return None
 
     graph = {
         'abnormal': is_abnormal,
@@ -697,7 +704,6 @@ def build_aiops_graph(trace: List[Span], time_normolize: Callable[[float], float
         if vid not in vertexs.keys():
             vertexs[vid] = [span.service, span.operation]
 
-
         if str(pvid) not in edges.keys():
             edges[str(pvid)] = []
 
@@ -707,7 +713,6 @@ def build_aiops_graph(trace: List[Span], time_normolize: Callable[[float], float
         feats['duration'] = time_normolize(span.duration)
 
         edges[str(pvid)].append(feats)
-
 
     graph = {
         'abnormal': is_abnormal,
@@ -806,7 +811,6 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         if vid not in vertexs.keys():
             opname = '/'.join([span.service, span.operation])
             vertexs[vid] = [span.service, opname]
-
 
         if pvid not in edges.keys():
             edges[str(pvid)] = []
@@ -1055,7 +1059,8 @@ def task(ns, idx, divide_word: bool = True):
     for trace_id, trace_data in tqdm(span_data.groupby([ITEM.TRACE_ID]), desc="processing #{:0>2d}".format(idx),
                                      position=pos):
         trace = [Span(raw_span) for _, raw_span in trace_data.iterrows()]
-        graph = build_graph(trace_process(trace, divide_word), normalize, operation_map)
+        graph = build_graph(trace_process(
+            trace, divide_word), normalize, operation_map)
         if graph == None:
             continue
         graph_map[trace_id] = graph
@@ -1066,8 +1071,8 @@ def task(ns, idx, divide_word: bool = True):
 # use for data cache
 dataset = []
 
-def preprocess_span(start: int, end: int, stage: str) -> dict:
 
+def preprocess_span(start: int, end: int, stage: str) -> dict:
     """
     获取毫秒时间戳start~end之间的span, 保存为data.json
     返回一个data dict
