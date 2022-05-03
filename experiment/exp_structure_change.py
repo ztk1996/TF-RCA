@@ -105,7 +105,6 @@ def update_deployment_image(api: client.AppsV1Api, name, image) -> str:
 
         break
 
-
     print("[INFO] deployment's container image updated.\n")
     print("%s\t\t%s\t\t\t%s\t%s" %
           ("NAMESPACE", "NAME", "REVISION", "IMAGE"))
@@ -161,6 +160,8 @@ def main():
         start = int(round(time.time() * 1000))
         if len(deploy_names) > 1:
             p.apply_async(query_func[deploy_names[1]])
+            p.apply_async(query_func[deploy_names[1]])
+        p.apply(query_func[deploy_names[0]])
         p.apply(query_func[deploy_names[0]])
         end = int(round(time.time() * 1000))
 
