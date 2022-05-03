@@ -36,9 +36,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -103,9 +103,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -169,9 +169,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -235,9 +235,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -301,9 +301,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -367,9 +367,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -433,9 +433,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -499,9 +499,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -565,9 +565,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -631,9 +631,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -697,9 +697,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -763,9 +763,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -829,9 +829,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -895,9 +895,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -961,9 +961,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1031,9 +1031,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1097,9 +1097,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1163,9 +1163,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1242,9 +1242,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1316,9 +1316,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1382,9 +1382,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1448,9 +1448,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1514,9 +1514,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1584,9 +1584,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1654,9 +1654,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1720,9 +1720,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1786,9 +1786,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1852,9 +1852,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1918,9 +1918,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -1984,9 +1984,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -2050,9 +2050,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -2116,9 +2116,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -2182,9 +2182,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -2248,9 +2248,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -2314,9 +2314,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -2380,9 +2380,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -2446,9 +2446,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -2512,9 +2512,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -2578,9 +2578,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -2649,9 +2649,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
@@ -2715,9 +2715,9 @@ spec:
                 fieldRef:
                   fieldPath: status.hostIP
             - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
-              value: "10.206.0.4:11800"
+              value: "172.19.109.144:11800"
             - name: SW_GRPC_LOG_SERVER_HOST
-              value: "10.206.0.4"
+              value: "172.19.109.144"
             - name: SW_GRPC_LOG_SERVER_PORT
               value: "11800"
             - name: SW_AGENT_NAME
