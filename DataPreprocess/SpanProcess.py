@@ -486,7 +486,7 @@ def check_abnormal_span(span: Span) -> str:
     if len(chaos) == 0:
         return ''
 
-    if span.duration < 5000 and not span.isError:
+    if span.duration < 5000 and not span.isError and span.code[0] == 2:
         return ''
 
     for c in chaos:

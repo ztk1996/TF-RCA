@@ -50,19 +50,20 @@ def constant_query(timeout: int = 24*hour):
                 continue
 
         query_weights = {
-            q.query_cheapest: 20,
-            q.query_orders: 30,
+            q.query_cheapest: 10,
+            q.query_orders: 10,
             q.query_food: 5,
-            q.query_high_speed_ticket: 50,
+            q.query_high_speed_ticket: 10,
             q.query_contacts: 10,
-            q.query_min_station: 20,
-            q.query_quickest: 20,
+            q.query_min_station: 10,
+            q.query_quickest: 10,
             q.query_high_speed_ticket_parallel: 10,
-            preserve_scenario: 30,
-            payment_scenario: 20,
-            cancel_scenario: 20,
-            collect_scenario: 20,
-            execute_scenario: 20,
+
+            preserve_scenario: 10,
+            payment_scenario: 10,
+            cancel_scenario: 10,
+            collect_scenario: 10,
+            execute_scenario: 10,
         }
 
         for i in range(0, query_num):
