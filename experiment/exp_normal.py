@@ -67,13 +67,13 @@ def constant_query(timeout: int = 24*hour):
 
         for i in range(0, query_num):
             func = random_from_weighted(query_weights)
-            logger.info(f'execure query: {func.__name__}')
+            logger.info(f'execure constant query: {func.__name__}')
             try:
                 func()
             except Exception:
                 logger.exception(f'query {func.__name__} got an exception')
 
-            time.sleep(random.randint(5, 10))
+            time.sleep(random.randint(1, 3))
 
     return
 
@@ -92,16 +92,16 @@ def select_task(n: int) -> List[Callable]:
 def workflow(timeout: int = 24*hour, task_timeout: int = 5*minute):
     start = time.time()
 
-    p = Pool(4)
+    p = Pool(10)
     logger.info('start constant query')
-    p.apply_async(constant_query, args=(task_timeout,))
+    p.apply_async(constant_query)
 
     while time.time() - start < timeout:
         tasks = select_task(3)
 
         for task in tasks:
             logger.info(f'execute task: {task.__name__}')
-            p.apply_async(task, args=(task_timeout,))
+            p.apply_async(task)
 
         time.sleep(task_timeout)
 

@@ -616,6 +616,10 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
 
                     if span.service == 'ts-order-service' and ops[4] == 'order':
                         ops[5] = '{}'
+                    if span.service == 'ts-food-service' and ops[4] == 'foods':
+                        ops[5] = '{}'
+                        ops[6] = '{}'
+                        ops[7] = '{}'
                     ops[-1] = '{}'
                     if ops[0] == '':
                         ops[0] = 'GET:'
@@ -1116,7 +1120,6 @@ def main():
         dtype = DataType.AIops
     rm_non_rc_abnormal = args.rm_non_rc_abnormal
     use_request = args.use_request
-    embedding_name = args.embedding
 
     print(f"parallel processing number: {args.cores}")
 
