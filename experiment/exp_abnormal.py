@@ -110,10 +110,12 @@ def constant_query(targets: list):
                     q.query_other_orders],
 
     }
+
     for target in targets:
-        for fun in forbid_query[target]:
-            if fun in query_weights:
-                del query_weights[fun]
+        if fun in forbid_query.keys():
+            for fun in forbid_query[target]:
+                if fun in query_weights:
+                    del query_weights[fun]
 
     for _ in range(0, count):
         if time.time() - start > timeout:
