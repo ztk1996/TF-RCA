@@ -1,6 +1,7 @@
 from importlib.resources import path
 from multiprocessing import connection
 from re import T
+from tracemalloc import start
 from sklearn import datasets
 import torch
 import json
@@ -31,6 +32,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 Two_error = False
 K = [1, 3, 5] if Two_error==False else [2, 3, 5]
 all_path = dict()
+operation_service_dict = dict()
 use_manual = False
 manual_labels_list = []
 buffer = []    # 3 time windows in it [[sampleRates, abnormal_map, confidenceScores], [sampleRates, abnormal_map, confidenceScores], [sampleRates, abnormal_map, confidenceScores]]
@@ -44,17 +46,18 @@ first_tag = True
 # start_str = '2022-04-19 10:42:59'    # 2 abnormal
 # start_str = '2022-04-24 19:00:00'    # 2 abnormal new
 # start_str = '2022-04-26 21:00:00'    # 1 abnormal new 2022-04-26 21:02:22
-start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
-# start_str = '2022-05-01 00:00:00'    # 1 change
+# start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
+start_str = '2022-05-01 00:00:00'    # 1 change
 # start_str = '2022-04-28 12:00:00'    # 2 abnormal
 # init stage
-init_start_str = '2022-04-18 00:00:05'    # normal
+# init_start_str = '2022-04-18 00:00:05'    # normal old
+init_start_str = '2022-04-25 20:36:46'    # normal new
 window_duration = 6 * 60 * 1000    # ms
-rca_window = 3 * 60 * 1000    # ms    3 min
+rca_window = 4 * 60 * 1000    # ms    3 min
 AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'none'    # 'none', 'micro', 'macro', 'rate'
 dataLevel = 'trace'    # 'trace', 'span'
-path_decay = 0.001
+path_decay = 0.01
 path_thres = 0.0
 reCluster_thres = 0.1
 # ========================================
@@ -83,6 +86,15 @@ def intersect_or_not(start1: int, end1: int, start2: int, end2: int):
         return True
     else:
         return False
+
+def get_operation_service_pairs(dataset):
+    global operation_service_dict
+    for trace_id, trace in dataset.items():
+        for vertex_id, vertex in trace['vertexs'].items():
+            if vertex_id == '0':
+                continue
+            if vertex[1] not in operation_service_dict.keys():    # operation
+                operation_service_dict[vertex[1]] = vertex[0]
 
 def simplify_cluster(cluster_obj, dataset, cluster_status, data_status):    # dataset: [[STVector1, sample_info1], [STVector2, sample_info2]]
     global all_path
@@ -138,11 +150,10 @@ def init_Cluster(cluster_obj, init_start_str):
     if dataLevel == 'trace':
         print("Init Data loading ...")
         # file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-17_20-55-12/data.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_10-05-14/data.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_11-10-06/data.json', 'r')
-        file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_17-34-08/data.json', 'r')
+        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_17-34-08/data.json', 'r')    # old
+        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-04_18-45-43/data.json', 'r')    # new
         raw_data_total = json.load(file)
+        get_operation_service_pairs(raw_data_total)
         print("Finish init data load !")
 
     print('Init Start !')
@@ -162,9 +173,14 @@ def init_Cluster(cluster_obj, init_start_str):
             dataset, raw_data_dict = load_dataset(start, end, dataLevel, 'init')
         elif dataLevel == 'trace':
             dataset, raw_data_dict = load_dataset(start, end, dataLevel, 'init', raw_data_total)
-            
+
         if len(dataset) == 0:
-            break
+            if start < timestamp(init_start_str) + (8 * 60 * 60 * 1000):
+                start = end
+                end = start + window_duration
+                continue
+            else: 
+                break
         
         # do cluster
         simplify_cluster(cluster_obj=cluster_obj, dataset=dataset, cluster_status='init', data_status='init')
@@ -174,7 +190,7 @@ def init_Cluster(cluster_obj, init_start_str):
 
         delete_index_candidate = [status[1] for status in all_path.values() if status[0]<path_thres]
         if len(delete_index_candidate) / len(all_path) >= reCluster_thres:
-            do_reCluster(cluster_obj=cluster_obj, data_status='init')
+            do_reCluster(cluster_obj=cluster_obj, data_status='init', current_time=start)
     
     # update cluster table when finish init
     if use_manual == True:
@@ -183,7 +199,7 @@ def init_Cluster(cluster_obj, init_start_str):
 
         
 
-def do_reCluster(cluster_obj, data_status, label_map_reCluster=dict()):
+def do_reCluster(cluster_obj, data_status, current_time, label_map_reCluster=dict()):
     print("reCluster Start ...")
     global all_path
     global first_tag
@@ -207,6 +223,9 @@ def do_reCluster(cluster_obj, data_status, label_map_reCluster=dict()):
     reCluster_dataset = list()    # [[STVector1, sample_info1], [STVector2, sample_info2]]
     for cluster in cluster_obj.p_micro_clusters+cluster_obj.o_micro_clusters if AD_method in ['DenStream_withoutscore', 'DenStream_withscore'] else cluster_obj.micro_clusters:
         for data_item in cluster.members.values():    # data_item: [STVector, sample_info]
+            # 将1小时前的数据丢弃
+            if data_item[1]['time_stamp']<current_time-(1 * 60 * 60 * 1000):
+                continue
             new_STVector = []
             for idx, value in enumerate(data_item[0]):
                 if int(idx/2) not in delete_index:
@@ -404,26 +423,26 @@ def triggerRCA(trace_id, time_stamp, buffer, raw_data_total):
         candidate_list_1 = []
         candidate_list_2 = []
         for topS in topK_0:
-            candidate_list_0 += topS.split('/')
+            candidate_list_0.append(operation_service_dict[topS])
         for topS in topK_1:
-            candidate_list_1 += topS.split('/')
+            candidate_list_1.append(operation_service_dict[topS])
         for topS in topK_2:
-            candidate_list_2 += topS.split('/')
+            candidate_list_2.append(operation_service_dict[topS])
         if isinstance(chaos_service_list[0], list):    # 一次注入两个故障
             for service_pair in chaos_service_list:
-                if (service_pair[0].replace('-', '')[2:] in candidate_list_0) and (service_pair[1].replace('-', '')[2:] in candidate_list_0):
+                if (service_pair[0] in candidate_list_0) and (service_pair[1] in candidate_list_0):
                     in_topK_0 = True
-                if (service_pair[0].replace('-', '')[2:] in candidate_list_1) and (service_pair[1].replace('-', '')[2:] in candidate_list_1):
+                if (service_pair[0] in candidate_list_1) and (service_pair[1] in candidate_list_1):
                     in_topK_1 = True
-                if (service_pair[0].replace('-', '')[2:] in candidate_list_2) and (service_pair[1].replace('-', '')[2:] in candidate_list_2):
+                if (service_pair[0] in candidate_list_2) and (service_pair[1] in candidate_list_2):
                     in_topK_2 = True
         else:
             for service in chaos_service_list:
-                if service.replace('-', '')[2:] in candidate_list_0:
+                if service in candidate_list_0:
                     in_topK_0 = True
-                if service.replace('-', '')[2:] in candidate_list_1:
+                if service in candidate_list_1:
                     in_topK_1 = True
-                if service.replace('-', '')[2:] in candidate_list_2:
+                if service in candidate_list_2:
                     in_topK_2 = True
                 
         if in_topK_0 == True:
@@ -470,7 +489,7 @@ def main():
     # ========================================
     if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
         # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
-        denstream = DenStream(eps=80, lambd=0.1, beta=0.2, mu=6, use_manual=use_manual)    # eps=80    beta=0.2   mu=6
+        denstream = DenStream(eps=3, lambd=0.1, beta=0.2, mu=6, use_manual=use_manual)    # eps=30    beta=0.2   mu=6
         init_Cluster(denstream, init_start_str)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=100, decay=0.001, threshold=5)
@@ -525,10 +544,11 @@ def main():
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-25_12-40-13/data.json', 'r')    # abnormal2 new
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_22-19-20/data.json', 'r')    # abnormal1 new new
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_12-58-19/data.json', 'r')    # abnormal1 new
-        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')    # abnormal1 avail
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')    # change 1
+        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')    # abnormal1 avail
+        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')    # change 1
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')    # abnormal 2
         raw_data_total = json.load(file)
+        get_operation_service_pairs(raw_data_total)
         print("Finish main data load !")
 
     print('Start !')
@@ -543,7 +563,7 @@ def main():
         #         start = end
         #         end = start + window_duration
         #         continue
-        if ms2str(start) == '2022-04-27 19:32:00':    # score_list 
+        if ms2str(start) == '2022-05-01 00:48:00':    # score_list 
             print("find it !")
         timeWindow_count += 1
         abnormal_count = 0
@@ -851,12 +871,12 @@ def main():
             if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
                 # if data_status is 'main', all new cluster labels are 'abnormal' and label_status is 'auto'
                 # if data_status is 'init', all new cluster labels are 'normal' and label_status is 'auto'
-                do_reCluster(cluster_obj=denstream, data_status='main', label_map_reCluster=label_map_reCluster)
+                do_reCluster(cluster_obj=denstream, data_status='main', current_time=start, label_map_reCluster=label_map_reCluster)
                 # update cluster table when recluster finish
                 if use_manual == True:
                     denstream.update_cluster_and_trace_tables()
             else:
-                do_reCluster(cluster_obj=cedas, data_status='main', label_map_reCluster=label_map_reCluster)
+                do_reCluster(cluster_obj=cedas, data_status='main', current_time=start, label_map_reCluster=label_map_reCluster)
         
         # visualization ...
         # if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:

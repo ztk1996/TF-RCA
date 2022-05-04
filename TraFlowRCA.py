@@ -29,7 +29,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 Two_error = False
 K = [1, 3, 5] if Two_error==False else [2, 3, 5]
 all_path = dict()
-use_manual = True
+operation_service_dict = dict()
+use_manual = False
 manual_labels_list = []
 # manual_labels_list = ['617d5c02352849119c2e5df8b70fa007.36.16503361793140001', 'dda6af5c49d546068432825e17b981aa.38.16503361824380001', '27a94f3afad745c69963997831868eb1.38.16503362398950001', '15480e1347c147a086b68221ca743874.38.16503369859250001', '262b9727d1584947a02905150a089faa.38.16503382599320123', 'ab212da6fff042febb91b313658a0005.46.16503384128150203', '0b225e568e304836a7901e0cff56205a.39.16503393835170053', '262b9727d1584947a02905150a089faa.39.16503397746270231']    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
 first_tag = True
@@ -42,8 +43,8 @@ first_tag = True
 # start_str = '2022-04-24 19:00:00'    # 2 abnormal new
 # start_str = '2022-04-26 21:00:00'    # 1 abnormal new 2022-04-26 21:02:22
 # start_str = '2022-04-28 12:00:00'
-start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
-# start_str = '2022-05-01 00:00:00'    # 1 change
+# start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
+start_str = '2022-05-01 00:00:00'    # 1 change
 # start_str = '2022-04-28 12:00:00'    # 2 abnormal
 
 # init stage
@@ -53,7 +54,7 @@ check_window = 5 * 60 * 1000    # ms
 AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'none'    # 'none', 'micro', 'macro', 'rate'
 dataLevel = 'trace'    # 'trace', 'span'
-path_decay = 0.001
+path_decay = 0.01
 path_thres = 0.0
 reCluster_thres = 0.1
 
@@ -70,6 +71,15 @@ def intersect_or_not(start1: int, end1: int, start2: int, end2: int):
         return True
     else:
         return False
+
+def get_operation_service_pairs(dataset):
+    global operation_service_dict
+    for trace_id, trace in dataset.items():
+        for vertex_id, vertex in trace['vertexs'].items():
+            if vertex_id == '0':
+                continue
+            if vertex[1] not in operation_service_dict.keys():    # operation
+                operation_service_dict[vertex[1]] = vertex[0]
 
 def simplify_cluster(cluster_obj, dataset, cluster_status, data_status):    # dataset: [[STVector1, sample_info1], [STVector2, sample_info2]]
     global all_path
@@ -130,6 +140,7 @@ def init_Cluster(cluster_obj, init_start_str):
         # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_11-10-06/data.json', 'r')
         file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_17-34-08/data.json', 'r')
         raw_data_total = json.load(file)
+        get_operation_service_pairs(raw_data_total)
         print("Finish init data load !")
 
     print('Init Start !')
@@ -149,9 +160,14 @@ def init_Cluster(cluster_obj, init_start_str):
             dataset, raw_data_dict = load_dataset(start, end, dataLevel, 'init')
         elif dataLevel == 'trace':
             dataset, raw_data_dict = load_dataset(start, end, dataLevel, 'init', raw_data_total)
-            
+
         if len(dataset) == 0:
-            break
+            if start < timestamp(init_start_str) + (8 * 60 * 60 * 1000):
+                start = end
+                end = start + window_duration
+                continue
+            else: 
+                break
         
         # do cluster
         simplify_cluster(cluster_obj=cluster_obj, dataset=dataset, cluster_status='init', data_status='init')
@@ -275,7 +291,7 @@ def main():
     # ========================================
     if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
         # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
-        denstream = DenStream(eps=80, lambd=0.1, beta=0.2, mu=6, use_manual=use_manual)    # eps=80    beta=0.2   mu=6
+        denstream = DenStream(eps=30, lambd=0.1, beta=0.2, mu=6, use_manual=use_manual)    # eps=80    beta=0.2   mu=6
         init_Cluster(denstream, init_start_str)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=100, decay=0.001, threshold=5)
@@ -332,10 +348,11 @@ def main():
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-28_21-01-41/data.json', 'r')
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-28_22-55-23/data.json', 'r')
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-29_21-45-19/data.json', 'r')
-        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')    # abnormal 1 avail
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')    # change 1
+        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')    # abnormal 1 avail
+        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')    # change 1
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')    # abnormal 2
         raw_data_total = json.load(file)
+        get_operation_service_pairs(raw_data_total)
         print("Finish main data load !")
 
     print('Start !')
@@ -349,7 +366,9 @@ def main():
         #         start = end
         #         end = start + window_duration
         #         continue
-        if ms2str(start) == '2022-04-27 20:26:00':    # score_list   2022-04-27 16:56:00  2022-04-27 17:26:00  2022-04-27 17:44:00
+        if ms2str(start) == '2022-05-01 02:12:00':    
+            # order service 的 trace 断开的原因   2022-05-01 00:48:00 ~ 2022-05-01 00:54:00    2022-05-01 02:06:00 ~ 2022-05-01 02:12:00  2022-05-01 02:12:00 这一段时间的召回率很低（0.30），f1 score 0.45
+            # 2022-05-01 01:06:00 ~ 2022-05-01 01:12:00    2022-05-01 01:30:00 ~ 2022-05-01 01:36:00  这一段时间的异常检测完全正确，但是根因定位不准，异常trace的结构完全一样
             print("find it !")
         timeWindow_count += 1
         abnormal_count = 0
@@ -371,7 +390,7 @@ def main():
             else: 
                 break
         
-        # a_true, a_pred = [], []
+        a_true, a_pred = [], []
         # Init manual count
         manual_count = 0
         for _, data in tqdm(enumerate(dataset), desc="Time Window Samples: "):
@@ -465,18 +484,18 @@ def main():
             AD_pattern = [micro_cluster for micro_cluster in cedas.micro_clusters if micro_cluster.AD_selected==True]
 
 
-        # print('Manual labeling count is ', manual_count)
-        # print('Manual labeling ratio is %.3f' % (manual_count/len(dataset)))
-        # print('--------------------------------')
-        # a_acc = accuracy_score(a_true, a_pred)
-        # a_prec = precision_score(a_true, a_pred)
-        # a_recall = recall_score(a_true, a_pred)
-        # a_F1_score = (2 * a_prec * a_recall)/(a_prec + a_recall)
-        # print('AD accuracy score is %.5f' % a_acc)
-        # print('AD precision score is %.5f' % a_prec)
-        # print('AD recall score is %.5f' % a_recall)
-        # print('AD F1 score is %.5f' % a_F1_score)
-        # print('--------------------------------')
+        print('Manual labeling count is ', manual_count)
+        print('Manual labeling ratio is %.3f' % (manual_count/len(dataset)))
+        print('--------------------------------')
+        a_acc = accuracy_score(a_true, a_pred)
+        a_prec = precision_score(a_true, a_pred)
+        a_recall = recall_score(a_true, a_pred)
+        a_F1_score = (2 * a_prec * a_recall)/(a_prec + a_recall)
+        print('AD accuracy score is %.5f' % a_acc)
+        print('AD precision score is %.5f' % a_prec)
+        print('AD recall score is %.5f' % a_recall)
+        print('AD F1 score is %.5f' % a_F1_score)
+        print('--------------------------------')
 
         if AD_method in ['DenStream_withscore', 'CEDAS_withscore']:
             pattern_IoU = len(set(AD_pattern)&set(rc_pattern)) / len(set(AD_pattern)|set(rc_pattern)) if len(set(AD_pattern)|set(rc_pattern)) != 0 else -1
@@ -548,26 +567,26 @@ def main():
                 candidate_list_1 = []
                 candidate_list_2 = []
                 for topS in topK_0:
-                    candidate_list_0 += topS.split('/')
+                    candidate_list_0.append(operation_service_dict[topS])
                 for topS in topK_1:
-                    candidate_list_1 += topS.split('/')
+                    candidate_list_1.append(operation_service_dict[topS])
                 for topS in topK_2:
-                    candidate_list_2 += topS.split('/')
+                    candidate_list_2.append(operation_service_dict[topS])
                 if isinstance(chaos_service_list[0], list):    # 一次注入两个故障
                     for service_pair in chaos_service_list:
-                        if (service_pair[0].replace('-', '')[2:] in candidate_list_0) and (service_pair[1].replace('-', '')[2:] in candidate_list_0):
+                        if (service_pair[0] in candidate_list_0) and (service_pair[1] in candidate_list_0):
                             in_topK_0 = True
-                        if (service_pair[0].replace('-', '')[2:] in candidate_list_1) and (service_pair[1].replace('-', '')[2:] in candidate_list_1):
+                        if (service_pair[0] in candidate_list_1) and (service_pair[1] in candidate_list_1):
                             in_topK_1 = True
-                        if (service_pair[0].replace('-', '')[2:] in candidate_list_2) and (service_pair[1].replace('-', '')[2:] in candidate_list_2):
+                        if (service_pair[0] in candidate_list_2) and (service_pair[1] in candidate_list_2):
                             in_topK_2 = True
                 else:
                     for service in chaos_service_list:
-                        if service.replace('-', '')[2:] in candidate_list_0:
+                        if service in candidate_list_0:
                             in_topK_0 = True
-                        if service.replace('-', '')[2:] in candidate_list_1:
+                        if service in candidate_list_1:
                             in_topK_1 = True
-                        if service.replace('-', '')[2:] in candidate_list_2:
+                        if service in candidate_list_2:
                             in_topK_2 = True
                 
                 if in_topK_0 == True:
