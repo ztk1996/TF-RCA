@@ -245,7 +245,7 @@ def load_sw_span(data_path_list: List[str]) -> List[DataFrame]:
         data_type = {ITEM.START_TIME: np.uint64, ITEM.END_TIME: np.uint64}
         spans = pd.read_csv(
             filepath, dtype=data_type
-        ).drop_duplicates().dropna()
+        ).drop_duplicates()
         spans[ITEM.DURATION] = spans[ITEM.END_TIME] - \
             spans[ITEM.START_TIME]
 

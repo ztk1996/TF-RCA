@@ -2,7 +2,7 @@ kind: NetworkChaos
 apiVersion: chaos-mesh.org/v1alpha1
 metadata:
   namespace: train-ticket
-  name: seat-http-code
+  name: seat-network-delay
 spec:
   selector:
     namespaces:

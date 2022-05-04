@@ -49,7 +49,7 @@ def constant_query(targets: list):
         return
 
     count = random.randint(3, 5)
-    interval = random.randint(10, 20)
+    interval = random.randint(3, 5)
 
     query_weights = {
         q.query_cheapest: 20,
