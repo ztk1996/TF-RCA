@@ -170,37 +170,37 @@ class DenStream:
         return y
     
     
-    # def updateAll(self, micro_cluster):
-    #     # if len(self.p_micro_clusters) > 0:
-    #     #     try:
-    #     #         mc_start = self.p_micro_clusters[0]
-    #     #         max_update = mc_start.r_mean + mc_start.r_std*self.k_std
-    #     #         max_w = mc_start.weight()
-    #     #     except Exception as e:
-    #     #         max_update = self.eps
+    def updateAll(self, micro_cluster):
+        # if len(self.p_micro_clusters) > 0:
+        #     try:
+        #         mc_start = self.p_micro_clusters[0]
+        #         max_update = mc_start.r_mean + mc_start.r_std*self.k_std
+        #         max_w = mc_start.weight()
+        #     except Exception as e:
+        #         max_update = self.eps
 
-    #     #     for cluster in self.p_micro_clusters:                
-    #     #         if (cluster != micro_cluster):
-    #     #             cluster.noNewSamples()    
-    #     #         if cluster.weight() > max_w:
-    #     #             max_w = cluster.weight()
-    #     #             max_update = cluster.r_mean + cluster.r_std*self.k_std
-    #     #     self.eps = deepcopy(max_update)
-    #     # else:
-    #     #     pass
+        #     for cluster in self.p_micro_clusters:                
+        #         if (cluster != micro_cluster):
+        #             cluster.noNewSamples()    
+        #         if cluster.weight() > max_w:
+        #             max_w = cluster.weight()
+        #             max_update = cluster.r_mean + cluster.r_std*self.k_std
+        #     self.eps = deepcopy(max_update)
+        # else:
+        #     pass
         
-    #     if len(self.p_micro_clusters) > 0:
-    #         for cluster in self.p_micro_clusters:                
-    #             if (cluster != micro_cluster):
-    #                 cluster.noNewSamples()
-    #                 # if self.use_manual == True:
-    #                 #     db_update_weight(cluster_id=id(cluster), cluster_weight=cluster.weight()[0])
+        if len(self.p_micro_clusters) > 0:
+            for cluster in self.p_micro_clusters:                
+                if (cluster != micro_cluster):
+                    cluster.noNewSamples()
+                    # if self.use_manual == True:
+                    #     db_update_weight(cluster_id=id(cluster), cluster_weight=cluster.weight()[0])
 
-    #     for cluster in self.o_micro_clusters:
-    #         if (cluster != micro_cluster):
-    #             cluster.noNewSamples()
-    #             # if self.use_manual == True:
-    #             #     db_update_weight(cluster_id=id(cluster), cluster_weight=cluster.weight()[0])
+        for cluster in self.o_micro_clusters:
+            if (cluster != micro_cluster):
+                cluster.noNewSamples()
+                # if self.use_manual == True:
+                #     db_update_weight(cluster_id=id(cluster), cluster_weight=cluster.weight()[0])
 
     
     def get_sampleRates(self, STV_map, cluster_type):
@@ -597,7 +597,7 @@ class DenStream:
                 micro_cluster.avg_step = (micro_cluster.latest_time - micro_cluster.creation_time)/micro_cluster.count    # ms
                 # Add new member
                 micro_cluster.members[sample_info['trace_id']] = [sample, sample_info]
-                # self.updateAll(micro_cluster)
+                self.updateAll(micro_cluster)
                 return True
         return False
 
@@ -652,7 +652,7 @@ class DenStream:
                 #         micro_cluster.label = 'normal'
             
                 self.o_micro_clusters.append(micro_cluster)
-                # self.updateAll(micro_cluster)
+                self.updateAll(micro_cluster)
                 return micro_cluster.label, 'manual'
         else:
             if sample_info['trace_id'] in manual_labels_list:

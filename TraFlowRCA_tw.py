@@ -204,6 +204,10 @@ def do_reCluster(cluster_obj, data_status, current_time, label_map_reCluster=dic
     global all_path
     global first_tag
     delete_index = [status[1] for status in all_path.values() if status[0]<path_thres]
+    delete_index_all = list()
+    for index in delete_index:
+        delete_index_all.append(index*2)    # path_index
+        delete_index_all.append(index*2+1)    # statusCode_index
     
     # # adjust all STVectors
     # reCluster_dataset = list()    # [[STVector1, sample_info1], [STVector2, sample_info2]]
@@ -219,6 +223,23 @@ def do_reCluster(cluster_obj, data_status, current_time, label_map_reCluster=dic
     # reCluster_dataset.sort(key=lambda i: i[1]['time_stamp'])
     # print("reCluster dataset length: ", len(reCluster_dataset))
 
+    # # adjust all STVectors
+    # reCluster_dataset = list()    # [[STVector1, sample_info1], [STVector2, sample_info2]]
+    # for cluster in cluster_obj.p_micro_clusters+cluster_obj.o_micro_clusters if AD_method in ['DenStream_withoutscore', 'DenStream_withscore'] else cluster_obj.micro_clusters:
+    #     for data_item in cluster.members.values():    # data_item: [STVector, sample_info]
+    #         # 将1小时前的数据丢弃
+    #         if data_item[1]['time_stamp']<current_time-(1 * 60 * 60 * 1000):
+    #             continue
+    #         new_STVector = []
+    #         for idx, value in enumerate(data_item[0]):
+    #             if int(idx/2) not in delete_index:
+    #                 new_STVector.append(value)    # rt dimension & isError dimension
+    #         # 若一个 STVector 被删成空或者全0，则丢弃这个 STVector
+    #         if len(new_STVector)!=0 and new_STVector.count(0)!=len(new_STVector):
+    #             reCluster_dataset.append([np.array(new_STVector), data_item[1]])
+    # reCluster_dataset.sort(key=lambda i: i[1]['time_stamp'])
+    # print("reCluster dataset length: ", len(reCluster_dataset))
+    
     # adjust all STVectors
     reCluster_dataset = list()    # [[STVector1, sample_info1], [STVector2, sample_info2]]
     for cluster in cluster_obj.p_micro_clusters+cluster_obj.o_micro_clusters if AD_method in ['DenStream_withoutscore', 'DenStream_withscore'] else cluster_obj.micro_clusters:
@@ -226,16 +247,16 @@ def do_reCluster(cluster_obj, data_status, current_time, label_map_reCluster=dic
             # 将1小时前的数据丢弃
             if data_item[1]['time_stamp']<current_time-(1 * 60 * 60 * 1000):
                 continue
-            new_STVector = []
-            for idx, value in enumerate(data_item[0]):
-                if int(idx/2) not in delete_index:
-                    new_STVector.append(value)    # rt dimension & isError dimension
+            new_STVector = np.append(data_item[0], [0]*(len(cluster.mean)-len(data_item[0])))
+            new_STVector = list(np.delete(new_STVector, delete_index_all, axis=None))
             # 若一个 STVector 被删成空或者全0，则丢弃这个 STVector
             if len(new_STVector)!=0 and new_STVector.count(0)!=len(new_STVector):
                 reCluster_dataset.append([np.array(new_STVector), data_item[1]])
     reCluster_dataset.sort(key=lambda i: i[1]['time_stamp'])
     print("reCluster dataset length: ", len(reCluster_dataset))
-    
+
+
+
     # adjust all_path dict
     new_all_path = dict()
     for path, path_status in sorted(all_path.items(), key = lambda item: item[1][1]):
@@ -489,7 +510,7 @@ def main():
     # ========================================
     if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
         # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
-        denstream = DenStream(eps=3, lambd=0.1, beta=0.2, mu=6, use_manual=use_manual)    # eps=30    beta=0.2   mu=6
+        denstream = DenStream(eps=5, lambd=0.1, beta=0.2, mu=6, use_manual=use_manual)    # eps=30    beta=0.2   mu=6
         init_Cluster(denstream, init_start_str)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=100, decay=0.001, threshold=5)

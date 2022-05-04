@@ -177,7 +177,7 @@ def init_Cluster(cluster_obj, init_start_str):
 
         delete_index_candidate = [status[1] for status in all_path.values() if status[0]<path_thres]
         if len(delete_index_candidate) / len(all_path) >= reCluster_thres:
-            do_reCluster(cluster_obj=cluster_obj, data_status='init')
+            do_reCluster(cluster_obj=cluster_obj, data_status='init', current_time=start)
     
     # update cluster table when finish init
     if use_manual == True:
@@ -186,20 +186,56 @@ def init_Cluster(cluster_obj, init_start_str):
 
         
 
-def do_reCluster(cluster_obj, data_status, label_map_reCluster=dict()):
+def do_reCluster(cluster_obj, data_status, current_time, label_map_reCluster=dict()):
     print("reCluster Start ...")
     global all_path
     global first_tag
     delete_index = [status[1] for status in all_path.values() if status[0]<path_thres]
+    delete_index_all = list()
+    for index in delete_index:
+        delete_index_all.append(index*2)    # path_index
+        delete_index_all.append(index*2+1)    # statusCode_index
+    
+    # # adjust all STVectors
+    # reCluster_dataset = list()    # [[STVector1, sample_info1], [STVector2, sample_info2]]
+    # for cluster in cluster_obj.p_micro_clusters+cluster_obj.o_micro_clusters if AD_method in ['DenStream_withoutscore', 'DenStream_withscore'] else cluster_obj.micro_clusters:
+    #     for data_item in cluster.members.values():    # data_item: [STVector, sample_info]
+    #         new_STVector = []
+    #         for idx, value in enumerate(data_item[0]):
+    #             if int(idx/2) not in delete_index:
+    #                 new_STVector.append(value)    # rt dimension & isError dimension
+    #         # 若一个 STVector 被删成空或者全0，则丢弃这个 STVector
+    #         if len(new_STVector)!=0 and new_STVector.count(0)!=len(new_STVector):
+    #             reCluster_dataset.append([np.array(new_STVector), data_item[1]])
+    # reCluster_dataset.sort(key=lambda i: i[1]['time_stamp'])
+    # print("reCluster dataset length: ", len(reCluster_dataset))
+
+    # # adjust all STVectors
+    # reCluster_dataset = list()    # [[STVector1, sample_info1], [STVector2, sample_info2]]
+    # for cluster in cluster_obj.p_micro_clusters+cluster_obj.o_micro_clusters if AD_method in ['DenStream_withoutscore', 'DenStream_withscore'] else cluster_obj.micro_clusters:
+    #     for data_item in cluster.members.values():    # data_item: [STVector, sample_info]
+    #         # 将1小时前的数据丢弃
+    #         if data_item[1]['time_stamp']<current_time-(1 * 60 * 60 * 1000):
+    #             continue
+    #         new_STVector = []
+    #         for idx, value in enumerate(data_item[0]):
+    #             if int(idx/2) not in delete_index:
+    #                 new_STVector.append(value)    # rt dimension & isError dimension
+    #         # 若一个 STVector 被删成空或者全0，则丢弃这个 STVector
+    #         if len(new_STVector)!=0 and new_STVector.count(0)!=len(new_STVector):
+    #             reCluster_dataset.append([np.array(new_STVector), data_item[1]])
+    # reCluster_dataset.sort(key=lambda i: i[1]['time_stamp'])
+    # print("reCluster dataset length: ", len(reCluster_dataset))
     
     # adjust all STVectors
     reCluster_dataset = list()    # [[STVector1, sample_info1], [STVector2, sample_info2]]
     for cluster in cluster_obj.p_micro_clusters+cluster_obj.o_micro_clusters if AD_method in ['DenStream_withoutscore', 'DenStream_withscore'] else cluster_obj.micro_clusters:
         for data_item in cluster.members.values():    # data_item: [STVector, sample_info]
-            new_STVector = []
-            for idx, value in enumerate(data_item[0]):
-                if int(idx/2) not in delete_index:
-                    new_STVector.append(value)    # rt dimension & isError dimension
+            # 将1小时前的数据丢弃
+            if data_item[1]['time_stamp']<current_time-(1 * 60 * 60 * 1000):
+                continue
+            new_STVector = np.append(data_item[0], [0]*(len(cluster.mean)-len(data_item[0])))
+            new_STVector = list(np.delete(new_STVector, delete_index_all, axis=None))
             # 若一个 STVector 被删成空或者全0，则丢弃这个 STVector
             if len(new_STVector)!=0 and new_STVector.count(0)!=len(new_STVector):
                 reCluster_dataset.append([np.array(new_STVector), data_item[1]])
@@ -652,12 +688,12 @@ def main():
             if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
                 # if data_status is 'main', all new cluster labels are 'abnormal' and label_status is 'auto'
                 # if data_status is 'init', all new cluster labels are 'normal' and label_status is 'auto'
-                do_reCluster(cluster_obj=denstream, data_status='main', label_map_reCluster=label_map_reCluster)
+                do_reCluster(cluster_obj=denstream, data_status='main', current_time=start, label_map_reCluster=label_map_reCluster)
                 # update cluster table when recluster finish
                 if use_manual == True:
                     denstream.update_cluster_and_trace_tables()
             else:
-                do_reCluster(cluster_obj=cedas, data_status='main', label_map_reCluster=label_map_reCluster)
+                do_reCluster(cluster_obj=cedas, data_status='main', current_time=start, label_map_reCluster=label_map_reCluster)
         
         # visualization ...
         # if AD_method in ['DenStream_withoutscore', 'DenStream_withscore']:
