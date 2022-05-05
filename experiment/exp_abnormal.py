@@ -286,7 +286,7 @@ def workflow(times: int = 50, task_timeout: int = 5 * minute, module: int = 1):
             apply(chaos_path[fault])
         time.sleep(10)
         # 正常
-        p = Pool(4)
+        p = Pool(11)
         p.apply_async(constant_query, args=(targets))
         # 异常
         start_time = time.time()
@@ -296,19 +296,22 @@ def workflow(times: int = 50, task_timeout: int = 5 * minute, module: int = 1):
             p.apply_async(task)
             p.apply_async(task)
             p.apply_async(task)
+            p.apply_async(task)
+            p.apply_async(task)
             name = "ts-" + targets[index] + "-service"
             name_list.append(name)
 
         # 恢复故障
         p.close()
         p.join()
-        end_time = time.time()
-        request_period_log.append(
-            (name_list, int(round(start_time*1000)), int(round(end_time*1000))))
 
         for fault in faults:
             logger.info(f'fault recover: {fault}')
             delete(chaos_path[fault])
+
+        end_time = time.time()
+        request_period_log.append(
+            (name_list, int(round(start_time*1000)), int(round(end_time*1000))))
         # 间隔3min
         time.sleep(3 * minute)
 

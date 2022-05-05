@@ -133,7 +133,6 @@ def query_ticketinfo():
         query_and_preserve(q)
 
     query_weights = {
-        q.query_food: 10,
         q.query_normal_ticket: 10,
         q.query_route: 10,
 
@@ -141,7 +140,7 @@ def query_ticketinfo():
         q.query_min_station: 20,
         q.query_cheapest: 20,
         q.query_quickest: 20,
-        preserve_scenario: 20,
+        preserve_scenario: 30,
     }
 
     def task():
@@ -284,12 +283,15 @@ def query_consign():
     def preserve_scenario():
         query_and_preserve(q)
 
+    def consign_scenario():
+        query_and_consign(q)
+
     query_weights = {
         q.query_normal_ticket: 10,
         q.query_route: 10,
 
-        q.put_consign: 15,
-        preserve_scenario: 20
+        consign_scenario: 30,
+        preserve_scenario: 30,
     }
 
     def task():
@@ -309,10 +311,10 @@ def query_order_other():
         q.query_advanced_ticket: 10,
         q.query_route: 10,
 
-        q.query_high_speed_ticket: 10,
-        q.query_other_orders: 20,
+        q.query_high_speed_ticket: 30,
+        q.query_other_orders: 30,
 
-        preserve_scenario: 20
+        preserve_scenario: 30
     }
 
     def task():
@@ -345,12 +347,15 @@ def query_price():
 def query_rebook():
     q = Query(url)
 
+    def rebook_scenario():
+        query_and_rebook(q)
+
     query_weights = {
         q.query_normal_ticket: 10,
         q.query_advanced_ticket: 10,
         q.query_high_speed_ticket: 10,
 
-        q.rebook_ticket: 20,
+        rebook_scenario: 20,
     }
 
     def task():

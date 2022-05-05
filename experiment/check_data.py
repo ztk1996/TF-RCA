@@ -1,9 +1,9 @@
 import json
 
 
-file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-29_23-08-54/data.json', 'r')
+file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-05_16-38-16/data.json', 'r')
 data = json.load(file)
-dset = [['ts-user-service'], 1651163469669, 1651163770339]
+dset = [['ts-rebook-service'], 1651664892776, 1651665198006]
 
 count = 0
 for tid, trace in data.items():
@@ -17,7 +17,7 @@ for tid, trace in data.items():
 		for es in trace['edges'].values():
 			for e in es:
 				nodes.append(e['service'])
-		print(nodes)
+		print('nodes:', nodes)
 
 
 print(count)

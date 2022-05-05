@@ -485,7 +485,7 @@ def check_match():
 
     service_seq_set_format = list()
     # file_format = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')
-    file_format = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-05_11-17-51/data.json', 'r')
+    file_format = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-05_16-38-16/data.json', 'r')
     raw_data_format = json.load(file_format)
 
     # print('getting trace data (api and time seq) ... 1')
