@@ -489,9 +489,13 @@ def check_abnormal_span(span: Span) -> str:
     if span.duration < 5000 and not span.isError and span.code[0] == '0':
         return ''
 
+    peers = span.peer.split('/')
     for c in chaos:
-        if c == span.service or c == span.peer:
+        if c == span.service:
             return c
+        for p in peers:
+            if c == p:
+                return c
 
     return ''
 
@@ -558,7 +562,8 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
         # if check_abnormal_span(span):
         root_chaos = check_abnormal_span(span)
         if root_chaos != '':
-            chaos_root = [root_chaos]
+            chaos_root.append(root_chaos)
+            is_abnormal = 1
 
         # get the parent server span id
         if span.parentSpanId == '-1':
@@ -912,7 +917,11 @@ def trace_process(trace: List[Span], enable_word_division: bool) -> List[Span]:
     peerMap = {}
     for span in trace:
         if span.spanType == "Exit":
-            peerMap[span.parentSpanId] = span.peer
+            ps = peerMap.get(span.parentSpanId)
+            if ps == None:
+                peerMap[span.parentSpanId] = span.peer
+            else:
+                peerMap[span.parentSpanId] = '/'.join([ps, span.peer])
 
     for span in trace:
         if span.spanType == "Entry" and span.spanId in peerMap.keys():
