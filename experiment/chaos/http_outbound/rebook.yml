@@ -2,7 +2,7 @@ kind: HTTPChaos
 apiVersion: chaos-mesh.org/v1alpha1
 metadata:
   namespace: train-ticket
-  name: rebook-http-code
+  name: rebook-http-outbound
 spec:
   selector:
     namespaces:
