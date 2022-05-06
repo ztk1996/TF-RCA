@@ -65,7 +65,7 @@ change_order2 = [
     [4, 5], [8, 12], [0, 1], [13, 9], [0, 7],
 ]
 
-change_order = change_order2
+change_order = change_order1
 
 
 def wait_for_deployment_complete(api: client.AppsV1Api, name, timeout=300):
@@ -127,7 +127,6 @@ def main():
     api = client.AppsV1Api()
     request_period_log = []
     normal_change_log = []
-    p = Pool(4)
     contact_image = update_deployment_image(
         api, 'ts-contacts-service', 'cqqcqq/contacts_sleep:latest')
 
@@ -156,6 +155,7 @@ def main():
         for name in wait_names:
             wait_for_deployment_complete(api, name)
 
+        p = Pool(5)
         # send requests
         start = int(round(time.time() * 1000))
         if len(deploy_names) > 1:
@@ -163,6 +163,10 @@ def main():
             p.apply_async(query_func[deploy_names[1]])
         p.apply(query_func[deploy_names[0]])
         p.apply(query_func[deploy_names[0]])
+        p.apply(query_func[deploy_names[0]])
+
+        p.close()
+        p.join()
         end = int(round(time.time() * 1000))
 
         root_services = []
