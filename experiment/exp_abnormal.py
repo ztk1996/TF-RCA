@@ -218,8 +218,8 @@ def select_fault(idx: int, module: int = 1) -> list:
 
         # 30-44
         'basic-http-outbound', 'order-http-outbound', 'route-http-outbound', 'station-http-outbound', 'ticketinfo-http-outbound',
-        'travel-http-outbound', 'travel-plan-http-outbound', 'user-http-outbound', 'config-network-delay', 'consign-network-delay',
-        'order-other-network-delay', 'price-network-delay', 'rebook-network-delay', 'seat-network-delay', 'train-network-delay',
+        'travel-http-outbound', 'travel-plan-http-outbound', 'user-http-outbound', 'config-http-outbound', 'consign-http-outbound',
+        'order-other-http-outbound', 'price-http-outbound', 'rebook-http-outbound', 'seat-http-outbound', 'train-http-outbound',
 
         # 'basic-cpu-stress', 'order-cpu-stress', 'route-cpu-stress', 'station-cpu-stress', 'ticketinfo-cpu-stress',
         # 'travel-cpu-stress', 'travel-plan-cpu-stress', 'user-cpu-stress',
@@ -286,7 +286,7 @@ def workflow(times: int = 50, task_timeout: int = 5 * minute, module: int = 1):
             apply(chaos_path[fault])
         time.sleep(10)
         # 正常
-        p = Pool(11)
+        p = Pool(15)
         p.apply_async(constant_query, args=(targets))
         # 异常
         start_time = time.time()

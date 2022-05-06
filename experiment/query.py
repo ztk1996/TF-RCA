@@ -17,13 +17,14 @@ hour = 60*minute
 timeout = 5*minute
 
 
-def random_query(q: Query, weights: dict, count: int = random.randint(1, 3), inteval: int = random.randint(3, 5)):
+def random_query(q: Query, weights: dict, count: int = random.randint(1, 3), inteval: int = random.randint(1, 3)):
     """
     登陆一个用户并按权重随机发起请求
     :param weights: 权重dict
     :param count: 请求次数
     :param inteval: 请求间隔
     """
+    random.seed()
     try:
         if not q.login():
             return
@@ -95,7 +96,7 @@ def query_order():
         q.query_route: 10,
 
         q.query_high_speed_ticket: 20,
-        q.query_orders: 20,
+        q.query_orders: 30,
         payment_scenario: 30,
         cancel_scenario: 20,
         collect_scenario: 20,
@@ -355,7 +356,7 @@ def query_rebook():
         q.query_advanced_ticket: 10,
         q.query_high_speed_ticket: 10,
 
-        rebook_scenario: 20,
+        rebook_scenario: 40,
     }
 
     def task():

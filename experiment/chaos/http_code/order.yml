@@ -2,7 +2,7 @@ kind: HTTPChaos
 apiVersion: chaos-mesh.org/v1alpha1
 metadata:
   namespace: train-ticket
-  name: order-http-outbound
+  name: order-http-code
 spec:
   selector:
     namespaces:

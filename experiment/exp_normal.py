@@ -25,7 +25,8 @@ hour = 60*minute
 def constant_query(timeout: int = 24*hour):
     start = time.time()
     q = Query(url)
-
+    random.seed()
+    
     def preserve_scenario():
         query_and_preserve(q)
 
