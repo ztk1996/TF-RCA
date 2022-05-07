@@ -238,7 +238,7 @@ def rca(start, end, tid_list, trace_labels, traces_dict, confidenceScores=None, 
 
     if len(anomaly_list) == 0 or len(normal_list) == 0:
         print('list is empty')
-        return []
+        return [], []
     if dataLevel == 'span':
         operation_operation, operation_trace, trace_operation, pr_trace \
             = get_pagerank_graph_spanLevel(normal_list, middle_span_list)

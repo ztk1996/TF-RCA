@@ -132,6 +132,8 @@ def trace_pagerank(operation_operation, operation_trace, trace_operation, pr_tra
             num_sum_trace += 1.0 / kind_list[trace_list.index(trace_id)]    # 分母
             # method 2
             # num_sum_trace += confidenceScores[trace_id]
+            # method 3
+            # num_sum_trace += (1.0 / kind_list[trace_list.index(trace_id)]) * confidenceScores[trace_id]
         for trace_id in pr_trace:
             # 正常数据的偏好向量
             # method 1
@@ -139,12 +141,17 @@ def trace_pagerank(operation_operation, operation_trace, trace_operation, pr_tra
                 kind_list[trace_list.index(trace_id)] / num_sum_trace
             # method 2
             # pr[trace_list.index(trace_id)] = confidenceScores[trace_id] / num_sum_trace
+            # method 3
+            # pr[trace_list.index(trace_id)] = (1.0 / \
+            #     kind_list[trace_list.index(trace_id)] / num_sum_trace) * confidenceScores[trace_id]
     else:
         for trace_id in pr_trace:
             # method 1
             kind_sum_trace += 1.0 / kind_list[trace_list.index(trace_id)]    # 分母之一
             # method 2
             # kind_sum_trace += confidenceScores[trace_id]
+            # method 3
+            # kind_sum_trace += (1.0 / kind_list[trace_list.index(trace_id)]) * confidenceScores[trace_id]
             num_sum_trace += 1.0 / len(pr_trace[trace_id])    # trace越长则分数越低，trace越短越重要
         for trace_id in pr_trace:
             # 异常数据的偏好向量
@@ -154,6 +161,9 @@ def trace_pagerank(operation_operation, operation_trace, trace_operation, pr_tra
             # method 2
             # pr[trace_list.index(trace_id)] = confidenceScores[trace_id] / kind_sum_trace * 0.5 \
             #                                         + 1.0 / len(pr_trace[trace_id]) / num_sum_trace * 0.5
+            # method 3 
+            # pr[trace_list.index(trace_id)] = (1.0 / kind_list[trace_list.index(trace_id)] / kind_sum_trace * 0.5 \
+            #                                         + 1.0 / len(pr_trace[trace_id]) / num_sum_trace * 0.5) * confidenceScores[trace_id]
 
     result = pageRank(p_ss, p_sr, p_rs, pr, operation_length, trace_length)
 

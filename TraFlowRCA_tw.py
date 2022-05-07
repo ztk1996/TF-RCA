@@ -22,7 +22,7 @@ from DenStream.DenStream import DenStream
 from CEDAS.CEDAS import CEDAS
 from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo
 from MicroRank.online_rca import rca
-from DataPreprocess.params import span_chaos_dict, trace_chaos_dict, request_period_log
+from DataPreprocess.params import span_chaos_dict, trace_chaos_dict, request_period_log, normal_change_log
 from db_utils import *
 import warnings
 warnings.filterwarnings("ignore")
@@ -30,7 +30,7 @@ warnings.filterwarnings("ignore")
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 Two_error = False
-K = [1, 3, 5] if Two_error==False else [2, 3, 5]
+K = [1, 3, 5, 7, 10] if Two_error==False else [2, 3, 5, 7, 10]
 all_path = dict()
 operation_service_dict = dict()
 use_manual = False
@@ -49,12 +49,14 @@ first_tag = True
 # start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
 start_str = '2022-05-01 00:00:00'    # 1 change
 # start_str = '2022-04-28 12:00:00'    # 2 abnormal
+# start_str = '2022-05-05 19:00:00'    # 1 abnormal new 5-6
+
 # init stage
 # init_start_str = '2022-04-18 00:00:05'    # normal old
 init_start_str = '2022-04-25 20:36:46'    # normal new
 window_duration = 6 * 60 * 1000    # ms
 rca_window = 4 * 60 * 1000    # ms    3 min
-AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
+AD_method = 'DenStream_withoutscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
 Sample_method = 'none'    # 'none', 'micro', 'macro', 'rate'
 dataLevel = 'trace'    # 'trace', 'span'
 path_decay = 0.01
@@ -68,6 +70,8 @@ r_true_count = len(request_period_log)
 r_pred_count_0 = 0
 r_pred_count_1 = 0
 r_pred_count_2 = 0
+r_pred_count_3 = 0
+r_pred_count_4 = 0
 TP = 0    # TP 是预测为正类且预测正确 
 TN = 0    # TN 是预测为负类且预测正确
 FP = 0    # FP 是把实际负类分类（预测）成了正类
@@ -101,6 +105,10 @@ def simplify_cluster(cluster_obj, dataset, cluster_status, data_status):    # da
     global first_tag
     manual_count = 0
     for data in tqdm(dataset, desc="Cluster Samples: "):
+        if cluster_status=='init':
+            current_time_stamp = data['time_stamp']
+        else:
+            current_time_stamp = data[1]['time_stamp']
         # ========================================
         # Path vector encoder
         # ========================================
@@ -134,6 +142,8 @@ def simplify_cluster(cluster_obj, dataset, cluster_status, data_status):    # da
         # label_status
         if label_status == 'manual':
             manual_count += 1
+    # kill micro clusters after a time window
+    cluster_obj.kill_micro_clusters(current_time_stamp=current_time_stamp, stage=cluster_status)
 
 
 def init_Cluster(cluster_obj, init_start_str):
@@ -369,6 +379,8 @@ def triggerRCA(trace_id, time_stamp, buffer, raw_data_total):
     global r_pred_count_0
     global r_pred_count_1
     global r_pred_count_2
+    global r_pred_count_3
+    global r_pred_count_4
     global trigger_count
 
     trigger_count += 1
@@ -419,6 +431,12 @@ def triggerRCA(trace_id, time_stamp, buffer, raw_data_total):
         # topK_2
         topK_2 = top_list[:K[2] if len(top_list) > K[2] else len(top_list)]
         print(f'top-{K[2]} root cause is', topK_2)
+        # topK_3
+        topK_3 = top_list[:K[3] if len(top_list) > K[3] else len(top_list)]
+        print(f'top-{K[3]} root cause is', topK_3)
+        # topK_4
+        topK_4 = top_list[:K[4] if len(top_list) > K[4] else len(top_list)]
+        print(f'top-{K[4]} root cause is', topK_4)
 
         # chaos_service = span_chaos_dict.get(start_hour)
         chaos_service_list = []
@@ -439,16 +457,24 @@ def triggerRCA(trace_id, time_stamp, buffer, raw_data_total):
         in_topK_0 = False
         in_topK_1 = False
         in_topK_2 = False
+        in_topK_3 = False
+        in_topK_4 = False
 
         candidate_list_0 = []
         candidate_list_1 = []
         candidate_list_2 = []
+        candidate_list_3 = []
+        candidate_list_4 = []
         for topS in topK_0:
             candidate_list_0.append(operation_service_dict[topS])
         for topS in topK_1:
             candidate_list_1.append(operation_service_dict[topS])
         for topS in topK_2:
             candidate_list_2.append(operation_service_dict[topS])
+        for topS in topK_3:
+            candidate_list_3.append(operation_service_dict[topS])
+        for topS in topK_4:
+            candidate_list_4.append(operation_service_dict[topS])
         if isinstance(chaos_service_list[0], list):    # 一次注入两个故障
             for service_pair in chaos_service_list:
                 if (service_pair[0] in candidate_list_0) and (service_pair[1] in candidate_list_0):
@@ -457,6 +483,10 @@ def triggerRCA(trace_id, time_stamp, buffer, raw_data_total):
                     in_topK_1 = True
                 if (service_pair[0] in candidate_list_2) and (service_pair[1] in candidate_list_2):
                     in_topK_2 = True
+                if (service_pair[0] in candidate_list_3) and (service_pair[1] in candidate_list_3):
+                    in_topK_3 = True
+                if (service_pair[0] in candidate_list_4) and (service_pair[1] in candidate_list_4):
+                    in_topK_4 = True
         else:
             for service in chaos_service_list:
                 if service in candidate_list_0:
@@ -465,6 +495,10 @@ def triggerRCA(trace_id, time_stamp, buffer, raw_data_total):
                     in_topK_1 = True
                 if service in candidate_list_2:
                     in_topK_2 = True
+                if service in candidate_list_3:
+                    in_topK_3 = True
+                if service in candidate_list_4:
+                    in_topK_4 = True
                 
         if in_topK_0 == True:
             r_pred_count_0 += 1
@@ -472,9 +506,16 @@ def triggerRCA(trace_id, time_stamp, buffer, raw_data_total):
             r_pred_count_1 += 1
         if in_topK_2 == True:
             r_pred_count_2 += 1
+        if in_topK_3 == True:
+            r_pred_count_3 += 1
+        if in_topK_4 == True:
+            r_pred_count_4 += 1
 
 
 def main():
+    # manual labels list
+    traceID_list = list()
+
     # ========================================
     # Init path vector encoder
     # all_path = {path1: [energy1, index1], path2: [energy2, index2]}
@@ -568,6 +609,7 @@ def main():
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')    # abnormal1 avail
         file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')    # change 1
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')    # abnormal 2
+        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-06_17-28-43/data.json', 'r')    # 1 abnormal new 5-6
         raw_data_total = json.load(file)
         get_operation_service_pairs(raw_data_total)
         print("Finish main data load !")
@@ -585,6 +627,26 @@ def main():
         #         end = start + window_duration
         #         continue
         if ms2str(start) == '2022-05-01 00:48:00':    # score_list 
+            print("find it !")
+        if intersect_or_not(start1=start, end1=end, start2=normal_change_log[0][1], end2=normal_change_log[0][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[1][1], end2=normal_change_log[1][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[2][1], end2=normal_change_log[2][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[3][1], end2=normal_change_log[3][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[4][1], end2=normal_change_log[4][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[5][1], end2=normal_change_log[5][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[6][1], end2=normal_change_log[6][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[7][1], end2=normal_change_log[7][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[8][1], end2=normal_change_log[8][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[9][1], end2=normal_change_log[9][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[10][1], end2=normal_change_log[10][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[11][1], end2=normal_change_log[11][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[12][1], end2=normal_change_log[12][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[13][1], end2=normal_change_log[13][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[14][1], end2=normal_change_log[14][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[15][1], end2=normal_change_log[15][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[16][1], end2=normal_change_log[16][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[17][1], end2=normal_change_log[17][2]) \
+        or intersect_or_not(start1=start, end1=end, start2=normal_change_log[18][1], end2=normal_change_log[18][2]):
             print("find it !")
         timeWindow_count += 1
         abnormal_count = 0
@@ -610,6 +672,7 @@ def main():
         # Init manual count
         manual_count = 0
         for _, data in tqdm(enumerate(dataset), desc="Time Window Samples: "):
+            current_time_stamp = data['time_stamp']
             # ========================================
             # Path vector encoder
             # ========================================
@@ -652,12 +715,14 @@ def main():
 
             if AD_method in ['DenStream_withoutscore', 'CEDAS_withoutscore']:
                 # sample_label
-                # if sample_label == 'abnormal':
-                if data['trace_bool'] == 1:
+                if sample_label == 'abnormal':
+                # if data['trace_bool'] == 1:
                     a_pred.append(1)
                     abnormal_map[tid] = True
                     abnormal_count += 1
                     abnormal_seq_map[tid] = data['service_seq']
+                    if raw_data_total[tid]['abnormal'] == 0:
+                        traceID_list.append(tid)
                 else:
                     abnormal_map[tid] = False
                     normal_seq_map[tid] = data['service_seq']
@@ -680,10 +745,15 @@ def main():
                     a_pred.append(1)
                     abnormal_map[tid] = True
                     abnormal_count += 1
+                    if raw_data_total[tid]['abnormal'] == 0:
+                        traceID_list.append(tid)
                 else:
                     abnormal_map[tid] = False
                     a_pred.append(0)
             
+            # kill micro clusters after a time window
+            denstream.kill_micro_clusters(current_time_stamp=current_time_stamp)
+
             # buffer storage
             if len(buffer) == 3:
                 # check the second time window
@@ -709,7 +779,9 @@ def main():
 
             # AD_pattern = [micro_cluster for micro_cluster in denstream.p_micro_clusters+denstream.o_micro_clusters if micro_cluster.AD_selected==True]
         elif AD_method == 'DenStream_withoutscore':
-            
+            # kill micro clusters after a time window
+            denstream.kill_micro_clusters(current_time_stamp=current_time_stamp)
+
             # buffer storage
             if len(buffer) == 3:
                 # check the second time window
@@ -907,6 +979,11 @@ def main():
         #     if len(cedas.micro_clusters) > 1:
         #         cedas.visualization_tool()
         # main loop end
+    
+    # traceID_fw = open('./manual_traceID.txt', 'w')
+    # traceID_fw.write(str(traceID_list).replace('[', '').replace(']', '').replace('\'', ''))
+    # traceID_fw.close()
+    # print('candidate list length : {}'.format(len(traceID_list)))
     print('main loop end')
     
 
@@ -933,8 +1010,8 @@ def main():
     print("Top@{}:".format(K[0]))
     TP = r_pred_count_0
     if TP != 0:
-        hit_rate = r_pred_count_0 / r_true_count
-        # hit_rate = r_pred_count_0 / trigger_count
+        # hit_rate = r_pred_count_0 / r_true_count
+        hit_rate = r_pred_count_0 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
@@ -948,8 +1025,8 @@ def main():
     print("Top@{}:".format(K[1]))
     TP = r_pred_count_1
     if TP != 0:
-        hit_rate = r_pred_count_1 / r_true_count
-        # hit_rate = r_pred_count_1 / trigger_count
+        # hit_rate = r_pred_count_1 / r_true_count
+        hit_rate = r_pred_count_1 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
@@ -963,8 +1040,38 @@ def main():
     print("Top@{}:".format(K[2]))
     TP = r_pred_count_2
     if TP != 0:
-        hit_rate = r_pred_count_2 / r_true_count
-        # hit_rate = r_pred_count_2 / trigger_count
+        # hit_rate = r_pred_count_2 / r_true_count
+        hit_rate = r_pred_count_2 / trigger_count
+        r_acc = (TP + TN)/(TP + FP + TN + FN)
+        r_recall = TP/(TP + FN)
+        r_prec = TP/(TP + FP)
+        print('RCA hit rate is %.5f' % hit_rate)
+        print('RCA accuracy score is %.5f' % r_acc)
+        print('RCA recall score is %.5f' % r_recall)
+        print('RCA precision score is %.5f' % r_prec)
+    else:
+        print('RCA hit rate is 0')
+    print('* * * * * * * *')
+    print("Top@{}:".format(K[3]))
+    TP = r_pred_count_3
+    if TP != 0:
+        # hit_rate = r_pred_count_3 / r_true_count
+        hit_rate = r_pred_count_3 / trigger_count
+        r_acc = (TP + TN)/(TP + FP + TN + FN)
+        r_recall = TP/(TP + FN)
+        r_prec = TP/(TP + FP)
+        print('RCA hit rate is %.5f' % hit_rate)
+        print('RCA accuracy score is %.5f' % r_acc)
+        print('RCA recall score is %.5f' % r_recall)
+        print('RCA precision score is %.5f' % r_prec)
+    else:
+        print('RCA hit rate is 0')
+    print('* * * * * * * *')
+    print("Top@{}:".format(K[4]))
+    TP = r_pred_count_4
+    if TP != 0:
+        # hit_rate = r_pred_count_4 / r_true_count
+        hit_rate = r_pred_count_4 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)

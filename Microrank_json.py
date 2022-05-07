@@ -11,11 +11,11 @@ from torch.utils.data import Subset
 import time
 import datetime
 from sklearn.metrics import accuracy_score, recall_score, precision_score
-from DataPreprocess.STVProcess import embedding_to_vector, load_dataset, process_one_trace
+from DataPreprocess.STVProcess import get_operation_slo, load_raw_dataset, get_operation_duration_data
 from DenStream.DenStream import DenStream
 from CEDAS.CEDAS import CEDAS
-from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo, get_operation_duration_data
-from MicroRank.online_rca import rca_MicroRank
+from MicroRank.preprocess_data import get_span, get_service_operation_list
+from MicroRank.online_rca import rca_MicroRank, rca
 from DataPreprocess.params import span_chaos_dict, request_period_log
 from DataPreprocess.SpanProcess import preprocess_span
 import warnings
@@ -29,21 +29,22 @@ Two_error = False
 K = [1, 3, 5, 7, 10] if Two_error==False else [2, 3, 5, 7, 10]
 operation_service_dict = dict()
 # format stage
-# start_str = '2022-04-18 21:08:00'    # changes    # '2022-01-13 00:00:00' ---> '2022-04-17 02:56:08'   '2022-04-18 21:00:00'
+# start_str = '2022-04-18 21:08:00'    # changes
 # start_str = '2022-04-22 22:00:00'    # changes new
 # start_str = '2022-04-18 11:00:00'    # 1 abnormal
 # start_str = '2022-04-19 10:42:59'    # 2 abnormal
 # start_str = '2022-04-24 19:00:00'    # 2 abnormal new
-# start_str = '2022-04-26 21:00:00'    # 1 abnormal new
+# start_str = '2022-04-26 21:00:00'    # 1 abnormal new 2022-04-26 21:02:22
 # start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
 # start_str = '2022-05-01 00:00:00'    # 1 change
+# start_str = '2022-04-28 12:00:00'    # 2 abnormal
 start_str = '2022-05-05 19:00:00'    # 1 abnormal new 5-6
 
 window_duration = 6 * 60 * 1000 # ms
+
 # init stage
-# init_start_str = '2022-04-20 00:00:05'    # normal old
-# init_end_str = '2022-04-20 09:59:55'
-init_start_str = '2022-05-03 20:36:46'    # normal new
+# init_start_str = '2022-04-18 00:00:05'    # normal old
+init_start_str = '2022-04-25 20:36:46'    # normal new
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
@@ -75,22 +76,30 @@ def main():
     init_start = timestamp(init_start_str)
     # init_end = timestamp(init_end_str)
     init_end = init_start +  13 * 60 * 60 * 1000
-    
-    start = timestamp(start_str)
-    end = start + window_duration
 
-    
+    # ========================================
+    # Init Data loader
+    # ========================================
+    print("Init Data loading ...")
+    # file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
+    # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_17-34-08/data.json', 'r')    # old
+    file_init = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-04_18-45-43/data.json', 'r')    # new
+    raw_data_total_init = json.load(file_init)
+    get_operation_service_pairs(raw_data_total_init)
+    print("Finish init data load !")
+    print('Init Start !')
 
     # ========================================
     # Init operation list
     # ========================================
-    span_list = get_span(start=init_start, end=init_end, stage='init')
-    # print(span_list)
-    operation_list = get_service_operation_list(span_list)
-    # print(operation_list)
-    slo = get_operation_slo(
-        service_operation_list=operation_list, span_list=span_list)
+    slo = get_operation_slo(raw_data=raw_data_total_init)
     # print(slo)
+
+    # ========================================
+    # Init time window
+    # ========================================
+    start = timestamp(start_str)
+    end = start + window_duration
 
     # ========================================
     # Init evaluation for AD
@@ -112,6 +121,27 @@ def main():
     FP = 0    # FP 是把实际负类分类（预测）成了正类
     FN = 0    # FN 是把实际正类分类（预测）成了负类
 
+    # ========================================
+    # Data loader
+    # ========================================
+    print("Main Data loading ...")
+    # file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
+    # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-17_15-29-46/data.json', 'r')
+    # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_10-05-14/data.json', 'r')    # 1 abnormal
+    # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')    # 2 abnormal
+    # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_11-34-58/data.json', 'r')    # change
+    # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-23_13-34-27/data.json', 'r')    # change new
+    # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-25_12-40-13/data.json', 'r')    # abnormal2 new
+    # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_22-19-20/data.json', 'r')    # abnormal1 new new
+    # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_12-58-19/data.json', 'r')    # abnormal1 new
+    # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')    # abnormal1 avail
+    # file_main = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')    # change 1
+    # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')    # abnormal 2
+    file_main = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-06_17-28-43/data.json', 'r')    # 1 abnormal new 5-6
+    raw_data_total_main = json.load(file_main)
+    get_operation_service_pairs(raw_data_total_main)
+    print("Finish main data load !")
+
     print('Start !')
     # main loop start
     while True:
@@ -120,27 +150,23 @@ def main():
         abnormal_count = 0
         abnormal_map = {}
         tid_list = []
-        raw_data = preprocess_span(start=start, end=end, stage='main')
+        raw_data_dict = load_raw_dataset(start, end, raw_data_total_main)
 
         # a_true, a_pred = [], []
-        span_list = get_span(start=start, end=end)
-        if len(span_list) == 0:
+        if len(raw_data_dict) == 0:
             if start < timestamp(start_str) + (8 * 60 * 60 * 1000):
                 start = end
                 end = start + window_duration
                 continue
             else: 
-                print("Error: Current span list is empty ")
+                print("Error: Current dataset list is empty ")
                 break
-        #operation_list = get_service_operation_list(span_list)
-        operation_count = get_operation_duration_data(operation_list, span_list)
+        
+        operation_count = get_operation_duration_data(raw_data_dict)
 
         for trace_id in operation_count:
-            if trace_id not in raw_data.keys():
-                continue
-            else:    
-                a_true.append(raw_data[trace_id]['abnormal'])
-                tid_list.append(trace_id)
+            a_true.append(raw_data_dict[trace_id]['abnormal'])
+            tid_list.append(trace_id)
                 
             real_duration = float(operation_count[trace_id]['duration']) / 1000.0
             expect_duration = 0.0
@@ -181,8 +207,8 @@ def main():
 
             trigger_count += 1
 
-            top_list = rca_MicroRank(start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map, operation_list=operation_list, slo=slo)
-            
+            top_list, score_list = rca(start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map, traces_dict=raw_data_dict, dataLevel='trace')
+
             # top_list is not empty
             if len(top_list) != 0:   
                 # topK_0
@@ -201,7 +227,6 @@ def main():
                 topK_4 = top_list[:K[4] if len(top_list) > K[4] else len(top_list)]
                 print(f'top-{K[4]} root cause is', topK_4)
 
-                start_hour = time.localtime(start//1000).tm_hour
                 # chaos_service = span_chaos_dict.get(start_hour)
                 chaos_service_list = []
                 for root_cause_item in request_period_log:
@@ -233,38 +258,38 @@ def main():
                 candidate_list_3 = []
                 candidate_list_4 = []
                 for topS in topK_0:
-                    candidate_list_0 += topS.split('/')
+                    candidate_list_0.append(operation_service_dict[topS])
                 for topS in topK_1:
-                    candidate_list_1 += topS.split('/')
+                    candidate_list_1.append(operation_service_dict[topS])
                 for topS in topK_2:
-                    candidate_list_2 += topS.split('/')
+                    candidate_list_2.append(operation_service_dict[topS])
                 for topS in topK_3:
-                    candidate_list_3 += topS.split('/')
+                    candidate_list_3.append(operation_service_dict[topS])
                 for topS in topK_4:
-                    candidate_list_4 += topS.split('/')
+                    candidate_list_4.append(operation_service_dict[topS])
                 if isinstance(chaos_service_list[0], list):    # 一次注入两个故障
                     for service_pair in chaos_service_list:
-                        if (service_pair[0].replace('-', '')[2:] in candidate_list_0) and (service_pair[1].replace('-', '')[2:] in candidate_list_0):
+                        if (service_pair[0] in candidate_list_0) and (service_pair[1] in candidate_list_0):
                             in_topK_0 = True
-                        if (service_pair[0].replace('-', '')[2:] in candidate_list_1) and (service_pair[1].replace('-', '')[2:] in candidate_list_1):
+                        if (service_pair[0] in candidate_list_1) and (service_pair[1] in candidate_list_1):
                             in_topK_1 = True
-                        if (service_pair[0].replace('-', '')[2:] in candidate_list_2) and (service_pair[1].replace('-', '')[2:] in candidate_list_2):
+                        if (service_pair[0] in candidate_list_2) and (service_pair[1] in candidate_list_2):
                             in_topK_2 = True
-                        if (service_pair[0].replace('-', '')[2:] in candidate_list_3) and (service_pair[1].replace('-', '')[2:] in candidate_list_3):
+                        if (service_pair[0] in candidate_list_3) and (service_pair[1] in candidate_list_3):
                             in_topK_3 = True
-                        if (service_pair[0].replace('-', '')[2:] in candidate_list_4) and (service_pair[1].replace('-', '')[2:] in candidate_list_4):
+                        if (service_pair[0] in candidate_list_4) and (service_pair[1] in candidate_list_4):
                             in_topK_4 = True
                 else:
                     for service in chaos_service_list:
-                        if service.replace('-', '')[2:] in candidate_list_0:
+                        if service in candidate_list_0:
                             in_topK_0 = True
-                        if service.replace('-', '')[2:] in candidate_list_1:
+                        if service in candidate_list_1:
                             in_topK_1 = True
-                        if service.replace('-', '')[2:] in candidate_list_2:
+                        if service in candidate_list_2:
                             in_topK_2 = True
-                        if service.replace('-', '')[2:] in candidate_list_3:
+                        if service in candidate_list_3:
                             in_topK_3 = True
-                        if service.replace('-', '')[2:] in candidate_list_4:
+                        if service in candidate_list_4:
                             in_topK_4 = True
                 
                 if in_topK_0 == True:
@@ -329,8 +354,8 @@ def main():
     print("Top@{}:".format(K[0]))
     TP = r_pred_count_0
     if TP != 0:
-        hit_rate = r_pred_count_0 / r_true_count
-        # hit_rate = r_pred_count_0 / trigger_count
+        # hit_rate = r_pred_count_0 / r_true_count
+        hit_rate = r_pred_count_0 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
@@ -344,8 +369,8 @@ def main():
     print("Top@{}:".format(K[1]))
     TP = r_pred_count_1
     if TP != 0:
-        hit_rate = r_pred_count_1 / r_true_count
-        # hit_rate = r_pred_count_1 / trigger_count
+        # hit_rate = r_pred_count_1 / r_true_count
+        hit_rate = r_pred_count_1 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
@@ -359,8 +384,8 @@ def main():
     print("Top@{}:".format(K[2]))
     TP = r_pred_count_2
     if TP != 0:
-        hit_rate = r_pred_count_2 / r_true_count
-        # hit_rate = r_pred_count_2 / trigger_count
+        # hit_rate = r_pred_count_2 / r_true_count
+        hit_rate = r_pred_count_2 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
@@ -374,8 +399,8 @@ def main():
     print("Top@{}:".format(K[3]))
     TP = r_pred_count_3
     if TP != 0:
-        hit_rate = r_pred_count_3 / r_true_count
-        # hit_rate = r_pred_count_3 / trigger_count
+        # hit_rate = r_pred_count_3 / r_true_count
+        hit_rate = r_pred_count_3 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
@@ -389,8 +414,8 @@ def main():
     print("Top@{}:".format(K[4]))
     TP = r_pred_count_4
     if TP != 0:
-        hit_rate = r_pred_count_4 / r_true_count
-        # hit_rate = r_pred_count_4 / trigger_count
+        # hit_rate = r_pred_count_4 / r_true_count
+        hit_rate = r_pred_count_4 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)

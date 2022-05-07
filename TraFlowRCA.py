@@ -19,7 +19,7 @@ from DenStream.DenStream import DenStream
 from CEDAS.CEDAS import CEDAS
 from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo
 from MicroRank.online_rca import rca
-from DataPreprocess.params import span_chaos_dict, trace_chaos_dict, request_period_log
+from DataPreprocess.params import span_chaos_dict, trace_chaos_dict, request_period_log, normal_change_log
 from db_utils import *
 import warnings
 warnings.filterwarnings("ignore")
@@ -44,11 +44,12 @@ first_tag = True
 # start_str = '2022-04-26 21:00:00'    # 1 abnormal new 2022-04-26 21:02:22
 # start_str = '2022-04-28 12:00:00'
 # start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
-start_str = '2022-05-01 00:00:00'    # 1 change
+# start_str = '2022-05-01 00:00:00'    # 1 change
 # start_str = '2022-04-28 12:00:00'    # 2 abnormal
-
+start_str = '2022-05-05 19:00:00'    # 1 abnormal new 5-6
 # init stage
-init_start_str = '2022-04-18 00:00:05'    # normal
+# init_start_str = '2022-04-18 00:00:05'    # normal old
+init_start_str = '2022-04-25 20:36:46'    # normal new
 window_duration = 6 * 60 * 1000    # ms
 check_window = 5 * 60 * 1000    # ms
 AD_method = 'DenStream_withscore'    # 'DenStream_withscore', 'DenStream_withoutscore', 'CEDAS_withscore', 'CEDAS_withoutscore'
@@ -135,10 +136,8 @@ def init_Cluster(cluster_obj, init_start_str):
     if dataLevel == 'trace':
         print("Init Data loading ...")
         # file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-17_20-55-12/data.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_10-05-14/data.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_11-10-06/data.json', 'r')
-        file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_17-34-08/data.json', 'r')
+        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_17-34-08/data.json', 'r')    # old
+        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-04_18-45-43/data.json', 'r')    # new
         raw_data_total = json.load(file)
         get_operation_service_pairs(raw_data_total)
         print("Finish init data load !")
@@ -293,6 +292,9 @@ def do_reCluster(cluster_obj, data_status, current_time, label_map_reCluster=dic
 
 
 def main():
+    # manual labels list
+    traceID_list = list()
+
     # ========================================
     # Init path vector encoder
     # all_path = {path1: [energy1, index1], path2: [energy2, index2]}
@@ -327,7 +329,7 @@ def main():
     # ========================================
     if AD_method in ['DenStream_withscore', 'DenStream_withoutscore']:
         # denstream = DenStream(eps=0.3, lambd=0.1, beta=0.5, mu=11)
-        denstream = DenStream(eps=30, lambd=0.1, beta=0.2, mu=6, use_manual=use_manual)    # eps=80    beta=0.2   mu=6
+        denstream = DenStream(eps=5, lambd=0.1, beta=0.2, mu=6, use_manual=use_manual)    # eps=80    beta=0.2   mu=6
         init_Cluster(denstream, init_start_str)
     elif AD_method in ['CEDAS_withscore', 'CEDAS_withoutscore']:
         cedas = CEDAS(r0=100, decay=0.001, threshold=5)
@@ -385,8 +387,9 @@ def main():
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-28_22-55-23/data.json', 'r')
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-29_21-45-19/data.json', 'r')
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')    # abnormal 1 avail
-        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')    # change 1
+        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')    # change 1
         # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')    # abnormal 2
+        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-06_17-28-43/data.json', 'r')    # abnormal 1 new 5-6
         raw_data_total = json.load(file)
         get_operation_service_pairs(raw_data_total)
         print("Finish main data load !")
@@ -402,10 +405,13 @@ def main():
         #         start = end
         #         end = start + window_duration
         #         continue
-        if ms2str(start) == '2022-05-01 02:12:00':    
+        if ms2str(start) == '2022-05-01 02:12:00' or ms2str(start) == '2022-05-01 00:48:00':    
             # order service 的 trace 断开的原因   2022-05-01 00:48:00 ~ 2022-05-01 00:54:00    2022-05-01 02:06:00 ~ 2022-05-01 02:12:00  2022-05-01 02:12:00 这一段时间的召回率很低（0.30），f1 score 0.45
             # 2022-05-01 01:06:00 ~ 2022-05-01 01:12:00    2022-05-01 01:30:00 ~ 2022-05-01 01:36:00  这一段时间的异常检测完全正确，但是根因定位不准，异常trace的结构完全一样
             print("find it !")
+        if intersect_or_not(start1=start, end1=end, start2=request_period_log[2][1], end2=request_period_log[2][2]):
+            print("find it !")
+            
         timeWindow_count += 1
         abnormal_count = 0
         abnormal_map = {}
@@ -500,6 +506,8 @@ def main():
                     a_pred.append(1)
                     abnormal_map[tid] = True
                     abnormal_count += 1
+                    if raw_data_total[tid]['abnormal'] == 0:
+                        traceID_list.append(tid)
                 else:
                     abnormal_map[tid] = False
                     a_pred.append(0)
@@ -703,6 +711,10 @@ def main():
         #     if len(cedas.micro_clusters) > 1:
         #         cedas.visualization_tool()
         # main loop end
+    
+    traceID_fw = open('./manual_traceID.txt', 'w')
+    traceID_fw.write(str(traceID_list).replace('[', '').replace(']', '').replace('\'', ''))
+    traceID_fw.close()
     print('main loop end')
     
 

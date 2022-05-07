@@ -1,3 +1,4 @@
+from cProfile import label
 from doctest import testfile
 import random
 from statistics import mean
@@ -17,6 +18,17 @@ from sklearn.manifold import TSNE
 from .dist_method import *
 sys.path.append('..')
 from db_utils import *
+
+
+
+# 模拟人工打标的 trace（从异常纠正为正常）
+traceID_list = list()
+traceID_fr = open('./manual_traceID.txt', 'r')
+S = traceID_fr.read()
+traceID_list = [traceID for traceID in S.split(', ')]
+traceID_list = random.sample(traceID_list, int(len(traceID_list)*0.00))
+
+
 
 def ms2str(ms: int) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ms/1000))
@@ -326,7 +338,7 @@ class DenStream:
         micro_cluster_scores = [np.sum(micro_cluster_counts)/micro_cluster_count
                                 for micro_cluster_count in micro_cluster_counts]
         
-        dbscan = DBSCAN(eps=50, min_samples=5, algorithm='brute')
+        dbscan = DBSCAN(eps=self.eps*2, min_samples=2, algorithm='brute')
         dbscan.fit(micro_cluster_centers, sample_weight=micro_cluster_weights)
 
         labels = {}
@@ -345,8 +357,10 @@ class DenStream:
             # get label 
             micro_cluster_copy = copy(nearest_cluster)
             micro_cluster_copy.insert_sample(sample=STVector, sample_info=None, weight=[1])
-            if micro_cluster_copy.radius() <= self.eps:
+            if micro_cluster_copy.radius() <= 2 * self.eps:
                 labels[trace_id] = nearest_cluster.label
+            elif trace_id in traceID_list:
+                labels[trace_id] = 'normal'
             else:
                 labels[trace_id] = 'abnormal'
             labels[trace_id] = nearest_cluster.label
@@ -578,8 +592,21 @@ class DenStream:
                 # if self.use_manual == True:
                 #     db_insert_trace(cluster_id=id(micro_cluster), trace_id=sample_info['trace_id'])
                 #     db_update_weight(cluster_id=id(micro_cluster), cluster_weight=micro_cluster.weight()[0])
-                # improvement 
-                micro_cluster.energy = 1
+                # improvement
+                # if sample_info['trace_id'] == '5198a233d36343fca02e8de831101221.41.16513363709480003':
+                    # micro_cluster.label = 'normal'
+
+
+
+
+                # 模拟人工打标的 trace（从异常纠正为正常）
+                if sample_info['trace_id'] in traceID_list:
+                    micro_cluster.label = 'normal'
+                
+
+
+
+                # micro_cluster.energy = 1
                 micro_cluster.count += 1
                 # update latest time
                 micro_cluster.latest_time = sample_info['time_stamp']
@@ -621,7 +648,7 @@ class DenStream:
                 if nearest_o_micro_cluster.weight() > self.beta * self.mu:
                     del self.o_micro_clusters[index]
                     self.p_micro_clusters.append(nearest_o_micro_cluster)
-                if sample_info['trace_id'] in manual_labels_list:    # 这是为 recluster 准备的
+                if sample_info['trace_id'] in traceID_list:    # 这是为 recluster 准备的
                     nearest_o_micro_cluster.label = 'normal'
                 return nearest_o_micro_cluster.label, 'auto'
             else:
@@ -629,7 +656,7 @@ class DenStream:
                 # improvement
                 # cluster_label = self._request_expert_knowledge(sample, sample_info)
                 # 人标注对其的影响也要考虑上，不一定绝对是‘abnormal’。若这个样本在人工标注字典中，则cluster_label为true
-                cluster_label = 'normal' if data_status=='init' or sample_info['trace_id'] in manual_labels_list else 'abnormal'              
+                cluster_label = 'normal' if data_status=='init' or sample_info['trace_id'] in traceID_list else 'abnormal'              
 
                 # Create new o_micro_cluster
                 micro_cluster = MicroCluster(self.lambd, sample_info['time_stamp'], cluster_label)    # improvement
@@ -655,7 +682,7 @@ class DenStream:
                 self.updateAll(micro_cluster)
                 return micro_cluster.label, 'manual'
         else:
-            if sample_info['trace_id'] in manual_labels_list:
+            if sample_info['trace_id'] in traceID_list:
                 nearest_p_micro_cluster.label = 'normal'
             return nearest_p_micro_cluster.label, 'auto'
 
@@ -684,11 +711,11 @@ class DenStream:
         sample_weight = self._validate_sample_weight(sample_weight=None, n_samples=1)
         sample_label, label_status = self._merging(sample, sample_info, sample_weight, data_status, manual_labels_list)
         # improvement 这里加上对每个簇 energy 的衰减，要不要换成时间窗衰减函数
-        for cluster in self.p_micro_clusters + self.o_micro_clusters:
-            cluster.energy -= self.decay
+        # for cluster in self.p_micro_clusters + self.o_micro_clusters:
+        #     cluster.energy -= self.decay
 
         # 每隔一段时间更新所有簇的状态，有的消失，有的保留
-        if sample_info["time_stamp"] % self.tp == 0:    # self.tp 越大则销毁簇越慢，保留的簇个数越多；self.tp 越小则销毁簇越快，保留簇个数越少
+        if sample_info["time_stamp"] % self.tp == -1:    # self.tp 越大则销毁簇越慢，保留的簇个数越多；self.tp 越小则销毁簇越快，保留簇个数越少
             # old_p_micro_clusters = self.p_micro_clusters
             self.p_micro_clusters = [p_micro_cluster for p_micro_cluster
                                      in self.p_micro_clusters if
@@ -707,13 +734,28 @@ class DenStream:
             # old_o_micro_clusters = self.o_micro_clusters
             self.o_micro_clusters = [o_micro_cluster for Xi, o_micro_cluster in
                                      zip(Xis, self.o_micro_clusters) if
-                                     o_micro_cluster.weight() >= Xi and o_micro_cluster.energy > 0]    # improvement
+                                     o_micro_cluster.weight() >= Xi]
+                                     # and o_micro_cluster.energy > 0]    # improvement
             # delete_o_micro_clusters = list(set(old_o_micro_clusters)^set(self.o_micro_clusters))
             # if len(delete_o_micro_clusters)!=0 and self.use_manual==True:
             #     for micro_cluster in delete_o_micro_clusters:
             #         db_delete_clusterid(id(micro_cluster))
         # self.t += 1
         return sample_label, label_status
+
+    def kill_micro_clusters(self, current_time_stamp, stage=None):
+        self.p_micro_clusters = [p_micro_cluster for p_micro_cluster
+                                in self.p_micro_clusters if
+                                p_micro_cluster.weight() >= self.beta *
+                                self.mu]
+        if stage == 'reCluster':
+            Xis = [self.beta * self.mu for o_micro_cluster in self.o_micro_clusters]
+        else:
+            Xis = [((self._decay_function(current_time_stamp - o_micro_cluster.creation_time + self.tp) - 1) /
+                    (self._decay_function(self.tp) - 1)) for o_micro_cluster in self.o_micro_clusters]
+        self.o_micro_clusters = [o_micro_cluster for Xi, o_micro_cluster in
+                                zip(Xis, self.o_micro_clusters) if
+                                o_micro_cluster.weight() >= Xi]
 
     def _validate_sample_weight(self, sample_weight, n_samples):
         """Set the sample weight array."""
