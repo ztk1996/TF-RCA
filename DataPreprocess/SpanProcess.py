@@ -621,10 +621,12 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
 
                     if span.service == 'ts-order-service' and ops[4] == 'order':
                         ops[5] = '{}'
-                    if span.service == 'ts-food-service' and ops[4] == 'foods':
+                    elif span.service == 'ts-food-service' and ops[4] == 'foods':
                         ops[5] = '{}'
                         ops[6] = '{}'
                         ops[7] = '{}'
+                    elif span.service == 'ts-price-service' and ops[4] == 'prices':
+                        ops[5] = '{}'
                     ops[-1] = '{}'
                     if ops[0] == '':
                         ops[0] = 'GET:'

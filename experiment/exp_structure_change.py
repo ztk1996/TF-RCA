@@ -7,12 +7,20 @@ import warnings
 warnings.filterwarnings('ignore')
 ts_namespace = 'train-ticket'
 
-service_changes = [
+normal_change = [
     # normal changes
-    ('ts-route-service', 'cqqcqq/route_inv_contacts:latest'),
-    ('ts-order-service', 'cqqcqq/order_inv_contacts:latest'),
-    ('ts-auth-service', 'cqqcqq/auth_inv_order:latest'),
+    # ('ts-route-service', 'cqqcqq/route_inv_contacts:latest'),
+    # ('ts-order-service', 'cqqcqq/order_inv_contacts:latest'),
+    # ('ts-auth-service', 'cqqcqq/auth_inv_order:latest'),
+    ('ts-food-map-service', 'kagaya85/ts-food-map-service:foodmap_inv_travelplan'),
+    ('ts-route-service', 'kagaya85/ts-route-service:route_inv_travelplan'),
+    ('ts-order-service', 'kagaya85/ts-order-service:order_inv_travelplan'),
 
+    ('ts-route-plan-service', 'kagaya85/ts-route-plan-service:reduce_callpath'),
+    ('ts-travel-service', 'kagaya85/ts-travel-service:reduce_callpath'),
+]
+
+abnormal_change = [
     # abnormal changes
     ('ts-ticketinfo-service', 'cqqcqq/ticketinfo_oom:latest'),
     ('ts-travel-service', 'cqqcqq/travel_oom:latest'),
@@ -30,6 +38,11 @@ service_changes = [
     ('ts-user-service', 'cqqcqq/user_table:latest')
 ]
 
+service_changes = [
+    *normal_change,
+    *abnormal_change
+]
+
 query_func = {
     'ts-route-service': query_route,
     'ts-order-service': query_order,
@@ -37,32 +50,34 @@ query_func = {
     'ts-ticketinfo-service': query_ticketinfo,
     'ts-travel-service': query_travel,
     'ts-user-service': query_user,
+    'ts-food-map-service': query_food,
+    'ts-route-plan-service': query_travel_plan,
 }
 
 change_order1 = [
-    [0], [3], [6], [5], [7],
-    [1], [7], [2], [0], [3],
-    [11], [2], [5], [10], [8],
-    [5], [2], [6], [5], [2],
-    [1], [8], [9], [13], [11],
-    [0], [1], [12], [0], [1],
-    [2], [3], [1], [6], [9],
-    [10], [4], [3], [8], [3],
-    [11], [8], [0], [2], [8],
-    [2], [0], [5], [6], [0],
+    [0], [15], [13], [0], [5],
+    [2], [4], [15], [2], [13],
+    [11], [6], [10], [14], [0],
+    [3], [6], [4], [14], [12],
+    [1], [8], [10], [5], [12],
+    [3], [6], [14], [9], [11],
+    [15], [1], [9], [0], [1],
+    [10], [0], [4], [2], [8],
+    [3], [0], [3], [5], [7],
+    [7], [9], [8], [7], [11],
 ]
 
 change_order2 = [
-    [3, 4], [10, 0], [12, 2], [3, 10], [0, 11],
-    [9, 2], [5, 10], [2, 6], [9, 1], [6, 2],
-    [8, 13], [13, 7], [8, 11], [11, 7], [2, 13],
-    [0, 1], [10, 8], [2, 0], [0, 8], [1, 6],
-    [12, 0], [0, 2], [8, 1], [1, 6], [2, 3],
-    [0, 1], [10, 8], [12, 5], [3, 11], [2, 0],
-    [1, 9], [2, 12], [6, 4], [0, 10], [0, 13],
-    [11, 2], [1, 12], [7, 1], [1, 4], [13, 1],
-    [2, 10], [1, 11], [6, 10], [2, 5], [1, 5],
-    [4, 5], [8, 12], [0, 1], [13, 9], [0, 7],
+    [4, 0], [13, 11], [1, 0], [14, 11], [3, 3],
+    [5, 5], [9, 7], [0, 0], [0, 4], [2, 2],
+    [3, 2], [7, 9], [4, 0], [1, 1], [10, 15],
+    [14, 8], [14, 13], [12, 14], [12, 7], [8, 9],
+    [12, 9], [9, 9], [2, 1], [15, 5], [15, 5],
+    [0, 0], [15, 13], [13, 9], [2, 4], [15, 15],
+    [5, 12], [6, 6], [5, 6], [15, 6], [12, 9],
+    [0, 4], [12, 8], [11, 10], [6, 10], [1, 2],
+    [5, 6], [3, 2], [3, 4], [10, 5], [1, 3],
+    [1, 2], [7, 13], [3, 1], [5, 10], [3, 1],
 ]
 
 change_order = change_order1
@@ -142,7 +157,7 @@ def main():
             # update deployment
             deploy_name = change[0]
             deploy_names.append(deploy_name)
-            if order_id in [0, 1, 2, 5, 6, 7, 11, 12, 13]:
+            if change[1].find('port') == -1:
                 # not port error service
                 wait_names.append(deploy_name)
             new_image = change[1]
@@ -172,7 +187,7 @@ def main():
         root_services = []
         normal_services = []
         for i in order:
-            if i < 3:
+            if i < len(normal_change):
                 normal_services.append(service_changes[i][0])
             else:
                 root_services.append(service_changes[i][0])

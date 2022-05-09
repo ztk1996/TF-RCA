@@ -407,3 +407,25 @@ def query_train():
         random_query(q, query_weights)
 
     return run(task, timeout)
+
+
+def query_food():
+    q = Query(url)
+
+    def preserve_scenario():
+        query_and_preserve(q)
+
+    query_weights = {
+        q.query_food: 50,
+
+        q.query_route: 10,
+        q.query_high_speed_ticket: 10,
+        q.query_cheapest: 10,
+        preserve_scenario: 10,
+    }
+
+    def task():
+        random_query(q, query_weights)
+
+    run(task, timeout)
+    return
