@@ -625,7 +625,7 @@ def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], 
                         ops[5] = '{}'
                         ops[6] = '{}'
                         ops[7] = '{}'
-                    elif span.service == 'ts-price-service' and ops[4] == 'prices':
+                    elif span.service == 'ts-price-service' and ops[4] == 'prices' and len(ops) > 5:
                         ops[5] = '{}'
                     ops[-1] = '{}'
                     if ops[0] == '':
