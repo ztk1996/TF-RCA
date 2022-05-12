@@ -32,10 +32,15 @@ class DataType(Enum):
 
 
 data_root = '/data/TraceCluster/raw'
-dtype = DataType.TrainTicket
-# dtype = DataType.AIops
+# dtype = DataType.TrainTicket
+dtype = DataType.AIops
 time_now_str = str(time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime()))
 rm_non_rc_abnormal = False
+
+aiops_abnormal_tid_filepath = '/data/TraceCluster/raw/aiops/2020_05_31/error_trace_ids.json'
+aiops_abnormal_tid = {}
+aiops_root_filepath = '/data/TraceCluster/raw/aiops/2020_05_31/root_chaos.xlsx'
+aiops_root = DataFrame()
 
 # wecath data flag
 use_request = False
@@ -232,7 +237,7 @@ def load_mm_span(clickstream_list: List[str], callgraph_list: List[str]) -> Tupl
         df = DataFrame(spans)
         raw_spans.extend(data_partition(df, 10000))
 
-        return root_map, raw_spans
+    return root_map, raw_spans
 
 
 def load_sw_span(data_path_list: List[str]) -> List[DataFrame]:
@@ -258,6 +263,12 @@ def load_sw_span(data_path_list: List[str]) -> List[DataFrame]:
 
 def load_aiops_span(data_path_list: List[str]) -> List[DataFrame]:
     raw_spans = []
+
+    global aiops_abnormal_tid
+    with open(aiops_abnormal_tid_filepath, 'r') as f:
+        tmp = json.load(f)
+        for id in tmp['error_trace_id_list']:
+            aiops_abnormal_tid[id] = ""
 
     # load trace info
     for filepath in data_path_list:
@@ -296,7 +307,7 @@ def load_aiops_span(data_path_list: List[str]) -> List[DataFrame]:
             spans[ITEM.CODE].append('')
 
         df = DataFrame(spans)
-        raw_spans.extend(df)
+        raw_spans.append(df)
 
     span_data = pd.concat(raw_spans, axis=0, ignore_index=True)
     return data_partition(span_data, 10000)
@@ -675,12 +686,16 @@ def build_aiops_graph(trace: List[Span], time_normolize: Callable[[float], float
     for span in trace:
         if span.parentSpanId == 'None':
             span.parentSpanId = '-1'
+            rootSpan = span
         spanMap[span.spanId] = span
         if span.parentSpanId not in spanChildrenMap.keys():
             spanChildrenMap[span.parentSpanId] = []
         spanChildrenMap[span.parentSpanId].append(span)
 
     is_abnormal = 0
+    if aiops_abnormal_tid.get(rootSpan.traceId) != None:
+        is_abnormal = 1
+
     chaos_root = []
     # process other span
     for span in trace:
