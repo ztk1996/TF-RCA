@@ -49,7 +49,7 @@ def constant_query(targets: list):
         return
 
     count = random.randint(3, 5)
-    interval = random.randint(10, 20)
+    interval = random.randint(3, 5)
 
     query_weights = {
         q.query_cheapest: 20,
@@ -110,10 +110,12 @@ def constant_query(targets: list):
                     q.query_other_orders],
 
     }
+
     for target in targets:
-        for fun in forbid_query[target]:
-            if fun in query_weights:
-                del query_weights[fun]
+        if fun in forbid_query.keys():
+            for fun in forbid_query[target]:
+                if fun in query_weights:
+                    del query_weights[fun]
 
     for _ in range(0, count):
         if time.time() - start > timeout:
@@ -131,32 +133,64 @@ def constant_query(targets: list):
     return
 
 
-chaos_path = {'basic-network-delay': 'chaos/network_delay/basic_network_delay.yml',
-              'order-network-delay': 'chaos/network_delay/order_network_delay.yml',
-              'route-network-delay': 'chaos/network_delay/route_network_delay.yml',
-              'station-network-delay': 'chaos/network_delay/station_network_delay.yml',
-              'ticketinfo-network-delay': 'chaos/network_delay/ticketinfo_network_delay.yml',
-              'travel-network-delay': 'chaos/network_delay/travel_network_delay.yml',
-              'travel-plan-network-delay': 'chaos/network_delay/travel_plan_network_delay.yml',
-              'user-network-delay': 'chaos/network_delay/user_network_delay.yml',
+chaos_path = {
+    'basic-network-delay': 'chaos/network_delay/basic_network_delay.yml',
+    'order-network-delay': 'chaos/network_delay/order_network_delay.yml',
+    'route-network-delay': 'chaos/network_delay/route_network_delay.yml',
+    'station-network-delay': 'chaos/network_delay/station_network_delay.yml',
+    'ticketinfo-network-delay': 'chaos/network_delay/ticketinfo_network_delay.yml',
+    'travel-network-delay': 'chaos/network_delay/travel_network_delay.yml',
+    'travel-plan-network-delay': 'chaos/network_delay/travel_plan_network_delay.yml',
+    'user-network-delay': 'chaos/network_delay/user_network_delay.yml',
+    'config-network-delay': 'chaos/network_delay/config.yml',
+    'consign-network-delay': 'chaos/network_delay/consign.yml',
+    'order-other-network-delay': 'chaos/network_delay/order_other.yml',
+    'price-network-delay': 'chaos/network_delay/price.yml',
+    'rebook-network-delay': 'chaos/network_delay/rebook.yml',
+    'seat-network-delay': 'chaos/network_delay/seat.yml',
+    'train-network-delay': 'chaos/network_delay/train.yml',
 
-              'basic-cpu-stress': 'chaos/cpu_stress/basic_stress_cpu.yml',
-              'order-cpu-stress': 'chaos/cpu_stress/order_stress_cpu.yml',
-              'route-cpu-stress': 'chaos/cpu_stress/route_stress_cpu.yml',
-              'station-cpu-stress': 'chaos/cpu_stress/station_stress_cpu.yml',
-              'ticketinfo-cpu-stress': 'chaos/cpu_stress/ticketinfo_stress_cpu.yml',
-              'travel-cpu-stress': 'chaos/cpu_stress/travel_stress_cpu.yml',
-              'travel-plan-cpu-stress': 'chaos/cpu_stress/travel_plan_stress_cpu.yml',
-              'user-cpu-stress': 'chaos/cpu_stress/user_stress_cpu.yml',
+    'basic-cpu-stress': 'chaos/cpu_stress/basic_stress_cpu.yml',
+    'order-cpu-stress': 'chaos/cpu_stress/order_stress_cpu.yml',
+    'route-cpu-stress': 'chaos/cpu_stress/route_stress_cpu.yml',
+    'station-cpu-stress': 'chaos/cpu_stress/station_stress_cpu.yml',
+    'ticketinfo-cpu-stress': 'chaos/cpu_stress/ticketinfo_stress_cpu.yml',
+    'travel-cpu-stress': 'chaos/cpu_stress/travel_stress_cpu.yml',
+    'travel-plan-cpu-stress': 'chaos/cpu_stress/travel_plan_stress_cpu.yml',
+    'user-cpu-stress': 'chaos/cpu_stress/user_stress_cpu.yml',
 
-              'basic-http-outbound': 'chaos/http_outbound/basic_http_outbound.yml',
-              'order-http-outbound': 'chaos/http_outbound/order_http_outbound.yml',
-              'route-http-outbound': 'chaos/http_outbound/route_http_outbound.yml',
-              'station-http-outbound': 'chaos/http_outbound/station_http_outbound.yml',
-              'ticketinfo-http-outbound': 'chaos/http_outbound/ticketinfo_http_outbound.yml',
-              'travel-http-outbound': 'chaos/http_outbound/travel_http_outbound.yml',
-              'travel-plan-http-outbound': 'chaos/http_outbound/travel_plan_http_outbound.yml',
-              'user-http-outbound': 'chaos/http_outbound/user_http_outbound.yml'}
+    'basic-http-outbound': 'chaos/http_outbound/basic_http_outbound.yml',
+    'order-http-outbound': 'chaos/http_outbound/order_http_outbound.yml',
+    'route-http-outbound': 'chaos/http_outbound/route_http_outbound.yml',
+    'station-http-outbound': 'chaos/http_outbound/station_http_outbound.yml',
+    'ticketinfo-http-outbound': 'chaos/http_outbound/ticketinfo_http_outbound.yml',
+    'travel-http-outbound': 'chaos/http_outbound/travel_http_outbound.yml',
+    'travel-plan-http-outbound': 'chaos/http_outbound/travel_plan_http_outbound.yml',
+    'user-http-outbound': 'chaos/http_outbound/user_http_outbound.yml',
+    'config-http-outbound': 'chaos/http_outbound/config.yml',
+    'consign-http-outbound': 'chaos/http_outbound/consign.yml',
+    'order-other-http-outbound': 'chaos/http_outbound/order_other.yml',
+    'price-http-outbound': 'chaos/http_outbound/price.yml',
+    'rebook-http-outbound': 'chaos/http_outbound/rebook.yml',
+    'seat-http-outbound': 'chaos/http_outbound/seat.yml',
+    'train-http-outbound': 'chaos/http_outbound/train.yml',
+
+    'basic-http-code': 'chaos/http_code/basic.yml',
+    'order-http-code': 'chaos/http_code/order.yml',
+    'route-http-code': 'chaos/http_code/route.yml',
+    'station-http-code': 'chaos/http_code/station.yml',
+    'ticketinfo-http-code': 'chaos/http_code/ticketinfo.yml',
+    'travel-http-code': 'chaos/http_code/travel.yml',
+    'travel-plan-http-code': 'chaos/http_code/travel_plan.yml',
+    'user-http-code': 'chaos/http_code/user.yml',
+    'config-http-code': 'chaos/http_code/config.yml',
+    'consign-http-code': 'chaos/http_code/consign.yml',
+    'order-other-http-code': 'chaos/http_code/order_other.yml',
+    'price-http-code': 'chaos/http_code/price.yml',
+    'rebook-http-code': 'chaos/http_code/rebook.yml',
+    'seat-http-code': 'chaos/http_code/seat.yml',
+    'train-http-code': 'chaos/http_code/train.yml',
+}
 
 
 def apply(file_path):
@@ -172,33 +206,30 @@ def delete(file_path):
 def select_fault(idx: int, module: int = 1) -> list:
     # All fault
     fault = [
-        # 0-7
-        'basic-network-delay', 'order-network-delay', 'route-network-delay', 'station-network-delay',
-        'ticketinfo-network-delay', 'travel-network-delay', 'travel-plan-network-delay', 'user-network-delay',
-        # 8-15
-        'basic-network-delay', 'order-network-delay', 'route-network-delay', 'station-network-delay',
-        'ticketinfo-network-delay', 'travel-network-delay', 'route-network-delay', 'user-network-delay',
+        # 0-14
+        'basic-network-delay', 'order-network-delay', 'route-network-delay', 'station-network-delay', 'ticketinfo-network-delay',
+        'travel-network-delay', 'travel-plan-network-delay', 'user-network-delay', 'config-network-delay', 'consign-network-delay',
+        'order-other-network-delay', 'price-network-delay', 'rebook-network-delay', 'seat-network-delay', 'train-network-delay',
+
+        # 15-29
+        'basic-http-code', 'order-http-code', 'route-http-code', 'station-http-code', 'ticketinfo-http-code',
+        'travel-http-code', 'route-http-code', 'user-http-code', 'config-http-code', 'consign-http-code',
+        'order-other-http-code', 'price-http-code', 'rebook-http-code', 'seat-http-code', 'train-http-code',
+
+        # 30-44
+        'basic-http-outbound', 'order-http-outbound', 'route-http-outbound', 'station-http-outbound', 'ticketinfo-http-outbound',
+        'travel-http-outbound', 'travel-plan-http-outbound', 'user-http-outbound', 'config-http-outbound', 'consign-http-outbound',
+        'order-other-http-outbound', 'price-http-outbound', 'rebook-http-outbound', 'seat-http-outbound', 'train-http-outbound',
+
         # 'basic-cpu-stress', 'order-cpu-stress', 'route-cpu-stress', 'station-cpu-stress', 'ticketinfo-cpu-stress',
         # 'travel-cpu-stress', 'travel-plan-cpu-stress', 'user-cpu-stress',
-        'basic-http-outbound',
-        # 16-23
-        'order-http-outbound', 'route-http-outbound', 'station-http-outbound', 'ticketinfo-http-outbound',
-        'travel-http-outbound', 'travel-plan-http-outbound', 'user-http-outbound']
-    random_fault = [10, 5, 13, 21, 11, 16, 4, 23, 1, 9, 17, 8, 18, 7, 19, 12, 6, 22, 15, 0, 20, 3, 14, 2,
-                    21, 10, 16, 5, 23, 4, 13, 1, 11, 7, 9, 6, 17, 8, 0, 18, 3, 12, 19, 2, 22, 15, 20, 14,
-                    1, 21]
-    double_random_fault = [
-        [11, 14], [22, 20], [6, 15], [18, 23], [9, 10], [21, 4], [
-            14, 11], [3, 2], [15, 9], [1, 0], [12, 22], [20, 13],
-        [13, 16], [2, 1], [10, 12], [16, 18], [4, 5], [8, 8], [
-            5, 17], [23, 3], [0, 21], [19, 7], [7, 19], [17, 6],
+    ]
+    random_fault = [13, 30, 34, 25, 9, 11, 35, 21, 20, 44, 38, 16, 32, 29, 22, 17, 19, 26, 0, 37,
+                    10, 41, 40, 6, 14, 8, 27, 24, 31, 2, 12, 3, 4, 5, 43, 42, 33, 23, 39, 18, 1, 15,
+                    36, 28, 7, 0, 15, 30, 1, 16]
+    double_random_fault = [[35, 38], [2, 16], [5, 9], [26, 30], [29, 15], [9, 15], [1, 0], [41, 39], [15, 1], [13, 0], [22, 27], [10, 41], [23, 14], [4, 12], [17, 23], [33, 26], [6, 37], [37, 16], [25, 36], [17, 8], [39, 14], [7, 10], [44, 18], [33, 24], [
+        40, 35], [28, 20], [30, 31], [5, 20], [16, 18], [38, 42], [21, 12], [1, 29], [3, 42], [34, 2], [22, 25], [13, 6], [3, 44], [43, 19], [24, 27], [11, 4], [0, 0], [19, 8], [34, 1], [21, 43], [32, 36], [28, 40], [31, 30], [11, 7], [32, 30], [16, 15]]
 
-        [12, 13], [23, 4], [3, 12], [20, 5], [10, 9], [2, 23], [
-            17, 3], [4, 8], [9, 2], [16, 20], [5, 1], [15, 21],
-        [6, 14], [13, 16], [7, 15], [14, 22], [21, 7], [12, 11], [
-            0, 19], [19, 10], [1, 18], [22, 0], [8, 17], [18, 6],
-
-        [19, 7], [14, 6]]
     if idx < 0 or idx > 49:
         return []
     if module == 2:
@@ -217,6 +248,13 @@ def workflow(times: int = 50, task_timeout: int = 5 * minute, module: int = 1):
         "user": query_user,
         "travel-plan": query_travel_plan,
         "station": query_station,
+        "config": query_config,
+        "consign": query_consign,
+        "order-other": query_order_other,
+        "price": query_price,
+        "rebook": query_rebook,
+        "seat": query_seat,
+        "train": query_train,
     }
     # # 持续进行正常query
     # logger.info('start constant query')
@@ -237,6 +275,8 @@ def workflow(times: int = 50, task_timeout: int = 5 * minute, module: int = 1):
             target = fault_split[0]
             if fault_split[0] == "travel" and fault_split[1] == "plan":
                 target = "travel-plan"
+            elif fault_split[0] == "order" and fault_split[1] == 'other':
+                target = "order-other"
             task = tasks[target]
             targets.append(target)
             task_list.append(task)
@@ -246,7 +286,7 @@ def workflow(times: int = 50, task_timeout: int = 5 * minute, module: int = 1):
             apply(chaos_path[fault])
         time.sleep(10)
         # 正常
-        p = Pool(4)
+        p = Pool(15)
         p.apply_async(constant_query, args=(targets))
         # 异常
         start_time = time.time()
@@ -254,19 +294,24 @@ def workflow(times: int = 50, task_timeout: int = 5 * minute, module: int = 1):
         for index, task in enumerate(task_list):
             logger.info(f'execute task: {task.__name__}')
             p.apply_async(task)
+            p.apply_async(task)
+            p.apply_async(task)
+            p.apply_async(task)
+            p.apply_async(task)
             name = "ts-" + targets[index] + "-service"
             name_list.append(name)
 
         # 恢复故障
         p.close()
         p.join()
-        end_time = time.time()
-        request_period_log.append(
-            (name_list, int(round(start_time*1000)), int(round(end_time*1000))))
 
         for fault in faults:
             logger.info(f'fault recover: {fault}')
             delete(chaos_path[fault])
+
+        end_time = time.time()
+        request_period_log.append(
+            (name_list, int(round(start_time*1000)), int(round(end_time*1000))))
         # 间隔3min
         time.sleep(3 * minute)
 

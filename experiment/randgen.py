@@ -5,7 +5,7 @@ total_N = 50
 normal_N = 20
 abnormal_N = total_N - normal_N
 
-normal_range = 3
+normal_range = 5
 abnormal_range = len(service_changes)
 
 str_list = []

@@ -2,16 +2,16 @@ kind: NetworkChaos
 apiVersion: chaos-mesh.org/v1alpha1
 metadata:
   namespace: train-ticket
-  name: travel-plan-network-delay
+  name: consign-network-delay
 spec:
   selector:
     namespaces:
       - train-ticket
     labelSelectors:
-      app: ts-travel-plan-service
+      app: ts-consign-service
   mode: one
   action: delay
   duration: 5m
-  direction: from
+  direction: to
   delay:
     latency: 5s
