@@ -26,18 +26,24 @@ MAX_INT = sys.maxsize
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 Two_error = False
-K = [1, 3, 5] if Two_error==False else [2, 3, 5]
+K = [1, 3, 5, 7, 10] if Two_error==False else [2, 3, 5, 7, 10]
+operation_service_dict = dict()
 # format stage
 # start_str = '2022-04-18 21:08:00'    # changes    # '2022-01-13 00:00:00' ---> '2022-04-17 02:56:08'   '2022-04-18 21:00:00'
 # start_str = '2022-04-22 22:00:00'    # changes new
 # start_str = '2022-04-18 11:00:00'    # 1 abnormal
 # start_str = '2022-04-19 10:42:59'    # 2 abnormal
 # start_str = '2022-04-24 19:00:00'    # 2 abnormal new
-start_str = '2022-04-26 21:00:00'    # 1 abnormal new
+# start_str = '2022-04-26 21:00:00'    # 1 abnormal new
+# start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
+# start_str = '2022-05-01 00:00:00'    # 1 change
+start_str = '2022-05-05 19:00:00'    # 1 abnormal new 5-6
+
 window_duration = 6 * 60 * 1000 # ms
 # init stage
-init_start_str = '2022-04-20 00:00:05'    # normal
-init_end_str = '2022-04-20 09:59:55'
+# init_start_str = '2022-04-20 00:00:05'    # normal old
+# init_end_str = '2022-04-20 09:59:55'
+init_start_str = '2022-05-03 20:36:46'    # normal new
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
@@ -53,16 +59,27 @@ def intersect_or_not(start1: int, end1: int, start2: int, end2: int):
     else:
         return False
 
+def get_operation_service_pairs(dataset):
+    global operation_service_dict
+    for trace_id, trace in dataset.items():
+        for vertex_id, vertex in trace['vertexs'].items():
+            if vertex_id == '0':
+                continue
+            if vertex[1] not in operation_service_dict.keys():    # operation
+                operation_service_dict[vertex[1]] = vertex[0]
 
 def main():
     # ========================================
     # Init time window
     # ========================================
     init_start = timestamp(init_start_str)
-    init_end = timestamp(init_end_str)
+    # init_end = timestamp(init_end_str)
+    init_end = init_start +  13 * 60 * 60 * 1000
     
     start = timestamp(start_str)
     end = start + window_duration
+
+    
 
     # ========================================
     # Init operation list
@@ -82,11 +99,14 @@ def main():
 
     # ========================================
     # Init evaluation for RCA
-    # ========================================    
+    # ========================================   
+    trigger_count = 0 
     r_true_count = len(request_period_log)
     r_pred_count_0 = 0
     r_pred_count_1 = 0
     r_pred_count_2 = 0
+    r_pred_count_3 = 0
+    r_pred_count_4 = 0
     TP = 0    # TP 是预测为正类且预测正确 
     TN = 0    # TN 是预测为负类且预测正确
     FP = 0    # FP 是把实际负类分类（预测）成了正类
@@ -134,8 +154,8 @@ def main():
                     expect_duration += operation_count[trace_id][operation] * (
                         slo[operation][0] + 1.5 * slo[operation][1])
 
-            if real_duration > expect_duration:
-            # if raw_data[trace_id]['abnormal']:
+            # if real_duration > expect_duration:
+            if raw_data[trace_id]['abnormal']:
                 a_pred.append(1)
                 abnormal_map[trace_id] = True
                 abnormal_count += 1
@@ -159,6 +179,8 @@ def main():
         if abnormal_count > 8:
             print('********* RCA start *********')
 
+            trigger_count += 1
+
             top_list = rca_MicroRank(start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map, operation_list=operation_list, slo=slo)
             
             # top_list is not empty
@@ -172,6 +194,12 @@ def main():
                 # topK_2
                 topK_2 = top_list[:K[2] if len(top_list) > K[2] else len(top_list)]
                 print(f'top-{K[2]} root cause is', topK_2)
+                # topK_3
+                topK_3 = top_list[:K[3] if len(top_list) > K[3] else len(top_list)]
+                print(f'top-{K[3]} root cause is', topK_3)
+                # topK_4
+                topK_4 = top_list[:K[4] if len(top_list) > K[4] else len(top_list)]
+                print(f'top-{K[4]} root cause is', topK_4)
 
                 start_hour = time.localtime(start//1000).tm_hour
                 # chaos_service = span_chaos_dict.get(start_hour)
@@ -196,16 +224,24 @@ def main():
                 in_topK_0 = False
                 in_topK_1 = False
                 in_topK_2 = False
+                in_topK_3 = False
+                in_topK_4 = False
 
                 candidate_list_0 = []
                 candidate_list_1 = []
                 candidate_list_2 = []
+                candidate_list_3 = []
+                candidate_list_4 = []
                 for topS in topK_0:
                     candidate_list_0 += topS.split('/')
                 for topS in topK_1:
                     candidate_list_1 += topS.split('/')
                 for topS in topK_2:
                     candidate_list_2 += topS.split('/')
+                for topS in topK_3:
+                    candidate_list_3 += topS.split('/')
+                for topS in topK_4:
+                    candidate_list_4 += topS.split('/')
                 if isinstance(chaos_service_list[0], list):    # 一次注入两个故障
                     for service_pair in chaos_service_list:
                         if (service_pair[0].replace('-', '')[2:] in candidate_list_0) and (service_pair[1].replace('-', '')[2:] in candidate_list_0):
@@ -214,6 +250,10 @@ def main():
                             in_topK_1 = True
                         if (service_pair[0].replace('-', '')[2:] in candidate_list_2) and (service_pair[1].replace('-', '')[2:] in candidate_list_2):
                             in_topK_2 = True
+                        if (service_pair[0].replace('-', '')[2:] in candidate_list_3) and (service_pair[1].replace('-', '')[2:] in candidate_list_3):
+                            in_topK_3 = True
+                        if (service_pair[0].replace('-', '')[2:] in candidate_list_4) and (service_pair[1].replace('-', '')[2:] in candidate_list_4):
+                            in_topK_4 = True
                 else:
                     for service in chaos_service_list:
                         if service.replace('-', '')[2:] in candidate_list_0:
@@ -222,6 +262,10 @@ def main():
                             in_topK_1 = True
                         if service.replace('-', '')[2:] in candidate_list_2:
                             in_topK_2 = True
+                        if service.replace('-', '')[2:] in candidate_list_3:
+                            in_topK_3 = True
+                        if service.replace('-', '')[2:] in candidate_list_4:
+                            in_topK_4 = True
                 
                 if in_topK_0 == True:
                     r_pred_count_0 += 1
@@ -229,6 +273,10 @@ def main():
                     r_pred_count_1 += 1
                 if in_topK_2 == True:
                     r_pred_count_2 += 1
+                if in_topK_3 == True:
+                    r_pred_count_3 += 1
+                if in_topK_4 == True:
+                    r_pred_count_4 += 1
 
                 # zhoutong add
                 # in_topK = True
@@ -282,6 +330,7 @@ def main():
     TP = r_pred_count_0
     if TP != 0:
         hit_rate = r_pred_count_0 / r_true_count
+        # hit_rate = r_pred_count_0 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
@@ -296,6 +345,7 @@ def main():
     TP = r_pred_count_1
     if TP != 0:
         hit_rate = r_pred_count_1 / r_true_count
+        # hit_rate = r_pred_count_1 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
@@ -310,6 +360,37 @@ def main():
     TP = r_pred_count_2
     if TP != 0:
         hit_rate = r_pred_count_2 / r_true_count
+        # hit_rate = r_pred_count_2 / trigger_count
+        r_acc = (TP + TN)/(TP + FP + TN + FN)
+        r_recall = TP/(TP + FN)
+        r_prec = TP/(TP + FP)
+        print('RCA hit rate is %.5f' % hit_rate)
+        print('RCA accuracy score is %.5f' % r_acc)
+        print('RCA recall score is %.5f' % r_recall)
+        print('RCA precision score is %.5f' % r_prec)
+    else:
+        print('RCA hit rate is 0')
+    print('* * * * * * * *')
+    print("Top@{}:".format(K[3]))
+    TP = r_pred_count_3
+    if TP != 0:
+        hit_rate = r_pred_count_3 / r_true_count
+        # hit_rate = r_pred_count_3 / trigger_count
+        r_acc = (TP + TN)/(TP + FP + TN + FN)
+        r_recall = TP/(TP + FN)
+        r_prec = TP/(TP + FP)
+        print('RCA hit rate is %.5f' % hit_rate)
+        print('RCA accuracy score is %.5f' % r_acc)
+        print('RCA recall score is %.5f' % r_recall)
+        print('RCA precision score is %.5f' % r_prec)
+    else:
+        print('RCA hit rate is 0')
+    print('* * * * * * * *')
+    print("Top@{}:".format(K[4]))
+    TP = r_pred_count_4
+    if TP != 0:
+        hit_rate = r_pred_count_4 / r_true_count
+        # hit_rate = r_pred_count_4 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)

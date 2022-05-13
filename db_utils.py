@@ -13,7 +13,7 @@ def db_insert_cluster(cluster_id, create_time, cluster_label, cluster_weight):
 # Insert cluster items batch
 def db_insert_clusters(cluster_items):
     # cluster_items: '(), (), ()'
-    sql = "INSERT INTO cluster (cluster_id, create_time, label, weight) VALUES {0};".format(cluster_items)
+    sql = "INSERT INTO cluster (cluster_id, create_time, last_updated_time, label, weight, max_node_num, min_node_num, max_response_time, min_response_time, mean_interval) VALUES {0};".format(cluster_items)
     cur.execute(sql)
     db_connect.commit()
 

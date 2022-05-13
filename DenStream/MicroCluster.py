@@ -14,6 +14,7 @@ class MicroCluster:
         self.svc_count_min = 0
         self.rt_max = 0
         self.rt_min = 0
+        self.avg_step = 0
         
         # improvement
         self.label = micro_cluster_label
@@ -23,13 +24,13 @@ class MicroCluster:
         self.members = {}    # {trace_id1: [STVector1, sample_info1], trace_id2: [STVector2, sample_info2]}
         self.color = None
         
-        # self.LS = 0
-        # self.SS = 0
-        # self.rLS = 0
-        # self.rSS = 0
-        # self.r_std = 0
-        # self.r_mean = 0
-        # self.M2 = 0
+        self.LS = 0
+        self.SS = 0
+        self.rLS = 0
+        self.rSS = 0
+        self.r_std = 0
+        self.r_mean = 0
+        self.M2 = 0
 
 
 
@@ -40,20 +41,32 @@ class MicroCluster:
             new_sum_of_weights = old_sum_of_weights * self.decay_factor + weight
             
             # Update real time LS and SS
-            # self.LS = np.multiply(self.LS, self.decay_factor)
-            # self.SS = np.multiply(self.SS, self.decay_factor)
-            # self.LS = self.LS + sample
-            # self.SS = self.SS + np.power(sample, 2)
+            self.LS = np.multiply(self.LS, self.decay_factor)
+            self.SS = np.multiply(self.SS, self.decay_factor)
+            self.LS = self.LS + sample    # 可能为负
+            self.SS = self.SS + np.power(sample, 2)    # 不可能为负
+
+            # new_LS = []
+            # new_SS = []
+            # for idx, value in enumerate(sample):
+            #     if idx % 2 == 0:    # path dim
+            #         new_LS.append(self.LS[idx] * self.decay_factor + value)
+            #         new_SS.append(self.SS[idx] * self.decay_factor + np.power(value, 2))
+            #     elif idx % 2 != 0:    # status code
+            #         new_LS.append(self.LS[idx] if value!=1 else value)
+            #         new_SS.append(self.SS[idx] if value!=1 else value)
+            # self.LS = np.array(new_LS)
+            # self.SS = np.array(new_SS)
 
             # Update incremental radius treshold
-            # n1 = self.count
-            # n = self.count + 1
-            # delta = self.radius() - self.r_mean
-            # delta_n = delta / n
-            # term1 = delta*delta_n*n1
-            # self.r_mean += delta_n
-            # self.M2 = self.M2 + term1 
-            # self.r_std = np.sqrt((self.M2)/(n-1))
+            n1 = self.count
+            n = self.count + 1
+            delta = self.radius() - self.r_mean
+            delta_n = delta / n
+            term1 = delta*delta_n*n1
+            self.r_mean += delta_n
+            self.M2 = self.M2 + term1 
+            self.r_std = np.sqrt((self.M2)/(n-1))
 
             # Update mean
             if len(sample) != len(self.mean):
@@ -81,25 +94,25 @@ class MicroCluster:
     def update_center_dimension(self, sample):
         self.mean = np.append(self.mean, [0]*(len(sample)-len(self.mean)))
         self.variance = np.append(self.variance, [0]*(len(sample)-len(self.variance)))
-        # self.LS = np.append(self.LS, [0]*(len(sample)-len(self.LS)))
-        # self.SS = np.append(self.SS, [0]*(len(sample)-len(self.SS)))
+        self.LS = np.append(self.LS, [0]*(len(sample)-len(self.LS)))
+        self.SS = np.append(self.SS, [0]*(len(sample)-len(self.SS)))
 
     def radius(self):
         # method 1
-        if self.sum_of_weights > 0:
-            return np.linalg.norm(np.sqrt(self.variance / self.sum_of_weights))
-        else:
-            return float('nan')
+        # if self.sum_of_weights > 0:
+        #     return np.linalg.norm(np.sqrt(self.variance / self.sum_of_weights))
+        # else:
+        #     return float('nan')
         # method 2
-        # LSd = np.power(np.divide(self.LS, float(self.sum_of_weights)), 2)
-        # SSd = np.divide(self.SS, float(self.sum_of_weights))
-        # return np.nanmax(np.sqrt((SSd.astype(float)-LSd.astype(float)))) 
+        LSd = np.power(np.divide(self.LS, float(self.sum_of_weights)), 2)    # 不可能为负    # LS可能为负，SS不可能为负
+        SSd = np.divide(self.SS, float(self.sum_of_weights))    # 不可能为负
+        return np.nanmax(np.sqrt((SSd.astype(float)-LSd.astype(float)))) 
 
     def center(self):
         # method 1
-        return self.mean
+        # return self.mean
         # method 2
-        # return np.divide(self.LS, float(self.sum_of_weights))
+        return np.divide(self.LS, float(self.sum_of_weights))
 
     def weight(self):
         return self.sum_of_weights
@@ -122,6 +135,7 @@ class MicroCluster:
         new_micro_cluster.svc_count_min = self.svc_count_min
         new_micro_cluster.rt_max = self.rt_max
         new_micro_cluster.rt_min = self.rt_min
+        new_micro_cluster.avg_step = self.avg_step
         # improvement
         new_micro_cluster.energy = self.energy    # float
         new_micro_cluster.count = self.count    # int
@@ -129,12 +143,12 @@ class MicroCluster:
         new_micro_cluster.members = self.members
         new_micro_cluster.color = self.color
 
-        # new_micro_cluster.LS = self.LS
-        # new_micro_cluster.SS = self.SS
-        # new_micro_cluster.rLS = self.rLS
-        # new_micro_cluster.rSS = self.rSS
-        # new_micro_cluster.r_std = self.r_std
-        # new_micro_cluster.r_mean = self.r_mean
-        # new_micro_cluster.M2 = self.M2
+        new_micro_cluster.LS = self.LS
+        new_micro_cluster.SS = self.SS
+        new_micro_cluster.rLS = self.rLS
+        new_micro_cluster.rSS = self.rSS
+        new_micro_cluster.r_std = self.r_std
+        new_micro_cluster.r_mean = self.r_mean
+        new_micro_cluster.M2 = self.M2
 
         return new_micro_cluster

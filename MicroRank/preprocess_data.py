@@ -359,7 +359,7 @@ def get_pagerank_graph_traceLevel(traces_dict):
                 continue
             elif operation[1] not in trace_operation.keys():
                 trace_operation[operation[1]] = [trace_id]
-            elif operation[1] in trace_operation.keys():
+            elif (operation[1] in trace_operation.keys()) and (trace_id not in trace_operation[operation[1]]):
                 trace_operation[operation[1]].append(trace_id)
 
         # pr_trace: 存储trace id 经过了哪些operation, 不去重
@@ -371,6 +371,78 @@ def get_pagerank_graph_traceLevel(traces_dict):
             pr_trace[trace_id].append(operation[1])
         
     return operation_operation, operation_trace, trace_operation, pr_trace
+
+'''
+   Query the pagerank graph
+   :arg
+       trace_list: anormaly_traceid_list or normaly_traceid_list
+       span_list:  异常点前后两分钟 span_list
+   
+   :return
+       service_service 存储子节点 Call graph
+       service_service[service] = [service1, service1] 
+
+       serivce_trace 存储trace经过了哪些service, 右上角 coverage graph
+       service_trace[traceid] = [service1 , service2]
+
+       trace_service 存储service被哪些trace 访问过, 左下角 coverage graph
+       trace_service[service] = [traceid1, traceid2]  
+       
+       pr_trace: 存储trace id 经过了哪些service, 不去重
+       pr_trace[traceid] = [service1, service2]
+'''
+
+def get_service_pagerank_graph_traceLevel(traces_dict):
+    service_service = {}
+    service_trace = {}
+    trace_service = {}
+    pr_trace = {}
+
+    for trace_id, trace in traces_dict.items():
+        # service_service 存储子节点 Call graph
+        # service_service[service] = [service1, service1]
+        for parent, children in trace['edges'].items():
+            if parent == '0':
+                continue
+            elif trace['vertexs'][parent][0] not in service_service.keys():
+                service_service[trace['vertexs'][parent][0]] = []
+            for child in children:
+                if trace['vertexs'][str(child['vertexId'])][0] not in service_service[trace['vertexs'][parent][0]]:
+                    service_service[trace['vertexs'][parent][0]].append(trace['vertexs'][str(child['vertexId'])][0])
+        for idx, item in trace['vertexs'].items():    # item [service, operation]
+            if idx == '0':
+                continue
+            elif item[0] not in service_service.keys():
+                service_service[item[0]] = []
+                
+        # service_trace 存储trace经过了哪些service, 右上角 coverage graph
+        # service_trace[traceid] = [service1, service2]
+        service_trace[trace_id] = []
+        for idx, item in trace['vertexs'].items():
+            if idx == '0':
+                continue
+            elif item[0] not in service_trace[trace_id]:
+                service_trace[trace_id].append(item[0])
+
+        # trace_service 存储service被哪些trace 访问过, 左下角 coverage graph
+        # trace_service[service] = [traceid1, traceid2]
+        for idx, item in trace['vertexs'].items():
+            if idx == '0':
+                continue
+            elif item[0] not in trace_service.keys():
+                trace_service[item[0]] = [trace_id]
+            elif (item[0] in trace_service.keys()) and (trace_id not in trace_service[item[0]]):
+                trace_service[item[0]].append(trace_id)
+
+        # pr_trace: 存储trace id经过了哪些service, 不去重
+        # pr_trace[traceid] = [service1, service2]
+        pr_trace[trace_id] = []
+        for idx, item in trace['vertexs'].items():
+            if idx == '0':
+                continue
+            pr_trace[trace_id].append(item[0])
+        
+    return service_service, service_trace, trace_service, pr_trace
 
 
 def get_pagerank_graph_spanLevel(trace_list: List[str], span_list: List[Span]):
