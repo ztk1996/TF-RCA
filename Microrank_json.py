@@ -28,6 +28,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 Two_error = False
 K = [1, 3, 5, 7, 10] if Two_error==False else [2, 3, 5, 7, 10]
 operation_service_dict = dict()
+RCA_level = 'service'    # operation
 # format stage
 # start_str = '2022-04-18 21:08:00'    # changes
 # start_str = '2022-04-22 22:00:00'    # changes new
@@ -38,7 +39,8 @@ operation_service_dict = dict()
 # start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
 # start_str = '2022-05-01 00:00:00'    # 1 change
 # start_str = '2022-04-28 12:00:00'    # 2 abnormal
-start_str = '2022-05-05 19:00:00'    # 1 abnormal new 5-6
+# start_str = '2022-05-05 19:00:00'    # 1 abnormal new 5-6
+start_str = '2022-05-09 15:00:00'    # change new 5-10
 
 window_duration = 6 * 60 * 1000 # ms
 
@@ -137,7 +139,8 @@ def main():
     # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')    # abnormal1 avail
     # file_main = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')    # change 1
     # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')    # abnormal 2
-    file_main = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-06_17-28-43/data.json', 'r')    # 1 abnormal new 5-6
+    # file_main = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-06_17-28-43/data.json', 'r')    # 1 abnormal new 5-6
+    file_main = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-11_00-06-32/data.json', 'r')    # change new 5-10
     raw_data_total_main = json.load(file_main)
     get_operation_service_pairs(raw_data_total_main)
     print("Finish main data load !")
@@ -181,7 +184,7 @@ def main():
                         slo[operation][0] + 1.5 * slo[operation][1])
 
             if real_duration > expect_duration:
-            # if raw_data[trace_id]['abnormal']:
+            # if raw_data_dict[trace_id]['abnormal']:
                 a_pred.append(1)
                 abnormal_map[trace_id] = True
                 abnormal_count += 1
@@ -207,7 +210,7 @@ def main():
 
             trigger_count += 1
 
-            top_list, score_list = rca(start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map, traces_dict=raw_data_dict, dataLevel='trace')
+            top_list, score_list = rca(RCA_level=RCA_level, start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map, traces_dict=raw_data_dict, dataLevel='trace')
 
             # top_list is not empty
             if len(top_list) != 0:   
@@ -239,7 +242,7 @@ def main():
                 if len(chaos_service_list) == 0:
                     FP += 1
                     print("Ground truth root cause is empty !")
-                    start = end
+                    start = end + (1 * 60 * 1000)    # sleep 1min after a error trigger
                     end = start + window_duration
                     continue
                 # elif len(chaos_service_list) > 1 and Two_error == True:
@@ -257,16 +260,23 @@ def main():
                 candidate_list_2 = []
                 candidate_list_3 = []
                 candidate_list_4 = []
-                for topS in topK_0:
-                    candidate_list_0.append(operation_service_dict[topS])
-                for topS in topK_1:
-                    candidate_list_1.append(operation_service_dict[topS])
-                for topS in topK_2:
-                    candidate_list_2.append(operation_service_dict[topS])
-                for topS in topK_3:
-                    candidate_list_3.append(operation_service_dict[topS])
-                for topS in topK_4:
-                    candidate_list_4.append(operation_service_dict[topS])
+                if RCA_level == 'operation':
+                    for topS in topK_0:
+                        candidate_list_0.append(operation_service_dict[topS])
+                    for topS in topK_1:
+                        candidate_list_1.append(operation_service_dict[topS])
+                    for topS in topK_2:
+                        candidate_list_2.append(operation_service_dict[topS])
+                    for topS in topK_3:
+                        candidate_list_3.append(operation_service_dict[topS])
+                    for topS in topK_4:
+                        candidate_list_4.append(operation_service_dict[topS])
+                elif RCA_level == 'service':
+                    candidate_list_0 = topK_0
+                    candidate_list_1 = topK_1
+                    candidate_list_2 = topK_2
+                    candidate_list_3 = topK_3
+                    candidate_list_4 = topK_4
                 if isinstance(chaos_service_list[0], list):    # 一次注入两个故障
                     for service_pair in chaos_service_list:
                         if (service_pair[0] in candidate_list_0) and (service_pair[1] in candidate_list_0):
@@ -302,6 +312,9 @@ def main():
                     r_pred_count_3 += 1
                 if in_topK_4 == True:
                     r_pred_count_4 += 1
+                
+                start = end + (2 * 60 * 1000)    # sleep 3min after a trigger
+                end = start + window_duration
 
                 # zhoutong add
                 # in_topK = True
@@ -326,7 +339,7 @@ def main():
                     FN += 1
                     break
 
-        start = end
+        start = end + (1 * 60 * 1000)
         end = start + window_duration
         # main loop end
     print('main loop end')
@@ -354,79 +367,84 @@ def main():
     print("Top@{}:".format(K[0]))
     TP = r_pred_count_0
     if TP != 0:
-        # hit_rate = r_pred_count_0 / r_true_count
-        hit_rate = r_pred_count_0 / trigger_count
+        hit_rate1 = r_pred_count_0 / r_true_count
+        hit_rate2 = r_pred_count_0 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
-        print('RCA hit rate is %.5f' % hit_rate)
-        print('RCA accuracy score is %.5f' % r_acc)
-        print('RCA recall score is %.5f' % r_recall)
-        print('RCA precision score is %.5f' % r_prec)
+        print('RCA hit rate 1 is %.5f' % hit_rate1)
+        print('RCA hit rate 2 is %.5f' % hit_rate2)
+        # print('RCA accuracy score is %.5f' % r_acc)
+        # print('RCA recall score is %.5f' % r_recall)
+        # print('RCA precision score is %.5f' % r_prec)
     else:
         print('RCA hit rate is 0')
     print('* * * * * * * *')
     print("Top@{}:".format(K[1]))
     TP = r_pred_count_1
     if TP != 0:
-        # hit_rate = r_pred_count_1 / r_true_count
-        hit_rate = r_pred_count_1 / trigger_count
+        hit_rate1 = r_pred_count_1 / r_true_count
+        hit_rate2 = r_pred_count_1 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
-        print('RCA hit rate is %.5f' % hit_rate)
-        print('RCA accuracy score is %.5f' % r_acc)
-        print('RCA recall score is %.5f' % r_recall)
-        print('RCA precision score is %.5f' % r_prec)
+        print('RCA hit rate 1 is %.5f' % hit_rate1)
+        print('RCA hit rate 2 is %.5f' % hit_rate2)
+        # print('RCA accuracy score is %.5f' % r_acc)
+        # print('RCA recall score is %.5f' % r_recall)
+        # print('RCA precision score is %.5f' % r_prec)
     else:
         print('RCA hit rate is 0')
     print('* * * * * * * *')
     print("Top@{}:".format(K[2]))
     TP = r_pred_count_2
     if TP != 0:
-        # hit_rate = r_pred_count_2 / r_true_count
-        hit_rate = r_pred_count_2 / trigger_count
+        hit_rate1 = r_pred_count_2 / r_true_count
+        hit_rate2 = r_pred_count_2 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
-        print('RCA hit rate is %.5f' % hit_rate)
-        print('RCA accuracy score is %.5f' % r_acc)
-        print('RCA recall score is %.5f' % r_recall)
-        print('RCA precision score is %.5f' % r_prec)
+        print('RCA hit rate 1 is %.5f' % hit_rate1)
+        print('RCA hit rate 2 is %.5f' % hit_rate2)
+        # print('RCA accuracy score is %.5f' % r_acc)
+        # print('RCA recall score is %.5f' % r_recall)
+        # print('RCA precision score is %.5f' % r_prec)
     else:
         print('RCA hit rate is 0')
     print('* * * * * * * *')
     print("Top@{}:".format(K[3]))
     TP = r_pred_count_3
     if TP != 0:
-        # hit_rate = r_pred_count_3 / r_true_count
-        hit_rate = r_pred_count_3 / trigger_count
+        hit_rate1 = r_pred_count_3 / r_true_count
+        hit_rate2 = r_pred_count_3 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
-        print('RCA hit rate is %.5f' % hit_rate)
-        print('RCA accuracy score is %.5f' % r_acc)
-        print('RCA recall score is %.5f' % r_recall)
-        print('RCA precision score is %.5f' % r_prec)
+        print('RCA hit rate 1 is %.5f' % hit_rate1)
+        print('RCA hit rate 2 is %.5f' % hit_rate2)
+        # print('RCA accuracy score is %.5f' % r_acc)
+        # print('RCA recall score is %.5f' % r_recall)
+        # print('RCA precision score is %.5f' % r_prec)
     else:
         print('RCA hit rate is 0')
     print('* * * * * * * *')
     print("Top@{}:".format(K[4]))
     TP = r_pred_count_4
     if TP != 0:
-        # hit_rate = r_pred_count_4 / r_true_count
-        hit_rate = r_pred_count_4 / trigger_count
+        hit_rate1 = r_pred_count_4 / r_true_count
+        hit_rate2 = r_pred_count_4 / trigger_count
         r_acc = (TP + TN)/(TP + FP + TN + FN)
         r_recall = TP/(TP + FN)
         r_prec = TP/(TP + FP)
-        print('RCA hit rate is %.5f' % hit_rate)
-        print('RCA accuracy score is %.5f' % r_acc)
-        print('RCA recall score is %.5f' % r_recall)
-        print('RCA precision score is %.5f' % r_prec)
+        print('RCA hit rate 1 is %.5f' % hit_rate1)
+        print('RCA hit rate 2 is %.5f' % hit_rate2)
+        # print('RCA accuracy score is %.5f' % r_acc)
+        # print('RCA recall score is %.5f' % r_recall)
+        # print('RCA precision score is %.5f' % r_prec)
     else:
         print('RCA hit rate is 0')
     print('--------------------------------')
-
+    print(r_pred_count_0, r_pred_count_1, r_pred_count_2, r_pred_count_3, r_pred_count_4)
     print("Done !")
 
 if __name__ == '__main__':

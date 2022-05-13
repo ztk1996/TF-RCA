@@ -154,8 +154,8 @@ def main():
                     expect_duration += operation_count[trace_id][operation] * (
                         slo[operation][0] + 1.5 * slo[operation][1])
 
-            if real_duration > expect_duration:
-            # if raw_data[trace_id]['abnormal']:
+            # if real_duration > expect_duration:
+            if raw_data[trace_id]['abnormal']:
                 a_pred.append(1)
                 abnormal_map[trace_id] = True
                 abnormal_count += 1

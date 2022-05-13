@@ -43,8 +43,20 @@ class MicroCluster:
             # Update real time LS and SS
             self.LS = np.multiply(self.LS, self.decay_factor)
             self.SS = np.multiply(self.SS, self.decay_factor)
-            self.LS = self.LS + sample
-            self.SS = self.SS + np.power(sample, 2)
+            self.LS = self.LS + sample    # 可能为负
+            self.SS = self.SS + np.power(sample, 2)    # 不可能为负
+
+            # new_LS = []
+            # new_SS = []
+            # for idx, value in enumerate(sample):
+            #     if idx % 2 == 0:    # path dim
+            #         new_LS.append(self.LS[idx] * self.decay_factor + value)
+            #         new_SS.append(self.SS[idx] * self.decay_factor + np.power(value, 2))
+            #     elif idx % 2 != 0:    # status code
+            #         new_LS.append(self.LS[idx] if value!=1 else value)
+            #         new_SS.append(self.SS[idx] if value!=1 else value)
+            # self.LS = np.array(new_LS)
+            # self.SS = np.array(new_SS)
 
             # Update incremental radius treshold
             n1 = self.count
@@ -92,8 +104,8 @@ class MicroCluster:
         # else:
         #     return float('nan')
         # method 2
-        LSd = np.power(np.divide(self.LS, float(self.sum_of_weights)), 2)
-        SSd = np.divide(self.SS, float(self.sum_of_weights))
+        LSd = np.power(np.divide(self.LS, float(self.sum_of_weights)), 2)    # 不可能为负    # LS可能为负，SS不可能为负
+        SSd = np.divide(self.SS, float(self.sum_of_weights))    # 不可能为负
         return np.nanmax(np.sqrt((SSd.astype(float)-LSd.astype(float)))) 
 
     def center(self):
