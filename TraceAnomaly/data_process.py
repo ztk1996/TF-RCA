@@ -1,6 +1,6 @@
 import json
 import sys
-from TraceAnomaly.utils import get_unique_service_sequence
+from utils import get_unique_service_sequence
 import numpy as np
 from tqdm import tqdm
 
@@ -105,14 +105,14 @@ def preprocess_for_npy(filename, output_filename):
 
 
 if __name__ == '__main__':
-    root = r'../0301-data/preprocessed/'
+    # root = r'../0301-data/preprocessed/'
     # # process npy files
     # preprocess_for_npy(root + 'emb_train_normal.npy', root + 'train_normal')
     # preprocess_for_npy(root + 'emb_test_normal.npy', root + 'test_normal')
     # preprocess_for_npy(root + 'emb_test_abnormal.npy', root + 'abnormal')
     # sys.exit(0)
     # get api seq and time seq
-    train_trace_data = get_api_seq_and_time_seq(root + 'train_normal_0.6.json')    # 换成初始化数据集 '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-08_14-03-38/data.json'
+    train_trace_data = get_api_seq_and_time_seq('/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-08_14-03-38/data.json')    # 换成初始化数据集 '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-08_14-03-38/data.json'
     _, train_trace_data = statistic_unique_trace_length(train_trace_data)
     test_normal_trace_data = get_api_seq_and_time_seq(root + 'test_normal_0.4.json')    # 1.换成单故障数据集 '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-06_17-28-43/data.json' 的正常数据； 2.换成变更数据集 '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-11_00-06-32/data.json' 的正常部分 
     _, test_normal_trace_data = statistic_unique_trace_length(test_normal_trace_data)
