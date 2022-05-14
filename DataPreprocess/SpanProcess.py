@@ -270,6 +270,9 @@ def load_aiops_span(data_path_list: List[str]) -> List[DataFrame]:
         for id in tmp['error_trace_id_list']:
             aiops_abnormal_tid[id] = ""
 
+    global aiops_root
+    aiops_root = pd.read_excel(aiops_root_filepath, dtype={'start_time': np.str0})
+
     # load trace info
     for filepath in data_path_list:
         filepath = os.path.join(data_root, 'aiops', filepath)
@@ -299,9 +302,8 @@ def load_aiops_span(data_path_list: List[str]) -> List[DataFrame]:
             spans[ITEM.SPAN_TYPE].append('Entry')
             spans[ITEM.START_TIME].append(int(s['startTime']))
             spans[ITEM.DURATION].append(int(s['elapsedTime']))
-            spans[ITEM.SERVICE].append(
-                s['serviceName'] if 'serviceName' in s.keys() else s['dsName'])
-            spans[ITEM.OPERATION].append(s['cmdb_id'])
+            spans[ITEM.SERVICE].append(s['cmdb_id'])
+            spans[ITEM.OPERATION].append('')
             spans[ITEM.PEER].append('')
             spans[ITEM.IS_ERROR].append(utils.any2bool(s['success']))
             spans[ITEM.CODE].append('')
@@ -511,6 +513,22 @@ def check_abnormal_span(span: Span) -> str:
     return ''
 
 
+def check_aiops_abnormal_span(span: Span):
+    chaos = []
+
+    for _, row in aiops_root.iterrows():
+        r_start = int(time.mktime(time.strptime(row['start_time'], "%Y-%m-%d %H:%M:%S")))*1000
+        r_end = r_start + 5 * 60 * 1000
+        if r_start < span.startTime and span.startTime < r_end:
+            chaos.append(row['name'])
+
+    for c in chaos:
+        if c == span.service:
+            return c
+
+    return ''
+
+
 def build_sw_graph(trace: List[Span], time_normolize: Callable[[float], float], operation_map: dict):
     vertexs = {0: ['start', 'start']}
     edges = {}
@@ -704,6 +722,11 @@ def build_aiops_graph(trace: List[Span], time_normolize: Callable[[float], float
         Edge: [(from, to, duration), ...]
         Vertex: [(id, nodestr), ...]
         """
+
+        root_chaos = check_aiops_abnormal_span(span)
+        if root_chaos != '':
+            chaos_root.append(root_chaos)
+            is_abnormal = 1
 
         # get the parent server span id
         if span.parentSpanId == '-1':
