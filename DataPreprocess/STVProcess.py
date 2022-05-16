@@ -1,4 +1,4 @@
-from SpanProcess import preprocess_span
+# from .SpanProcess import preprocess_span
 import sys
 import os
 import json
@@ -408,9 +408,10 @@ def load_dataset(start, end, dataLevel, stage, raw_data_total=None):
     trace_list = list()
     raw_data = dict()
 
-    if dataLevel == 'span':
-        raw_data = preprocess_span(start, end, stage)
-    elif dataLevel == 'trace':
+    # if dataLevel == 'span':
+        # raw_data = preprocess_span(start, end, stage)
+    # elif dataLevel == 'trace':
+    if dataLevel == 'trace':
         for trace_id, trace in sorted(raw_data_total.items(), key=lambda item: item[1]['edges']['0'][0]['startTime']):
             if trace['edges']['0'][0]['startTime'] >= end:
                 break

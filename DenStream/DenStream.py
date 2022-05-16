@@ -1,6 +1,7 @@
 from cProfile import label
 from doctest import testfile
 import random
+from re import S
 from statistics import mean
 import sys
 import time
@@ -23,11 +24,12 @@ from db_utils import *
 
 # 模拟人工打标的 trace（从异常纠正为正常）
 traceID_list = list()
-traceID_fr = open('./manual_traceID_change.txt', 'r')
-S = traceID_fr.read()
-traceID_list = [traceID for traceID in S.split(', ')]
-traceID_list = random.sample(traceID_list, int(len(traceID_list)*1.0))
+# traceID_fr = open('./manual_traceID_change.txt', 'r')
+# S = traceID_fr.read()
+# traceID_list = [traceID for traceID in S.split(', ')]
+# traceID_list = random.sample(traceID_list, int(len(traceID_list)*1.0))
 
+cluster_id_dict = dict()
 
 
 def ms2str(ms: int) -> str:
@@ -542,13 +544,13 @@ class DenStream:
         for i, micro_cluster in enumerate(micro_clusters):
             # current_distance = np.linalg.norm(micro_cluster.center() - sample)
             # 欧几里得相似度
-            current_distance = eculidDisSim(micro_cluster.center(), sample)
+            # current_distance = eculidDisSim(micro_cluster.center(), sample)
             # 余弦相似度
             # current_distance = cosSim(micro_cluster.center(), sample)
             # 皮尔森相似度
             # current_distance = pearsonrSim(micro_cluster.center(), sample)
             # 曼哈顿相似度
-            # current_distance = manhattanDisSim(micro_cluster.center(), sample)
+            current_distance = manhattanDisSim(micro_cluster.center(), sample)
             if current_distance < smallest_distance:
                 smallest_distance = current_distance
                 nearest_micro_cluster = micro_cluster
@@ -656,6 +658,11 @@ class DenStream:
                 # Add new member
                 micro_cluster.members[sample_info['trace_id']] = [sample, sample_info]
                 self.updateAll(micro_cluster)
+                
+                cluster_id_dict[sample_info['trace_id']] = id(micro_cluster)
+                if sample_info['trace_id'] == 'bd5d2310ce5c4352ab8c6239fa304ed3.38.16518837398590043':
+                    print("find it !")
+                    
                 return True
         return False
 
@@ -703,6 +710,8 @@ class DenStream:
                 # Update max / min rt
                 micro_cluster.rt_max = max(sample_info['time_seq'])
                 micro_cluster.rt_min = max(sample_info['time_seq'])
+
+                cluster_id_dict[sample_info['trace_id']] = id(micro_cluster)
                 
                 # temp
                 # for clusterTest in [cluster for cluster in self.p_micro_clusters+self.o_micro_clusters if cluster.label=='normal']:
@@ -736,6 +745,16 @@ class DenStream:
 
     def _decay_function(self, t):
         return 2 ** ((-self.lambd) * (t))
+    
+    def get_false_positive_cluster(self):
+        candidate_cluster_list = list()
+        for cluster in self.p_micro_clusters:    # +self.o_micro_clusters:
+            if cluster.label == 'abnormal':
+                for member in cluster.members.values():    # members {trace_id1: [STVector1, sample_info1], trace_id2: [STVector2, sample_info2]}
+                    if member[1]['trace_bool'] == 0:    # false positive cluster
+                        candidate_cluster_list.append(cluster)
+                        break
+        return candidate_cluster_list
 
     def Cluster_AnomalyDetector(self, sample, sample_info, data_status, manual_labels_list, stage=None):
         # improvement 这里各个 trace 的权重应该由已有的聚类计算出来，暂时还没想好
@@ -746,8 +765,10 @@ class DenStream:
         #     cluster.energy -= self.decay
 
         # 每隔一段时间更新所有簇的状态，有的消失，有的保留
-        if sample_info["time_stamp"] % self.tp == 0:    # self.tp 越大则销毁簇越慢，保留的簇个数越多；self.tp 越小则销毁簇越快，保留簇个数越少
+        if sample_info["time_stamp"] % self.tp == 0:
+        # if sample_info["time_stamp"] % self.tp == 0:    # self.tp 越大则销毁簇越慢，保留的簇个数越多；self.tp 越小则销毁簇越快，保留簇个数越少
             # old_p_micro_clusters = self.p_micro_clusters
+            # candidate_clusters = self.get_false_positive_cluster()
             self.p_micro_clusters = [p_micro_cluster for p_micro_cluster
                                      in self.p_micro_clusters if
                                      p_micro_cluster.weight() >= self.beta *
