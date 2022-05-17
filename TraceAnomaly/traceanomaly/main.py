@@ -15,8 +15,8 @@ from sklearn.model_selection import train_test_split
 import tfsnippet as spt
 from tfsnippet.examples.utils import (print_with_title,
                                       collect_outputs)
-from .readdata import get_data_vae, get_z_dim
-from .MLConfig import (MLConfig,
+from readdata import get_data_vae, get_z_dim
+from MLConfig import (MLConfig,
                        global_config as config,
                        config_options)
 from sklearn.neighbors import KernelDensity

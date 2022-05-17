@@ -10,7 +10,21 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "justMyCode": true
+            "justMyCode": true,
+            "args": [
+                // "-m",
+                // "traceanomaly.main",
+                "--trainpath",
+                "./TraceAnomaly/data/train",
+                "--normalpath",
+                "./TraceAnomaly/data/test_normal",
+                "--abnormalpath",
+                "./TraceAnomaly/data/test_abnormal",
+                "--outputpath",
+                "./TraceAnomaly/result_real_data",
+                "-c",
+                "flow_type=rnvp"
+            ]
         }
     ]
 }

@@ -1,0 +1,2 @@
+model_checkpoint_path: "/home/kagaya/work/TF-RCA/TraceAnomaly/result_real_data/md_rnvp_200.model/variables.dat"
+all_model_checkpoint_paths: "/home/kagaya/work/TF-RCA/TraceAnomaly/result_real_data/md_rnvp_200.model/variables.dat"

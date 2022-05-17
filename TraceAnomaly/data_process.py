@@ -4,8 +4,8 @@ from utils import get_unique_service_sequence
 import numpy as np
 from tqdm import tqdm
 
-root = '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-08_14-03-38/'
-
+normal_root = '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-08_14-03-38/'
+root = '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-11_00-06-32/'
 
 def get_api_seq_and_time_seq(filename):
     with open(filename, 'r') as file:
@@ -35,6 +35,23 @@ def get_api_seq_and_time_seq(filename):
 #             api_dict[api] = idx
 #             idx += 1
 #     return api_dict
+
+def calc_normal_path_statistics(trace_data, filename):
+    normal_dict = {}
+    print('getting normal dict...')
+    for trace_id, trace in tqdm(trace_data.items()):
+        for i in range(1, len(trace['service_seq'])):
+            path = '->'.join(trace['service_seq'][:i + 1])
+            if path not in normal_dict.keys():
+                normal_dict[path] = []
+            normal_dict[path].append(trace['time_seq'][i-1])
+
+    stat = {}
+    for k, data in normal_dict.items():
+        stat[k] = [np.mean(data), np.std(data)]
+
+    with open(r'./data/' + filename, 'w') as fd:
+        json.dump(stat, fd)
 
 
 def get_common_seq_set(trace_data):
@@ -92,7 +109,7 @@ def data_process_for_trace_anomaly(trace_data, seq_set, filename):
     length = len(seq_set)
     print('seq_set\'s length:', length)
     print('processing data and writing it to file...')
-    with open(r'/data/TraceCluster/traceanomaly/' + filename, 'w') as file:
+    with open(r'./data/' + filename, 'w') as file:
         for trace_id, trace in tqdm(trace_data.items()):
             output_seq = ['0' for i in range(length)]
             for i in range(1, len(trace['service_seq'])):
@@ -120,7 +137,7 @@ if __name__ == '__main__':
     # get api seq and time seq
     # 换成初始化数据集 '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-08_14-03-38/data.json'
     train_trace_data = get_api_seq_and_time_seq(
-        root + 'data.json')
+        normal_root + 'data.json')
     _, train_trace_data = statistic_unique_trace_length(train_trace_data)
     # 1.换成单故障数据集 '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-06_17-28-43/data.json' 的正常数据； 2.换成变更数据集 '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-11_00-06-32/data.json' 的正常部分
     test_normal_trace_data = get_api_seq_and_time_seq(
@@ -141,6 +158,9 @@ if __name__ == '__main__':
     trace_data.update(test_abnormal_trace_data)
     # get common seq_set
     seq_set = get_common_seq_set(trace_data)
+    calc_normal_path_statistics(train_trace_data, 'stat.json')
+    with open(r'./data/seq_set.json', 'w') as fd:
+        json.dump(seq_set, fd)
     # data process for trace anomaly seperately
     data_process_for_trace_anomaly(train_trace_data, seq_set, 'train')
     data_process_for_trace_anomaly(
