@@ -15,8 +15,8 @@ from sklearn.model_selection import train_test_split
 import tfsnippet as spt
 from tfsnippet.examples.utils import (print_with_title,
                                       collect_outputs)
-from readdata import get_data_vae, get_z_dim
-from MLConfig import (MLConfig,
+from .readdata import get_data_vae, get_z_dim
+from .MLConfig import (MLConfig,
                        global_config as config,
                        config_options)
 from sklearn.neighbors import KernelDensity
@@ -330,9 +330,6 @@ def main(trainpath, normalpath, abnormalpath, outputpath):
         end = time.time()
         print("test time: ", end-start)
         
-        pd.DataFrame(
-            {'id': flows_test, 'label': y_test, 'score': test_ans}) \
-            .to_csv(output_file, index=False)
         valid_ans = collect_outputs([test_logp], [input_x], valid_flow)[0] \
             / config.x_dim
         pd.DataFrame({'score': valid_ans}).to_csv(valid_file, index=False)
@@ -345,7 +342,8 @@ def main(trainpath, normalpath, abnormalpath, outputpath):
         for density in test_density:
             test_class.append(1 if math.e**density < 0.001 else 0)
         test_class = np.asarray(test_class)
-
+        pd.DataFrame({'id': flows_test, 'label': y_test, 'pred': test_class,'score': test_ans}) \
+            .to_csv(output_file, index=False)
         # classification report: F1-score, recall, precision
         print(metrics.classification_report(y_test, test_class, target_names=['normal', 'abnormal']))
         # roc auc score
