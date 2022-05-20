@@ -11,6 +11,7 @@ import click
 from enum import Enum
 from tqdm import tqdm
 from tkinter import _flatten
+from math import ceil
 
 
 class NodeType(Enum):
@@ -401,6 +402,37 @@ def min_max(x: float, min: float, max: float) -> float:
     min-max normalize funciton
     """
     return (float(x) - float(min)) / (float(max) - float(min))
+
+def select_trace_types(raw_data, type_rate):
+    trace_type_dict = dict()    # {trace_id: path_list}
+    traces_with_same_paths = dict()    # {path_list1: [trace_id1, trace_id2]}
+    sampled_raw_data = dict()
+    for trace_id, trace in sorted(raw_data.items(), key=lambda i: i[1]['edges']['0'][0]['startTime']):
+        trace_type_dict[trace_id] = []
+        service_seq = ['start']
+        spans = []
+        for span in trace['edges'].values():
+            spans.extend(span)
+        spans = sorted(spans, key=lambda span: span['startTime'])
+        # 获得一条 trace 的 service_seq
+        service_seq.extend([span['service'] for span in spans])
+        # 获得一条 trace 的 path list
+        for i in range(1, len(service_seq)):
+            if '->'.join(service_seq[:i + 1]) not in trace_type_dict[trace_id]:
+                trace_type_dict[trace_id].append('->'.join(service_seq[:i + 1]))
+
+    for trace_id, paths_type in trace_type_dict.items():
+        if str(paths_type) not in traces_with_same_paths.keys():
+            traces_with_same_paths[str(paths_type)] = [trace_id]
+        else:
+            traces_with_same_paths[str(paths_type)].append(trace_id)
+    
+    sampled_trace_types = random.sample(traces_with_same_paths.keys(), ceil(len(traces_with_same_paths)*type_rate))
+    for paths_type in sampled_trace_types:
+        for trace_id in traces_with_same_paths[paths_type]:
+            sampled_raw_data[trace_id] = raw_data[trace_id]
+    
+    return sampled_raw_data
 
 
 # stage: 'main', 'init' 对'init'计算所有operation的均值方差再求归一化后结果 对'main'的每个operation求归一化后结果

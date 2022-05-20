@@ -31,6 +31,7 @@ traceID_list = list()
 
 cluster_id_dict = dict()
 
+manual_label_count_list = list()
 
 def ms2str(ms: int) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ms/1000))
@@ -288,13 +289,25 @@ class DenStream:
         trace_items = str()
         # get ground truth cluster labels from db
         labels_dict = db_find_cluster_labels()    # dict {cluster_id1: cluster_label1, cluster_id2: cluster_label2}
-        for micro_cluster in self.p_micro_clusters + self.o_micro_clusters:
+        
+        # p_micro_cluster
+        for micro_cluster in self.p_micro_clusters:
             highlight_list = self._find_centerest_edgest_members(micro_cluster)
             if id(micro_cluster) in labels_dict.keys():
                 micro_cluster.label = labels_dict[str(id(micro_cluster))]
-            cluster_items += "({0}, '{1}', '{2}', '{3}', {4}, {5}, {6}, {7}, {8}, {9}), ".format(id(micro_cluster), ms2str(micro_cluster.creation_time), ms2str(micro_cluster.latest_time), micro_cluster.label, micro_cluster.weight()[0], micro_cluster.svc_count_max, micro_cluster.svc_count_min, micro_cluster.rt_max, micro_cluster.rt_min, micro_cluster.avg_step)
+            cluster_items += "({0}, '{1}', '{2}', '{3}', {4}, {5}, {6}, {7}, {8}, {9}, 'potential'), ".format(id(micro_cluster), ms2str(micro_cluster.creation_time), ms2str(micro_cluster.latest_time), micro_cluster.label, micro_cluster.weight()[0], micro_cluster.svc_count_max, micro_cluster.svc_count_min, micro_cluster.rt_max, micro_cluster.rt_min, micro_cluster.avg_step)
             for trace_id in micro_cluster.members.keys():
                 trace_items += "({0}, '{1}', 1), ".format(id(micro_cluster), trace_id) if trace_id in highlight_list else "({0}, '{1}', 0), ".format(id(micro_cluster), trace_id)
+        
+        # o_micro_cluster
+        for micro_cluster in self.o_micro_clusters:
+            highlight_list = self._find_centerest_edgest_members(micro_cluster)
+            if id(micro_cluster) in labels_dict.keys():
+                micro_cluster.label = labels_dict[str(id(micro_cluster))]
+            cluster_items += "({0}, '{1}', '{2}', '{3}', {4}, {5}, {6}, {7}, {8}, {9}, 'outlier'), ".format(id(micro_cluster), ms2str(micro_cluster.creation_time), ms2str(micro_cluster.latest_time), micro_cluster.label, micro_cluster.weight()[0], micro_cluster.svc_count_max, micro_cluster.svc_count_min, micro_cluster.rt_max, micro_cluster.rt_min, micro_cluster.avg_step)
+            for trace_id in micro_cluster.members.keys():
+                trace_items += "({0}, '{1}', 1), ".format(id(micro_cluster), trace_id) if trace_id in highlight_list else "({0}, '{1}', 0), ".format(id(micro_cluster), trace_id)
+        
         # clear cluster table
         db_delete_cluster()
         # insert to cluster table
@@ -667,6 +680,7 @@ class DenStream:
         return False
 
     def _merging(self, sample, sample_info, weight, data_status, manual_labels_list):
+        # global manual_label_count_list
         # 若到来的样本在人工标注字典中出现过，则所属的簇直接标记正常
         # Update MicroCluster center dimension
         for cluster in self.p_micro_clusters + self.o_micro_clusters:
@@ -695,6 +709,15 @@ class DenStream:
                 # cluster_label = self._request_expert_knowledge(sample, sample_info)
                 # 人标注对其的影响也要考虑上，不一定绝对是‘abnormal’。若这个样本在人工标注字典中，则cluster_label为true
                 cluster_label = 'normal' if data_status=='init' or sample_info['trace_id'] in traceID_list else 'abnormal'              
+
+
+                # user feedback
+                correct_thres = 1
+                if cluster_label == 'abnormal' and sample_info['trace_bool'] == 0:    # false positive
+                    if np.random.uniform(0, 1) >= correct_thres:
+                        cluster_label = 'normal'
+                        manual_label_count_list.append(sample_info['trace_id'])
+
 
                 # Create new o_micro_cluster
                 micro_cluster = MicroCluster(self.lambd, sample_info['time_stamp'], cluster_label)    # improvement
@@ -765,7 +788,7 @@ class DenStream:
         #     cluster.energy -= self.decay
 
         # 每隔一段时间更新所有簇的状态，有的消失，有的保留
-        if sample_info["time_stamp"] % self.tp == 0:
+        if sample_info["time_stamp"] % 300 == 0:
         # if sample_info["time_stamp"] % self.tp == 0:    # self.tp 越大则销毁簇越慢，保留的簇个数越多；self.tp 越小则销毁簇越快，保留簇个数越少
             # old_p_micro_clusters = self.p_micro_clusters
             # candidate_clusters = self.get_false_positive_cluster()

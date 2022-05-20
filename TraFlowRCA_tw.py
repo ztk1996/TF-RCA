@@ -18,8 +18,8 @@ import time
 import sys
 import datetime
 from sklearn.metrics import accuracy_score, recall_score, precision_score
-from DataPreprocess.STVProcess import embedding_to_vector, load_dataset, process_one_trace, check_match, get_service_slo
-from DenStream.DenStream import DenStream, cluster_id_dict
+from DataPreprocess.STVProcess import embedding_to_vector, load_dataset, process_one_trace, check_match, get_service_slo, select_trace_types
+from DenStream.DenStream import DenStream, cluster_id_dict, manual_label_count_list
 from CEDAS.CEDAS import CEDAS
 from MicroRank.preprocess_data import get_span, get_service_operation_list, get_operation_slo
 from MicroRank.online_rca import rca
@@ -35,7 +35,7 @@ K = [1, 3, 5, 7, 10] if Two_error==False else [2, 3, 5, 7, 10]
 all_path = dict()
 operation_service_dict = dict()
 RCA_level = 'service'    # operation
-use_manual = False
+use_manual = True
 manual_labels_list = []
 buffer = []    # 3 time windows in it [[sampleRates, abnormal_map, confidenceScores], [sampleRates, abnormal_map, confidenceScores], [sampleRates, abnormal_map, confidenceScores]]
 # manual_labels_list = ['617d5c02352849119c2e5df8b70fa007.36.16503361793140001', 'dda6af5c49d546068432825e17b981aa.38.16503361824380001', '27a94f3afad745c69963997831868eb1.38.16503362398950001', '15480e1347c147a086b68221ca743874.38.16503369859250001', '262b9727d1584947a02905150a089faa.38.16503382599320123', 'ab212da6fff042febb91b313658a0005.46.16503384128150203', '0b225e568e304836a7901e0cff56205a.39.16503393835170053', '262b9727d1584947a02905150a089faa.39.16503397746270231']    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
@@ -67,15 +67,17 @@ dataLevel = 'trace'    # 'trace', 'span'
 path_decay = 0.01
 path_thres = 0.0
 reCluster_thres = 0.1
-IoU_thres = 0.07
+IoU_thres = 0.07    # 0.07
 
 correct_thres = 1
 correct_count = 0
 
 RCA_period = 0    # s
-sRate = 1.0
+sRate = 1
 
 eps = 1.0
+
+type_rate = 1.0
 # ========================================
 # Init evaluation for RCA
 # ========================================
@@ -178,7 +180,8 @@ def init_Cluster(cluster_obj, init_start_str):
         file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-08_14-03-38/data.json', 'r')    # new
         raw_data_total = json.load(file)
         get_operation_service_pairs(raw_data_total)
-        get_service_slo(raw_data=raw_data_total)
+        get_service_slo(raw_data=raw_data_total)    # 若只选某几种trace做初始化，有可能有些服务不存在，无法做归一化
+        raw_data_total = select_trace_types(raw_data=raw_data_total, type_rate=type_rate)
         print("Finish init data load !")
 
     print('Init Start !')
@@ -217,15 +220,15 @@ def init_Cluster(cluster_obj, init_start_str):
         if len(delete_index_candidate) / len(all_path) >= reCluster_thres:
             do_reCluster(cluster_obj=cluster_obj, data_status='init', current_time=start)
         
-        if timeWindow_count >= int(1 * 60 * 60 * 1000 / window_duration_init):
-            break
+        # if timeWindow_count >= int(1 * 60 * 60 * 1000 / window_duration_init):
+        #     break
     
     # update cluster table when finish init
     if use_manual == True:
         cluster_obj.update_cluster_and_trace_tables()
     
-    # for cluster in cluster_obj.p_micro_clusters+cluster_obj.o_micro_clusters:
-        # cluster.creation_time = timestamp(start_str)
+    for cluster in cluster_obj.p_micro_clusters+cluster_obj.o_micro_clusters:
+        cluster.creation_time = timestamp(start_str)
     print('Init finish !')
 
         
@@ -353,7 +356,7 @@ def do_manual_correct(cluster_obj, buffer):
     global correct_count
     candidate_cluster_list = get_false_positive_cluster(cluster_obj)
     for cluster in candidate_cluster_list:
-        if np.random.uniform(0, 1) >= correct_thres and cluster.count>=5:
+        if np.random.uniform(0, 1) >= correct_thres:
             # do correct
             correct_count += 1
             cluster.label = 'normal'
@@ -594,6 +597,16 @@ def triggerRCA(trace_id, time_stamp, buffer, raw_data_total):
 
 
 def main():
+    # global sRate
+    # sRate = input("Please input the sample rate:")
+    # sRate = float(sRate)
+    # print(sRate)
+
+    # global correct_thres
+    # correct_thres = input("input correct_thres:")
+    # correct_thres = float(correct_thres)
+    # print(correct_thres)
+
     # manual labels list
     traceID_list = list()
 
@@ -850,18 +863,19 @@ def main():
                     if label == True:
                         time_stamp = raw_data_total[trace_id]['edges']['0'][0]['startTime']
                         abnormal_count_in_3mins = get_abnormal_count(time_stamp, buffer, raw_data_total)
-                        if abnormal_count_in_3mins < 5:
-                            RCA_pattern.clear()
+                        # if abnormal_count_in_3mins < 5:
+                            # RCA_pattern.clear()
                         abnormal_pattern_in_3mins = get_abnormal_pattern(time_stamp, buffer, raw_data_total)
                         # pattern_IoU = len(set(abnormal_pattern_in_3mins)&set(RCA_pattern)) / len(set(abnormal_pattern_in_3mins)|set(RCA_pattern)) if len(set(abnormal_pattern_in_3mins)|set(RCA_pattern)) != 0 else -1
                         pattern_IoU = get_pattern_IoU(abnormal_pattern_in_3mins, RCA_pattern)
                         # if abnormal_count_in_3mins>=8 and pattern_IoU<0.2:
-                        if abnormal_count_in_3mins>=10 and pattern_IoU<IoU_thres:
+                        if abnormal_count_in_3mins>=15 and pattern_IoU<IoU_thres:
                             # manual correct
                             do_manual_correct(cluster_obj=denstream, buffer=buffer)
                             # abnormal trace in 6 min
                             RCA_pattern = get_rca_pattern(time_stamp, buffer, raw_data_total)
                             # trigger RCA
+                            # for i in range(10):
                             triggerRCA(trace_id, time_stamp, buffer, raw_data_total)
                             # clear cluster id dict
                             # clear_cluster_ids(cluster_obj=denstream)
@@ -896,6 +910,7 @@ def main():
                             # abnormal trace in 6 min
                             RCA_pattern = get_rca_pattern(time_stamp, buffer, raw_data_total)
                             # trigger RCA
+                            # for i in range(10):
                             triggerRCA(trace_id, time_stamp, buffer, raw_data_total)
                             # clear cluster id dict
                             # clear_cluster_ids(cluster_obj=denstream)
@@ -1195,7 +1210,8 @@ def main():
     print('--------------------------------')
     print("pred_count:", r_pred_count_0, r_pred_count_1, r_pred_count_2, r_pred_count_3, r_pred_count_4)
     print("trigger count:", trigger_count)
-    print("correct count:", correct_count)
+    # print("correct count:", correct_count)
+    print("correct count:", len(manual_label_count_list))
     print("RCA period:", RCA_period, "s")
 
     print("Done !")
