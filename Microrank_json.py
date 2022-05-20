@@ -1,3 +1,4 @@
+import sys
 from re import T
 import torch
 import json
@@ -9,6 +10,7 @@ from tqdm import tqdm
 from torch_geometric.loader import DataLoader
 from torch.utils.data import Subset
 import time
+import pandas as pd
 import datetime
 from sklearn.metrics import accuracy_score, recall_score, precision_score
 from DataPreprocess.STVProcess import get_operation_slo, load_raw_dataset, get_operation_duration_data
@@ -20,13 +22,12 @@ from DataPreprocess.params import span_chaos_dict, request_period_log
 from DataPreprocess.SpanProcess import preprocess_span
 import warnings
 warnings.filterwarnings("ignore")
-import sys
 MAX_INT = sys.maxsize
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 Two_error = False
-K = [1, 3, 5, 7, 10] if Two_error==False else [2, 3, 5, 7, 10]
+K = [1, 3, 5, 7, 10] if Two_error == False else [2, 3, 5, 7, 10]
 operation_service_dict = dict()
 RCA_level = 'service'    # operation
 # format stage
@@ -42,25 +43,29 @@ RCA_level = 'service'    # operation
 # start_str = '2022-05-05 19:00:00'    # 1 abnormal new 5-6
 start_str = '2022-05-09 15:00:00'    # change new 5-10
 
-window_duration = 6 * 60 * 1000 # ms
+window_duration = 6 * 60 * 1000  # ms
 
 # init stage
 # init_start_str = '2022-04-18 00:00:05'    # normal old
 init_start_str = '2022-04-25 20:36:46'    # normal new
+
 
 def timestamp(datetime: str) -> int:
     timeArray = time.strptime(str(datetime), "%Y-%m-%d %H:%M:%S")
     ts = int(time.mktime(timeArray)) * 1000
     return ts
 
+
 def ms2str(ms: int) -> str:
     return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ms/1000))
+
 
 def intersect_or_not(start1: int, end1: int, start2: int, end2: int):
     if max(start1, start2) < min(end1, end2):
         return True
     else:
         return False
+
 
 def get_operation_service_pairs(dataset):
     global operation_service_dict
@@ -71,13 +76,14 @@ def get_operation_service_pairs(dataset):
             if vertex[1] not in operation_service_dict.keys():    # operation
                 operation_service_dict[vertex[1]] = vertex[0]
 
+
 def main():
     # ========================================
     # Init time window
     # ========================================
     init_start = timestamp(init_start_str)
     # init_end = timestamp(init_end_str)
-    init_end = init_start +  13 * 60 * 60 * 1000
+    init_end = init_start + 13 * 60 * 60 * 1000
 
     # ========================================
     # Init Data loader
@@ -85,7 +91,8 @@ def main():
     print("Init Data loading ...")
     # file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
     # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-20_17-34-08/data.json', 'r')    # old
-    file_init = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-04_18-45-43/data.json', 'r')    # new
+    file_init = open(
+        r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-04_18-45-43/data.json', 'r')    # new
     raw_data_total_init = json.load(file_init)
     get_operation_service_pairs(raw_data_total_init)
     print("Finish init data load !")
@@ -110,15 +117,15 @@ def main():
 
     # ========================================
     # Init evaluation for RCA
-    # ========================================   
-    trigger_count = 0 
+    # ========================================
+    trigger_count = 0
     r_true_count = len(request_period_log)
     r_pred_count_0 = 0
     r_pred_count_1 = 0
     r_pred_count_2 = 0
     r_pred_count_3 = 0
     r_pred_count_4 = 0
-    TP = 0    # TP 是预测为正类且预测正确 
+    TP = 0    # TP 是预测为正类且预测正确
     TN = 0    # TN 是预测为负类且预测正确
     FP = 0    # FP 是把实际负类分类（预测）成了正类
     FN = 0    # FN 是把实际正类分类（预测）成了负类
@@ -140,7 +147,9 @@ def main():
     # file_main = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')    # change 1
     # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')    # abnormal 2
     # file_main = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-06_17-28-43/data.json', 'r')    # 1 abnormal new 5-6
-    file_main = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-11_00-06-32/data.json', 'r')    # change new 5-10
+    # change new 5-10
+    file_main = open(
+        r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-11_00-06-32/data.json', 'r')
     raw_data_total_main = json.load(file_main)
     get_operation_service_pairs(raw_data_total_main)
     print("Finish main data load !")
@@ -161,30 +170,21 @@ def main():
                 start = end
                 end = start + window_duration
                 continue
-            else: 
+            else:
                 print("Error: Current dataset list is empty ")
                 break
-        
+
         operation_count = get_operation_duration_data(raw_data_dict)
+        print('load test result...')
+        test_result = pd.read_csv('./TraceAnomaly/result_real_data/test.csv')
+        a_df = test_result.loc[test_result['pred'] == 1]
+        a_trace_ids = a_df['id'].tolist()
 
         for trace_id in operation_count:
             a_true.append(raw_data_dict[trace_id]['abnormal'])
             tid_list.append(trace_id)
-                
-            real_duration = float(operation_count[trace_id]['duration']) / 1000.0
-            expect_duration = 0.0
-            for operation in operation_count[trace_id]:
-                if "duration" == operation:
-                    continue
-                if operation not in slo:
-                    expect_duration = -1
-                    break
-                else:
-                    expect_duration += operation_count[trace_id][operation] * (
-                        slo[operation][0] + 1.5 * slo[operation][1])
 
-            if real_duration > expect_duration:
-            # if raw_data_dict[trace_id]['abnormal']:
+            if trace_id in a_trace_ids:
                 a_pred.append(1)
                 abnormal_map[trace_id] = True
                 abnormal_count += 1
@@ -210,24 +210,30 @@ def main():
 
             trigger_count += 1
 
-            top_list, score_list = rca(RCA_level=RCA_level, start=start, end=end, tid_list=tid_list, trace_labels=abnormal_map, traces_dict=raw_data_dict, dataLevel='trace')
+            top_list, score_list = rca(RCA_level=RCA_level, start=start, end=end, tid_list=tid_list,
+                                       trace_labels=abnormal_map, traces_dict=raw_data_dict, dataLevel='trace')
 
             # top_list is not empty
-            if len(top_list) != 0:   
+            if len(top_list) != 0:
                 # topK_0
-                topK_0 = top_list[:K[0] if len(top_list) > K[0] else len(top_list)]
+                topK_0 = top_list[:K[0] if len(
+                    top_list) > K[0] else len(top_list)]
                 print(f'top-{K[0]} root cause is', topK_0)
                 # topK_1
-                topK_1 = top_list[:K[1] if len(top_list) > K[1] else len(top_list)]
+                topK_1 = top_list[:K[1] if len(
+                    top_list) > K[1] else len(top_list)]
                 print(f'top-{K[1]} root cause is', topK_1)
                 # topK_2
-                topK_2 = top_list[:K[2] if len(top_list) > K[2] else len(top_list)]
+                topK_2 = top_list[:K[2] if len(
+                    top_list) > K[2] else len(top_list)]
                 print(f'top-{K[2]} root cause is', topK_2)
                 # topK_3
-                topK_3 = top_list[:K[3] if len(top_list) > K[3] else len(top_list)]
+                topK_3 = top_list[:K[3] if len(
+                    top_list) > K[3] else len(top_list)]
                 print(f'top-{K[3]} root cause is', topK_3)
                 # topK_4
-                topK_4 = top_list[:K[4] if len(top_list) > K[4] else len(top_list)]
+                topK_4 = top_list[:K[4] if len(
+                    top_list) > K[4] else len(top_list)]
                 print(f'top-{K[4]} root cause is', topK_4)
 
                 # chaos_service = span_chaos_dict.get(start_hour)
@@ -237,12 +243,15 @@ def main():
                     # if ((root_cause_item[1]>end and root_cause_item[1]<root_cause_item[2]) or (start<end and root_cause_item[1]>root_cause_item[2]) or (start>end and start<root_cause_item[2])):
                     # if start>=root_cause_item[1] and start<=root_cause_item[2]:
                     if intersect_or_not(start1=start, end1=end, start2=root_cause_item[1], end2=root_cause_item[2]):
-                        chaos_service_list.append(root_cause_item[0][0] if len(root_cause_item[0])==1 else root_cause_item[0])
-                        print(f'ground truth root cause is', str(root_cause_item[0]))
+                        chaos_service_list.append(root_cause_item[0][0] if len(
+                            root_cause_item[0]) == 1 else root_cause_item[0])
+                        print(f'ground truth root cause is',
+                              str(root_cause_item[0]))
                 if len(chaos_service_list) == 0:
                     FP += 1
                     print("Ground truth root cause is empty !")
-                    start = end + (1 * 60 * 1000)    # sleep 1min after a error trigger
+                    # sleep 1min after a error trigger
+                    start = end + (1 * 60 * 1000)
                     end = start + window_duration
                     continue
                 # elif len(chaos_service_list) > 1 and Two_error == True:
@@ -301,7 +310,7 @@ def main():
                             in_topK_3 = True
                         if service in candidate_list_4:
                             in_topK_4 = True
-                
+
                 if in_topK_0 == True:
                     r_pred_count_0 += 1
                 if in_topK_1 == True:
@@ -312,7 +321,7 @@ def main():
                     r_pred_count_3 += 1
                 if in_topK_4 == True:
                     r_pred_count_4 += 1
-                
+
                 start = end + (2 * 60 * 1000)    # sleep 3min after a trigger
                 end = start + window_duration
 
@@ -343,7 +352,7 @@ def main():
         end = start + window_duration
         # main loop end
     print('main loop end')
-    
+
     print('--------------------------------')
     print("Evaluation for MicroRank")
     # ========================================
@@ -444,8 +453,10 @@ def main():
     else:
         print('RCA hit rate is 0')
     print('--------------------------------')
-    print(r_pred_count_0, r_pred_count_1, r_pred_count_2, r_pred_count_3, r_pred_count_4)
+    print(r_pred_count_0, r_pred_count_1,
+          r_pred_count_2, r_pred_count_3, r_pred_count_4)
     print("Done !")
+
 
 if __name__ == '__main__':
     main()
