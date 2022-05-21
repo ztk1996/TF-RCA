@@ -66,7 +66,7 @@ def main():
 				if duration < mean-3*std or duration > mean+3*std:
 					if path not in a_path.keys():
 						a_path[path] = 0
-					a_path[path] += 1	
+					a_path[path] += 1
 		
 		a_trace_path[tid] = a_path
 
@@ -88,18 +88,33 @@ def main():
 				cases[i][path] += count
 
 	a_trace_root_rank = []
+
 	for case in cases:
-		path_list = sorted(case.items(), key = lambda kv: (len(kv[0].split('->')), kv[1]), reverse=True)
-		rank = []
-		for kv in path_list:
-			rank.append(kv[0].split('->')[-1])
-		
-		a_trace_root_rank.append(rank)
+		root_count = {}
+		for k, v in case.items():
+			root = k.split('->')[-1]
+			if root not in root_count:
+				root_count[root] = 0
+			root_count[root] += v
+		a_trace_root_rank.append(sorted(root_count.items(), key = lambda kv: kv[1], reverse=True))
 
-
+	top_count = [0 for _ in range(4)]
 	for i in range(len(a_trace_root_rank)):
 		case = a_trace_root_rank[i][:10]
-		print(f'case {i} top-10:', case)
+		root = request_period_log[i][0][0]
+		for j in range(len(case)):
+			if root == case[j][0]:
+				if j < 1:
+					top_count[0] += 1
+				if j < 3:
+					top_count[1] += 1
+				if j < 5:
+					top_count[2] += 1
+				if j < 7:
+					top_count[3] += 1
+
+	# print(f'case {i} top-10:', case)
+	print('top count:', top_count)
 
 if __name__ == '__main__':
 	main()
