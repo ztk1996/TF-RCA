@@ -1,4 +1,4 @@
-from SpanProcess import preprocess_span
+from .SpanProcess import preprocess_span
 import sys
 import os
 import json

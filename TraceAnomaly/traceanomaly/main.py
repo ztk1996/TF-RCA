@@ -284,6 +284,7 @@ def main(trainpath, normalpath, abnormalpath, outputpath):
             saver.restore()
         else:
             print('no model here, and start training')
+            start = time.time()
             # initialize the network
             spt.utils.ensure_variables_initialized()
             for [batch_x] in train_flow:
@@ -321,6 +322,8 @@ def main(trainpath, normalpath, abnormalpath, outputpath):
                 trainer.log_after_epochs(freq=1)
                 trainer.run()
             saver.save()
+            end = time.time()
+            print("train time:", end-start)
 
         # get the answer
         print('start testing')
@@ -336,11 +339,11 @@ def main(trainpath, normalpath, abnormalpath, outputpath):
 
         # calculate F1-score, recall, precision
         print('start calculating F1-score, recall, precision...')
-        kde = KernelDensity(kernel='gaussian', bandwidth=0.5).fit(valid_ans.reshape(-1, 1))
-        test_density = kde.score_samples(test_ans.reshape(-1, 1))
+        # kde = KernelDensity(kernel='gaussian', bandwidth=0.5).fit(valid_ans.reshape(-1, 1))
+        # test_density = kde.score_samples(test_ans.reshape(-1, 1))
         test_class = []
-        for density in test_density:
-            test_class.append(1 if math.e**density < 0.001 else 0)
+        for v in test_ans:
+            test_class.append(1 if -v > -2.08105 else 0)
         test_class = np.asarray(test_class)
         pd.DataFrame({'id': flows_test, 'label': y_test, 'pred': test_class,'score': test_ans}) \
             .to_csv(output_file, index=False)

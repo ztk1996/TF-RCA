@@ -84,7 +84,8 @@ def main():
     init_start = timestamp(init_start_str)
     # init_end = timestamp(init_end_str)
     init_end = init_start + 13 * 60 * 60 * 1000
-
+    rca_duration = 0
+    rca_trigger_count = 0
     # ========================================
     # Init Data loader
     # ========================================
@@ -148,14 +149,17 @@ def main():
     # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')    # abnormal 2
     # file_main = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-06_17-28-43/data.json', 'r')    # 1 abnormal new 5-6
     # change new 5-10
-    file_main = open(
-        r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-11_00-06-32/data.json', 'r')
+    file_main = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-11_00-06-32/data.json', 'r')
     raw_data_total_main = json.load(file_main)
     get_operation_service_pairs(raw_data_total_main)
     print("Finish main data load !")
-
+    print('load test result...')
+    test_result = pd.read_csv('./TraceAnomaly/result/change/test.csv')
+    a_df = test_result.loc[test_result['pred'] == 1]
+    a_trace_ids = a_df['id'].tolist()
     print('Start !')
     # main loop start
+    
     while True:
         print('--------------------------------')
         print(f'time window: {ms2str(start)} ~ {ms2str(end)}')
@@ -175,10 +179,6 @@ def main():
                 break
 
         operation_count = get_operation_duration_data(raw_data_dict)
-        print('load test result...')
-        test_result = pd.read_csv('./TraceAnomaly/result_real_data/test.csv')
-        a_df = test_result.loc[test_result['pred'] == 1]
-        a_trace_ids = a_df['id'].tolist()
 
         for trace_id in operation_count:
             a_true.append(raw_data_dict[trace_id]['abnormal'])
@@ -209,10 +209,11 @@ def main():
             print('********* RCA start *********')
 
             trigger_count += 1
-
+            start_rca = time.time()
             top_list, score_list = rca(RCA_level=RCA_level, start=start, end=end, tid_list=tid_list,
                                        trace_labels=abnormal_map, traces_dict=raw_data_dict, dataLevel='trace')
-
+            rca_duration += time.time() - start_rca
+            rca_trigger_count += 1
             # top_list is not empty
             if len(top_list) != 0:
                 # topK_0
@@ -455,6 +456,7 @@ def main():
     print('--------------------------------')
     print(r_pred_count_0, r_pred_count_1,
           r_pred_count_2, r_pred_count_3, r_pred_count_4)
+    print(f'{int(rca_duration * 1000) / rca_trigger_count} ms per rca')
     print("Done !")
 
 

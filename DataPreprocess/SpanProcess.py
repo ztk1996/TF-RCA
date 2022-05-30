@@ -11,7 +11,7 @@ from pandas.core.frame import DataFrame
 import numpy as np
 import argparse
 from tqdm import tqdm
-import utils
+from . import utils
 from typing import List, Callable, Dict, Tuple
 from multiprocessing import cpu_count, Manager, current_process
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -21,8 +21,8 @@ from transformers import AutoTokenizer, AutoModel
 from enum import Enum
 import re
 
-from params import request_period_log
-from params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list, aiops_data_list
+from .params import request_period_log
+from .params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list, aiops_data_list
 
 
 class DataType(Enum):

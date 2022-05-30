@@ -5,7 +5,8 @@ import numpy as np
 from tqdm import tqdm
 
 normal_root = '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-08_14-03-38/'
-root = '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-11_00-06-32/'
+root = '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-06_17-28-43/'
+# root = '/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-11_00-06-32/'
 
 def get_api_seq_and_time_seq(filename):
     with open(filename, 'r') as file:
@@ -18,11 +19,12 @@ def get_api_seq_and_time_seq(filename):
             spans = []
             for span in trace['edges'].values():
                 spans.extend(span)
+            isError_seq = [span['isError'] for span in spans]
             spans = sorted(spans, key=lambda span: (span['startTime']))
             service_seq.extend([span['service'] for span in spans])
             time_seq = [span['rawDuration'] for span in spans]
             trace_data[trace_id] = {'service_seq': service_seq,
-                                    'time_seq': time_seq, 'root_operation': root_operation}
+                                    'time_seq': time_seq, 'root_operation': root_operation, 'is_error': isError_seq}
     return trace_data
 
 
@@ -97,6 +99,7 @@ def statistic_unique_trace_length(trace_data):
         new_trace = {}
         new_trace['service_seq'] = base_service_seq
         new_trace['time_seq'] = trace['time_seq']
+        new_trace['is_error'] = trace['is_error']
         for j in different_index:
             service = base_service_seq[j]
             new_trace['time_seq'][j-1] = different_time[service][0]
@@ -111,10 +114,11 @@ def data_process_for_trace_anomaly(trace_data, seq_set, filename):
     print('processing data and writing it to file...')
     with open(r'./data/' + filename, 'w') as file:
         for trace_id, trace in tqdm(trace_data.items()):
-            output_seq = ['0' for i in range(length)]
+            output_seq = ['0' for i in range(length*2)]
             for i in range(1, len(trace['service_seq'])):
-                output_seq[seq_set.index(
-                    '->'.join(trace['service_seq'][:i + 1]))] = str(trace['time_seq'][i - 1])
+                idx = seq_set.index('->'.join(trace['service_seq'][:i + 1]))
+                output_seq[idx] = str(trace['time_seq'][i - 1])
+                output_seq[length + idx] = str(0 if trace['is_error'][i-1] == False else 1)
             file.write(trace_id + ':' + ','.join(output_seq) + '\n')
 
 
