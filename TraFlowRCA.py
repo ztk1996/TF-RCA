@@ -35,18 +35,7 @@ use_manual = False
 manual_labels_list = []
 # manual_labels_list = ['617d5c02352849119c2e5df8b70fa007.36.16503361793140001', 'dda6af5c49d546068432825e17b981aa.38.16503361824380001', '27a94f3afad745c69963997831868eb1.38.16503362398950001', '15480e1347c147a086b68221ca743874.38.16503369859250001', '262b9727d1584947a02905150a089faa.38.16503382599320123', 'ab212da6fff042febb91b313658a0005.46.16503384128150203', '0b225e568e304836a7901e0cff56205a.39.16503393835170053', '262b9727d1584947a02905150a089faa.39.16503397746270231']    # 人工标注为正常的 trace id 列表 manual_labels_list : [trace_id1, trace_id2, ...]
 first_tag = True
-# start_str = '2022-04-19 10:42:59'    # '2022-04-18 21:08:00' # '2022-04-19 10:42:59'    # trace: '2022-02-25 00:00:00', '2022-04-16 20:08:03', '2022-04-18 11:00:00', '2022-04-18 21:00:00'; span: '2022-01-13 00:00:00'
 # format stage
-# start_str = '2022-04-18 21:08:00'    # changes
-# start_str = '2022-04-22 22:00:00'    # changes new
-# start_str = '2022-04-18 11:00:00'    # 1 abnormal
-# start_str = '2022-04-19 10:42:59'    # 2 abnormal
-# start_str = '2022-04-24 19:00:00'    # 2 abnormal new
-# start_str = '2022-04-26 21:00:00'    # 1 abnormal new 2022-04-26 21:02:22
-# start_str = '2022-04-28 12:00:00'
-# start_str = '2022-04-27 15:50:00'    # 1 abnormal avail
-# start_str = '2022-05-01 00:00:00'    # 1 change
-# start_str = '2022-04-28 12:00:00'    # 2 abnormal
 # start_str = '2022-05-05 19:00:00'    # 1 abnormal new 5-6
 start_str = '2022-05-09 15:00:00'    # change new 5-10
 
@@ -386,22 +375,7 @@ def main():
     if dataLevel == 'trace':
         print("Main Data loading ...")
         # file = open(r'/data/TraceCluster/RCA/total_data/test.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-17_15-29-46/data.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_10-05-14/data.json', 'r')    # 1 abnormal
-        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_21-01-30/data.json', 'r')    # 2 abnormal
-        # file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/trainticket/2022-04-19_11-34-58/data.json', 'r')    # change
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-23_13-34-27/data.json', 'r')    # change new
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-25_12-40-13/data.json', 'r')    # abnormal2 new
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_22-19-20/data.json', 'r')    # abnormal1 new new
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-27_12-58-19/data.json', 'r')    # abnormal1 new
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-28_21-01-41/data.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-28_22-55-23/data.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-29_21-45-19/data.json', 'r')
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_14-39-40/data.json', 'r')    # abnormal 1 avail
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-01_13-40-58/data.json', 'r')    # change 1
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-04-30_19-41-29/data.json', 'r')    # abnormal 2
-        # file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-06_17-28-43/data.json', 'r')    # 1 abnormal new 5-6
-        file = open(r'/home/kagaya/work/TF-RCA/data/preprocessed/trainticket/2022-05-11_00-06-32/data.json', 'r')    # change new 5-10
+        file = open(r'/home/kagaya/work/TF-RCA/DataPreprocess/data/preprocessed/wechat/2022-05-31_11-58-39/data.json', 'r')    # change new 5-10
         raw_data_total = json.load(file)
         get_operation_service_pairs(raw_data_total)
         print("Finish main data load !")

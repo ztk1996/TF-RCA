@@ -70,7 +70,7 @@ def get_span(start: int = 0, end: int = 0, stage: str = None) -> List[Span]:
     global mm_root_map, all_span_data
     if len(all_span_data) == 0:
         if is_wechat:
-            mm_root_map, span_data = load_mm_span(mm_trace_root_list, mm_data_path_list)
+            mm_root_map, span_data = load_mm_span(mm_trace_root_list, init_data_path if stage=='init' else data_path_list)
         else:
             span_data = load_sw_span(init_data_path if stage=='init' else data_path_list)
         span_data = pd.concat(span_data, axis=0, ignore_index=True)

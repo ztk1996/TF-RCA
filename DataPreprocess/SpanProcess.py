@@ -11,18 +11,15 @@ from pandas.core.frame import DataFrame
 import numpy as np
 import argparse
 from tqdm import tqdm
-from . import utils
+import utils
 from typing import List, Callable, Dict, Tuple
 from multiprocessing import cpu_count, Manager, current_process
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import requests
-import wordninja
-from transformers import AutoTokenizer, AutoModel
 from enum import Enum
 import re
 
-from .params import request_period_log
-from .params import data_path_list, init_data_path_list, mm_data_path_list, init_mm_data_path_list, mm_trace_root_list, aiops_data_list
+from params import request_period_log, data_path_list, init_data_path_list, mm_trace_root_list, aiops_data_list, data_root
 
 
 class DataType(Enum):
@@ -31,9 +28,8 @@ class DataType(Enum):
     AIops = 3
 
 
-data_root = '/data/TraceCluster/raw'
 # dtype = DataType.TrainTicket
-dtype = DataType.AIops
+dtype = DataType.Wechat
 time_now_str = str(time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime()))
 rm_non_rc_abnormal = False
 
@@ -61,7 +57,10 @@ def embedding(input: str) -> List[float]:
 
 
 # load name cache
-cache = {}
+cache = {
+    'oss_name': {},
+    'cmd_name': {}
+}
 mmapis = {}
 mm_root_map = {}
 service_url = ""
@@ -144,13 +143,13 @@ def load_mm_span(clickstream_list: List[str], callgraph_list: List[str]) -> Tupl
     root_map = {}
 
     global cache, mmapis, service_url, operation_url, sn
-    if not cache:
-        cache = load_name_cache()
-    if use_request:
-        mmapis = get_mmapi()
-        service_url = mmapis['api']['getApps']
-        operation_url = mmapis['api']['getModuleInterface']
-        sn = mmapis['sn']
+    # if not cache:
+    #     cache = load_name_cache()
+    # if use_request:
+    #     mmapis = get_mmapi()
+    #     service_url = mmapis['api']['getApps']
+    #     operation_url = mmapis['api']['getModuleInterface']
+    #     sn = mmapis['sn']
 
     # load root info
     for path in clickstream_list:
@@ -324,7 +323,7 @@ def load_span(dtype: DataType, stage: str = 'main') -> List[DataFrame]:
     if dtype == DataType.Wechat:
         global mm_root_map
         mm_root_map, raw_spans = load_mm_span(
-            mm_trace_root_list, mm_data_path_list)
+            mm_trace_root_list, data_path_list)
     elif dtype == DataType.TrainTicket:
         raw_spans = load_sw_span(
             data_path_list if stage == 'main' else init_data_path_list)
@@ -879,8 +878,8 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     if rootSpan == None:
         return None
 
-    if len(edges) > 1000 or len(vertexs) < 2:
-        return None
+    # if len(edges) > 1000 or len(vertexs) < 2:
+    #     return None
 
     graph = {
         'abnormal': 0,
@@ -928,29 +927,6 @@ def save_data(graphs: Dict, idx: str = ''):
         json.dump(graphs, fd, ensure_ascii=False)
 
     print(f"{len(graphs)} traces data saved in {filepath}")
-
-
-def divide_word(s: str, sep: str = "/") -> str:
-    if dtype == DataType.Wechat:
-        return sep.join(wordninja.split(s))
-
-    words = ['ticket', 'order', 'name', 'security',
-             'operation', 'spring', 'service', 'trip',
-             'date', 'route', 'type', 'id', 'account', 'number']
-    word_list = []
-    s = s.replace('-', '/')
-    s = s.replace('_', '/')
-    s = s.replace('{', '')
-    s = s.replace('}', '')
-    s = s.lower()
-    s = s.strip('/')
-
-    for w in s.split('/'):
-        for sub in utils.wordSplit(w, words):
-            snake = utils.hump2snake(sub)
-            word_list.append(snake)
-
-    return sep.join(word_list)
 
 
 def trace_process(trace: List[Span], enable_word_division: bool) -> List[Span]:
@@ -1048,45 +1024,6 @@ def save_name_cache(cache: dict):
         print('save cache success')
 
 
-def glove_embedding() -> Callable[[str], List[float]]:
-    embedding_word_list = np.load('./data/glove/wordsList.npy').tolist()
-    embedding_word_vector = np.load('./data/glove/wordVectors.npy')
-
-    def glove(input: str) -> List[float]:
-        words = input.split('/')
-        vec_sum = []
-        for w in words:
-            if w in embedding_word_list:
-                idx = embedding_word_list.index(w)
-                vec = embedding_word_vector[idx]
-                vec_sum.append(vec)
-
-        return np.mean(np.array(vec_sum), axis=0).tolist()
-
-    return glove
-
-
-def bert_embedding() -> Callable[[str], List[float]]:
-    model_name = 'bert-base-uncased'
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_name, do_lower_case=True, cache_dir='./data/cache'
-    )
-
-    model = AutoModel.from_pretrained(
-        model_name, output_hidden_states=True, cache_dir='./data/cache'
-    )
-
-    def bert(input: str) -> List[float]:
-        inputs = tokenizer(
-            input, padding='max_length', max_length=100, return_tensors="pt")
-
-        outputs = model(**inputs)
-
-        return outputs.pooler_output.tolist()[0]
-
-    return bert
-
-
 def z_score(x: float, mean: float, std: float) -> float:
     """
     z-score normalize funciton
@@ -1174,41 +1111,8 @@ def main():
 
     # load all span
     raw_spans = load_span(dtype)
-    # if is_wechat and use_request:
-    #     save_name_cache(cache)
-
-    # concat all span data in one list
-    # span_data = pd.concat(raw_spans, axis=0, ignore_index=True)
-
-    # global normalize
-    # if args.normalize == 'minmax':
-    #     max_duration = span_data[ITEM.DURATION].max()
-    #     min_duration = span_data[ITEM.DURATION].min()
-
-    #     def normalize(x):
-    #         return min_max(
-    #             x, min_duration, max_duration)
-
-    # elif args.normalize == 'zscore':
-    #     mean_duration = span_data[ITEM.DURATION].mean()
-    #     std_duration = span_data[ITEM.DURATION].std()
-
-    #     def normalize(x):
-    #         return z_score(
-    #             x, mean_duration, std_duration)
-
-    # del span_data
-
-    # global embedding
-    # if embedding_name == 'glove':
-    #     embedding = glove_embedding()
-    #     enable_word_division = True
-    # elif embedding_name == 'bert':
-    #     embedding = bert_embedding()
-    #     enable_word_division = False
-    # else:
-    #     print(f"invalid embedding method name: {embedding_name}")
-    #     exit()
+    if dtype == DataType.Wechat and use_request:
+        save_name_cache(cache)
 
     result_map = {}
 
@@ -1224,33 +1128,9 @@ def main():
                 graphs = fu.result()
                 result_map = utils.mergeDict(result_map, graphs)
 
-                # control the data size
-                # if len(result_map) > args.max_num:
-                #     save_data(result_map, str(file_idx))
-                #     file_idx = file_idx + 1
-                #     result_map = {}
-
     if len(result_map) > 0:
         save_data(result_map)
 
-    # print('start generate embedding file')
-    # name_dict = {}
-    # for name in tqdm(name_set):
-    #     name_dict[name] = embedding(name)
-
-    # embd_filepath = utils.generate_save_filepath(
-    #     'embeddings.json', time_now_str, is_wechat)
-    # with open(embd_filepath, 'w', encoding='utf-8') as fd:
-    #     json.dump(name_dict, fd, ensure_ascii=False)
-    # print(f'embedding data saved in {embd_filepath}')
-
-    # operation_filepath = utils.generate_save_filepath(
-    #     'operations.json', time_now_str, is_wechat)
-    # with open(operation_filepath, 'w', encoding='utf-8') as fo:
-    #     json.dump(operation_map, fo, ensure_ascii=False)
-    # print(f'operations data saved in {operation_filepath}')
-
-    # print('preprocess finished :)')
 
 
 if __name__ == '__main__':
