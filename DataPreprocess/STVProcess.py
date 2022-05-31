@@ -393,6 +393,8 @@ def z_score(x: float, mean: float, std: float) -> float:
     """
     z-score normalize funciton
     """
+    if std == 0:
+        return 0
     return (float(x) - float(mean)) / float(std)
 
 

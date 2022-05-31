@@ -1,7 +1,5 @@
 # Kagaya kagaya85@outlook.com
 import json
-from tkinter.messagebox import NO
-from xmlrpc.client import Boolean
 import yaml
 import os
 import sys
@@ -11,7 +9,7 @@ from pandas.core.frame import DataFrame
 import numpy as np
 import argparse
 from tqdm import tqdm
-import utils
+from . import utils
 from typing import List, Callable, Dict, Tuple
 from multiprocessing import cpu_count, Manager, current_process
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -19,7 +17,7 @@ import requests
 from enum import Enum
 import re
 
-from params import request_period_log, data_path_list, init_data_path_list, mm_trace_root_list, aiops_data_list, data_root
+from .params import request_period_log, data_path_list, init_data_path_list, mm_trace_root_list, aiops_data_list, data_root
 
 
 class DataType(Enum):
@@ -163,7 +161,7 @@ def load_mm_span(clickstream_list: List[str], callgraph_list: List[str]) -> Tupl
                 'cmdid': str(root['CallerCmdID']),
                 'nodeid': str(root['CallerNodeID']),
                 'code': root['RetCode'],
-                'start_time': root['TimeStamp'],
+                'start_time': int(time.mktime(time.strptime(root['TimeStamp'], "%Y-%m-%d %H:%M:%S"))) * 1000,
                 'cost_time': root['CostTime'],
             }
 
@@ -791,8 +789,7 @@ def build_mm_graph(trace: List[Span], time_normolize: Callable[[float], float], 
     root_cmdid = mm_root_map[traceId]['cmdid']
     root_span_id = root_nodeid + root_ossid + root_cmdid
     root_code = mm_root_map[traceId]['code']
-    root_start_time = int(time.mktime(time.strptime(
-        mm_root_map[traceId]['start_time'], "%Y-%m-%d %H:%M:%S")))
+    root_start_time = mm_root_map[traceId]['start_time']
     root_service_name = get_service_name(root_ossid)
     root_duration = int(mm_root_map[traceId]['cost_time'])
     if root_service_name == "":
@@ -1135,12 +1132,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-    # def timestamp(datetime) -> int:
-    #     timeArray = time.strptime(datetime, "%Y-%m-%d %H:%M:%S")
-    #     ts = int(time.mktime(timeArray)) * 1000
-    #     # print(ts)
-    #     return ts
-
     # start = '2022-02-27 01:00:00'
     # end = '2022-02-27 01:30:00'
 
